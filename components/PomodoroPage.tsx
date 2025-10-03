@@ -1,10 +1,14 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { PomodoroSession, Task } from '../types';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { PomodoroSession, Task, Habit } from '../types';
+import { CircularProgress } from './CircularProgress';
+import { TaskSelectorPopover } from './TaskSelectorPopover';
+import { AddFocusRecordModal } from './AddFocusRecordModal';
 
 interface PomodoroPageProps {
     sessions: PomodoroSession[];
     onAddSession: (session: Omit<PomodoroSession, 'id'>) => void;
     tasks: Task[];
+    habits: Habit[];
 }
 
 const formatTime = (seconds: number) => {
@@ -13,157 +17,26 @@ const formatTime = (seconds: number) => {
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 };
 
-interface TaskSelectorProps {
-    tasks: Task[];
-    selectedTaskId: string | null;
-    onSelectTask: (taskId: string | null) => void;
-    disabled: boolean;
-}
-
-const TaskSelector: React.FC<TaskSelectorProps> = ({ tasks, selectedTaskId, onSelectTask, disabled }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    // Only show tasks that are not completed
-    const availableTasks = useMemo(() => tasks.filter(task => !task.completed), [tasks]);
-    const selectedTask = useMemo(() => availableTasks.find(task => task.id === selectedTaskId), [availableTasks, selectedTaskId]);
-
-    const handleSelect = (taskId: string) => {
-        onSelectTask(taskId);
-        setIsOpen(false);
-    };
-
-    return (
-        <div className="relative">
-            <button
-                onClick={() => setIsOpen(!isOpen)}
-                disabled={disabled}
-                className="w-full px-4 py-3 bg-background-secondary border border-border-primary rounded-lg flex justify-between items-center text-left disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-                <span className={`truncate ${selectedTask ? 'text-content-primary' : 'text-content-secondary'}`}>
-                    {selectedTask ? selectedTask.title : 'Select a task to focus on'}
-                </span>
-                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 text-content-secondary transition-transform flex-shrink-0 ml-2 ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-            </button>
-
-            {isOpen && (
-                <div className="absolute z-10 mt-1 w-full bg-background-tertiary rounded-lg shadow-lg max-h-60 overflow-y-auto border border-border-primary">
-                    <ul className="py-1">
-                        {availableTasks.length > 0 ? (
-                            availableTasks.map(task => (
-                                <li
-                                    key={task.id}
-                                    onClick={() => handleSelect(task.id)}
-                                    className="px-4 py-2 text-content-primary hover:bg-primary hover:text-primary-content cursor-pointer truncate"
-                                >
-                                    {task.title}
-                                </li>
-                            ))
-                        ) : (
-                            <li className="px-4 py-2 text-content-secondary">No available tasks.</li>
-                        )}
-                    </ul>
-                </div>
-            )}
-        </div>
-    );
-};
-
-
-interface TimerProps {
-    onAddSession: PomodoroPageProps['onAddSession'];
-    tasks: Task[];
-    selectedTaskId: string | null;
-    setSelectedTaskId: React.Dispatch<React.SetStateAction<string | null>>;
-}
-
-
-const Timer: React.FC<TimerProps> = ({ onAddSession, tasks, selectedTaskId, setSelectedTaskId }) => {
-    const FOCUS_DURATION = 90 * 60; // 90 minutes
-    const [timeRemaining, setTimeRemaining] = useState(FOCUS_DURATION);
-    const [isActive, setIsActive] = useState(false);
-    const [startTime, setStartTime] = useState<number | null>(null);
-
-    useEffect(() => {
-        let interval: number | null = null;
-        if (isActive) {
-            interval = window.setInterval(() => {
-                setTimeRemaining(prev => {
-                    if (prev <= 1) {
-                        setIsActive(false);
-                        const taskName = tasks.find(t => t.id === selectedTaskId)?.title || 'Focus Session';
-                        onAddSession({ startTime: startTime!, endTime: Date.now(), taskName });
-                        return FOCUS_DURATION;
-                    }
-                    return prev - 1;
-                });
-            }, 1000);
-        }
-        return () => {
-            if (interval) clearInterval(interval);
-        };
-    }, [isActive, startTime, onAddSession, tasks, selectedTaskId]);
-
-    const handleStart = () => {
-        if (!isActive) {
-            setStartTime(Date.now());
-            setIsActive(true);
-        }
-    };
-    
-    const handlePause = () => setIsActive(false);
-    
-    const handleReset = () => {
-        setIsActive(false);
-        setTimeRemaining(FOCUS_DURATION);
-    };
-
-    return (
-        <div className="flex flex-col items-center justify-center h-full">
-            <div className="w-64 h-64 rounded-full border-8 border-background-tertiary flex items-center justify-center mb-8">
-                <h2 className="text-6xl font-mono text-content-primary">{formatTime(timeRemaining)}</h2>
-            </div>
-            <div className="mb-8 w-80">
-                <TaskSelector
-                    tasks={tasks}
-                    selectedTaskId={selectedTaskId}
-                    onSelectTask={setSelectedTaskId}
-                    disabled={isActive}
-                />
-            </div>
-            {isActive ? (
-                <div className="flex space-x-4">
-                     <button onClick={handlePause} className="px-10 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary-focus transition-colors">Pause</button>
-                     <button onClick={handleReset} className="px-10 py-3 bg-background-tertiary text-content-primary rounded-lg font-semibold hover:bg-border-primary transition-colors">End</button>
-                </div>
-            ) : (
-                <button onClick={handleStart} className="px-16 py-4 bg-primary text-white rounded-lg font-semibold text-lg hover:bg-primary-focus transition-colors">
-                    {timeRemaining < FOCUS_DURATION ? 'Continue' : 'Start'}
-                </button>
-            )}
-        </div>
-    );
-}
-
-const FocusOverview: React.FC<{ sessions: PomodoroSession[] }> = ({ sessions }) => {
-    
-    const { todayDuration, totalDuration, groupedSessions } = useMemo(() => {
+const FocusOverview: React.FC<{ sessions: PomodoroSession[]; onAddManual: () => void }> = ({ sessions, onAddManual }) => {
+    const { todayDuration, totalDuration, groupedSessions, todayPomos, totalPomos } = useMemo(() => {
         let todayMs = 0;
         let totalMs = 0;
         const today = new Date().toDateString();
 
-        const grouped = sessions.reduce((acc, session) => {
+        const grouped = [...sessions].sort((a,b) => b.startTime - a.startTime).reduce((acc, session) => {
             const date = new Date(session.startTime).toDateString();
             if (!acc[date]) acc[date] = [];
             acc[date].push(session);
             return acc;
         }, {} as Record<string, PomodoroSession[]>);
 
+        let todayPomos = 0;
         sessions.forEach(s => {
             const duration = s.endTime - s.startTime;
             totalMs += duration;
             if(new Date(s.startTime).toDateString() === today) {
                 todayMs += duration;
+                todayPomos++;
             }
         });
 
@@ -177,6 +50,8 @@ const FocusOverview: React.FC<{ sessions: PomodoroSession[] }> = ({ sessions }) 
             todayDuration: formatMs(todayMs),
             totalDuration: formatMs(totalMs),
             groupedSessions: grouped,
+            todayPomos,
+            totalPomos: sessions.length
         }
 
     }, [sessions]);
@@ -196,80 +71,240 @@ const FocusOverview: React.FC<{ sessions: PomodoroSession[] }> = ({ sessions }) 
     };
 
     return (
-        <div className="w-[350px] bg-background-secondary p-6 border-l border-border-primary overflow-y-auto">
+        <div className="w-[350px] bg-background-secondary p-6 border-l border-border-primary overflow-y-auto flex flex-col">
             <h2 className="text-xl font-bold mb-4">Overview</h2>
             <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="bg-background-tertiary p-4 rounded-lg">
-                    <p className="text-sm text-content-secondary">Today's Pomos</p>
-                    <p className="text-lg font-bold">{sessions.filter(s => new Date(s.startTime).toDateString() === new Date().toDateString()).length}</p>
-                </div>
-                <div className="bg-background-tertiary p-4 rounded-lg">
-                    <p className="text-sm text-content-secondary">Today's Focus</p>
-                    <p className="text-lg font-bold">{todayDuration}</p>
-                </div>
-                <div className="bg-background-tertiary p-4 rounded-lg">
-                    <p className="text-sm text-content-secondary">Total Pomos</p>
-                    <p className="text-lg font-bold">{sessions.length}</p>
-                </div>
-                 <div className="bg-background-tertiary p-4 rounded-lg">
-                    <p className="text-sm text-content-secondary">Total Focus</p>
-                    <p className="text-lg font-bold">{totalDuration}</p>
-                </div>
+                <div className="bg-background-tertiary p-4 rounded-lg"><p className="text-sm text-content-secondary">Today's Pomos</p><p className="text-lg font-bold">{todayPomos}</p></div>
+                <div className="bg-background-tertiary p-4 rounded-lg"><p className="text-sm text-content-secondary">Today's Focus</p><p className="text-lg font-bold">{todayDuration}</p></div>
+                <div className="bg-background-tertiary p-4 rounded-lg"><p className="text-sm text-content-secondary">Total Pomos</p><p className="text-lg font-bold">{totalPomos}</p></div>
+                <div className="bg-background-tertiary p-4 rounded-lg"><p className="text-sm text-content-secondary">Total Focus</p><p className="text-lg font-bold">{totalDuration}</p></div>
             </div>
-            <h3 className="font-bold mb-4">Focus Record</h3>
-            <div className="space-y-4">
-                {/* Fix: Use Object.keys to iterate over grouped sessions to ensure correct typing */}
-                {Object.keys(groupedSessions).map((date) => {
-                    const dateSessions = groupedSessions[date];
-                    return (
-                        <div key={date}>
-                            <p className="text-sm text-content-secondary mb-2">{new Date(date).toLocaleDateString(undefined, { month: 'long', day: 'numeric'})}</p>
-                            <div className="border-l-2 border-border-primary pl-4 space-y-4">
-                                {dateSessions.map(session => (
-                                    <div key={session.id} className="relative">
-                                        <div className="absolute -left-[21px] top-1 w-3 h-3 bg-primary rounded-full border-2 border-background-secondary"></div>
-                                        <div className="flex justify-between items-center">
-                                            <div>
-                                                <p className="text-xs text-content-secondary">{formatSessionTime(session.startTime, session.endTime)}</p>
-                                                <p className="font-medium">{session.taskName}</p>
-                                            </div>
-                                            <p className="text-sm text-content-secondary">{formatDuration(session.startTime, session.endTime)}</p>
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold">Focus Record</h3>
+                <button onClick={onAddManual} className="text-content-secondary hover:text-primary p-1 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg></button>
+            </div>
+            <div className="space-y-4 flex-1 overflow-y-auto -mr-2 pr-2">
+                {Object.keys(groupedSessions).map((date) => (
+                    <div key={date}>
+                        <p className="text-sm text-content-secondary mb-2">{new Date(date).toLocaleDateString(undefined, { month: 'long', day: 'numeric'})}</p>
+                        <div className="border-l-2 border-border-primary pl-4 space-y-4">
+                            {groupedSessions[date].map(session => (
+                                <div key={session.id} className="relative">
+                                    <div className="absolute -left-[21px] top-1 w-3 h-3 bg-primary rounded-full border-2 border-background-secondary"></div>
+                                    <div className="flex justify-between items-center">
+                                        <div>
+                                            <p className="text-xs text-content-secondary">{formatSessionTime(session.startTime, session.endTime)}</p>
+                                            <p className="font-medium">{session.taskName}</p>
                                         </div>
+                                        <p className="text-sm text-content-secondary">{formatDuration(session.startTime, session.endTime)}</p>
                                     </div>
-                                ))}
-                            </div>
+                                </div>
+                            ))}
                         </div>
-                    );
-                })}
+                    </div>
+                ))}
             </div>
         </div>
     );
 }
 
-export const PomodoroPage: React.FC<PomodoroPageProps> = ({ sessions, onAddSession, tasks }) => {
-    const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+export const PomodoroPage: React.FC<PomodoroPageProps> = ({ sessions, onAddSession, tasks, habits }) => {
+    const FOCUS_DURATION = 90 * 60;
+    const [timeRemaining, setTimeRemaining] = useState(FOCUS_DURATION);
+    const [isActive, setIsActive] = useState(false);
+    const [isPaused, setIsPaused] = useState(false);
+    const [startTime, setStartTime] = useState<number | null>(null);
+    const [selectedFocus, setSelectedFocus] = useState<{ id: string; name: string; type: 'task' | 'habit' } | null>(null);
+    const [focusNote, setFocusNote] = useState('');
+    const [isTaskSelectorOpen, setTaskSelectorOpen] = useState(false);
+    const [isAddModalOpen, setAddModalOpen] = useState(false);
+    
+    const intervalRef = useRef<number | null>(null);
 
-    // When tasks change, if the selected task is now completed or deleted, deselect it.
-    useEffect(() => {
-        if (selectedTaskId) {
-            const task = tasks.find(t => t.id === selectedTaskId);
-            if (!task || task.completed) {
-                setSelectedTaskId(null);
-            }
+    const stopTimer = () => {
+        if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
         }
-    }, [tasks, selectedTaskId]);
+    };
+
+    useEffect(() => {
+        if (isActive && !isPaused) {
+            intervalRef.current = window.setInterval(() => {
+                setTimeRemaining(prev => {
+                    if (prev <= 1) {
+                        stopTimer();
+                        handleEnd(true); // Auto-finish
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+        } else {
+            stopTimer();
+        }
+        return stopTimer;
+    }, [isActive, isPaused]);
+
+    const handleStart = () => {
+        if (selectedFocus) {
+            const now = Date.now();
+            setStartTime(now);
+            setIsActive(true);
+            setIsPaused(false);
+        } else {
+            setTaskSelectorOpen(true);
+        }
+    };
+    
+    const handlePause = () => setIsPaused(true);
+    const handleContinue = () => setIsPaused(false);
+    
+    const handleEnd = (autoFinish = false) => {
+        stopTimer();
+        if (startTime) {
+             onAddSession({
+                startTime,
+                endTime: Date.now(),
+                taskName: selectedFocus?.name || 'Focus Session',
+                taskId: selectedFocus?.id,
+                note: focusNote,
+            });
+        }
+       
+        // Reset state
+        setIsActive(false);
+        setIsPaused(false);
+        setTimeRemaining(FOCUS_DURATION);
+        setStartTime(null);
+        // Keep selected task for next session, but clear note
+        setFocusNote('');
+
+        if (autoFinish) {
+             // Optionally, send a notification
+            console.log("Session finished!");
+        }
+    };
+
+    const sessionEndTime = startTime ? startTime + (FOCUS_DURATION * 1000) : 0;
+    const progress = (1 - timeRemaining / FOCUS_DURATION) * 100;
+
+    const formatHour = (date: Date) => date.getHours();
+    
+    // Timeline calculation
+    const timelineStartHour = startTime ? Math.max(0, formatHour(new Date(startTime)) - 1) : 13;
+    const timelineEndHour = startTime ? Math.min(23, formatHour(new Date(sessionEndTime)) + 1) : 16;
+    const totalHours = timelineEndHour - timelineStartHour;
+
+    const sessionStartPercent = startTime ? ((new Date(startTime).getHours() * 60 + new Date(startTime).getMinutes()) - (timelineStartHour * 60)) / (totalHours * 60) * 100 : 0;
+    const sessionDurationPercent = startTime ? ((sessionEndTime - startTime) / (1000 * 60)) / (totalHours * 60) * 100 : 0;
+
+
+    if (isActive) {
+        return (
+            <div className="flex flex-1 p-8">
+                <div className="flex-1 flex flex-col items-center justify-center">
+                     <p className="text-content-secondary mb-4">{selectedFocus?.name || 'Focus'}</p>
+                     <div className="relative w-80 h-80">
+                         <CircularProgress size={320} strokeWidth={12} progress={progress} />
+                         <div className="absolute inset-0 flex flex-col items-center justify-center">
+                            <p className={`text-7xl font-mono transition-colors ${isPaused ? 'text-content-tertiary' : 'text-content-primary'}`}>
+                                {formatTime(timeRemaining)}
+                            </p>
+                            {isPaused && <p className="text-yellow-500 font-semibold mt-2">Paused</p>}
+                            <p className="text-sm text-content-tertiary mt-2">
+                                {startTime && `${new Date(startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${new Date(sessionEndTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`}
+                            </p>
+                         </div>
+                     </div>
+                     <div className="flex space-x-4 mt-8">
+                        {isPaused ? (
+                            <>
+                                <button onClick={handleContinue} className="px-10 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary-focus transition-colors">Continue</button>
+                                <button onClick={() => handleEnd(false)} className="px-10 py-3 bg-background-tertiary text-content-primary rounded-lg font-semibold hover:bg-border-primary transition-colors">End</button>
+                            </>
+                        ) : (
+                            <button onClick={handlePause} className="px-16 py-4 bg-primary text-white rounded-lg font-semibold text-lg hover:bg-primary-focus transition-colors">Pause</button>
+                        )}
+                     </div>
+                </div>
+                <div className="w-[400px] flex flex-col pl-8">
+                    <div className="flex justify-between items-center mb-4">
+                        <div className="flex items-center space-x-2">
+                             <span className="text-lg">🎮</span>
+                             <p className="font-semibold">{selectedFocus?.name || 'Focus'}</p>
+                        </div>
+                        <div className="flex items-center space-x-2 text-content-tertiary">
+                            <button className="p-1 hover:text-primary"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" /></svg></button>
+                             <button className="p-1 hover:text-primary"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg></button>
+                        </div>
+                    </div>
+                    <div className="bg-background-secondary rounded-lg p-4 flex-grow flex flex-col">
+                        <div className="relative flex-shrink-0" style={{ height: `${(totalHours + 1) * 2}rem` }}>
+                             {Array.from({ length: totalHours + 1 }).map((_, i) => (
+                                <div key={i} className="flex items-start h-8 text-xs text-content-tertiary">
+                                    <span className="w-6">{timelineStartHour + i}</span>
+                                    <div className="flex-1 border-t border-dashed border-border-primary mt-2"></div>
+                                </div>
+                             ))}
+                             <div className="absolute top-0 left-6 right-0 bottom-0">
+                                 <div className="absolute w-full bg-yellow-500/20 border-l-2 border-red-500" style={{ top: `${sessionStartPercent}%`, height: `${sessionDurationPercent}%` }}>
+                                     <div className="absolute -left-[3.5px] -top-[3.5px] w-1.5 h-1.5 bg-red-500 rounded-full"></div>
+                                 </div>
+                             </div>
+                        </div>
+                        <h4 className="font-semibold mt-auto pt-4 mb-2">Focus Note</h4>
+                        <textarea
+                            value={focusNote}
+                            onChange={(e) => setFocusNote(e.target.value)}
+                            placeholder="What do you have in mind?"
+                            className="w-full h-24 bg-background-tertiary border border-border-primary rounded-md p-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+                        ></textarea>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="flex flex-1">
-            <div className="flex-1">
-                <Timer
-                    onAddSession={onAddSession}
-                    tasks={tasks}
-                    selectedTaskId={selectedTaskId}
-                    setSelectedTaskId={setSelectedTaskId}
-                />
+        <div className="flex flex-1 h-full">
+            <div className="flex-1 flex flex-col items-center justify-center relative">
+                <div className="absolute top-8 right-8 flex space-x-2">
+                    <button className="px-4 py-1.5 rounded-full bg-primary/20 text-primary text-sm font-semibold">Pomo</button>
+                    <button className="px-4 py-1.5 rounded-full hover:bg-background-tertiary text-content-secondary text-sm font-semibold">Stopwatch</button>
+                </div>
+                
+                <div className="text-center mb-8">
+                    <TaskSelectorPopover
+                        isOpen={isTaskSelectorOpen}
+                        onClose={() => setTaskSelectorOpen(false)}
+                        onSelect={setSelectedFocus}
+                        tasks={tasks}
+                        habits={habits}
+                    >
+                         <button onClick={() => setTaskSelectorOpen(true)} className="text-lg text-content-secondary hover:text-content-primary transition-colors">
+                            {selectedFocus?.name || 'Focus'} &gt;
+                        </button>
+                    </TaskSelectorPopover>
+                </div>
+
+                <div className="w-80 h-80 rounded-full border-8 border-background-secondary flex items-center justify-center mb-8">
+                    <h2 className="text-7xl font-mono text-content-primary">{formatTime(timeRemaining)}</h2>
+                </div>
+                
+                <button onClick={handleStart} className="px-16 py-4 bg-primary text-white rounded-lg font-semibold text-lg hover:bg-primary-focus transition-colors">
+                    Start
+                </button>
             </div>
-            <FocusOverview sessions={sessions} />
+            <FocusOverview sessions={sessions} onAddManual={() => setAddModalOpen(true)} />
+
+            <AddFocusRecordModal 
+                isOpen={isAddModalOpen}
+                onClose={() => setAddModalOpen(false)}
+                onAddSession={onAddSession}
+                tasks={tasks}
+                habits={habits}
+            />
         </div>
     );
 };

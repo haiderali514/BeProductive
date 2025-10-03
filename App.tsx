@@ -16,7 +16,7 @@ const App: React.FC = () => {
     const [habits, setHabits] = useLocalStorage<Habit[]>('habits', DEFAULT_HABITS);
     const [pomodoroSessions, setPomodoroSessions] = useLocalStorage<PomodoroSession[]>('pomodoroSessions', DEFAULT_POMODORO_SESSIONS);
 
-    const [activeView, setActiveView] = useState<ActiveView>('habits');
+    const [activeView, setActiveView] = useState<ActiveView>('pomodoro');
 
     const handleAddList = useCallback((listName: string) => {
         if (lists.some(l => l.name.toLowerCase() === listName.toLowerCase())) {
@@ -127,7 +127,7 @@ const App: React.FC = () => {
     
     const handleAddPomodoroSession = useCallback((session: Omit<PomodoroSession, 'id'>) => {
         const newSession: PomodoroSession = { ...session, id: Date.now().toString() };
-        setPomodoroSessions(prev => [newSession, ...prev]);
+        setPomodoroSessions(prev => [newSession, ...prev].sort((a, b) => b.startTime - a.startTime));
     }, [setPomodoroSessions]);
 
     const handleToggleHabit = useCallback((habitId: string, date: string) => {
@@ -176,6 +176,7 @@ const App: React.FC = () => {
                     sessions={pomodoroSessions}
                     onAddSession={handleAddPomodoroSession}
                     tasks={tasks}
+                    habits={habits}
                 />;
             case 'settings':
                 return <div className="p-6 text-content-primary"><h1 className="text-2xl font-bold">Settings</h1><p>Settings page is under construction.</p></div>;

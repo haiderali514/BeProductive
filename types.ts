@@ -1,4 +1,3 @@
-
 export enum Priority {
   NONE = 'None',
   LOW = 'Low',
@@ -50,4 +49,6 @@ export interface PomodoroSession {
     startTime: number;
     endTime: number;
     taskName: string;
+    taskId?: string; // Link to a task or habit
+    note?: string;
 }
