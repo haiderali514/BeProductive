@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { List, Task, Priority, Recurrence } from '../types';
 import { TaskItem } from './TaskItem';
@@ -22,26 +21,41 @@ export const TasksPage: React.FC<TasksPageProps> = (props) => {
     const [newListName, setNewListName] = useState('');
     const [isAddingList, setIsAddingList] = useState(false);
 
-    const isDateToday = (date: Date) => {
-        const today = new Date();
-        return date.getUTCDate() === today.getUTCDate() &&
-               date.getUTCMonth() === today.getUTCMonth() &&
-               date.getUTCFullYear() === today.getUTCFullYear();
-    }
-
     const filteredTasks = useMemo(() => {
-        let tasksToShow = tasks;
+        let tasksToShow;
+
         if (activeListId === 'today') {
-             tasksToShow = tasks.filter(task => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            tasksToShow = tasks.filter(task => {
                 if (!task.dueDate) return false;
-                // Parse date as UTC to avoid timezone issues
-                const taskDate = new Date(task.dueDate + 'T00:00:00Z');
-                return isDateToday(taskDate);
+                // Interpret date as local time for "Today" view
+                const taskDate = new Date(task.dueDate + 'T00:00:00');
+                if (isNaN(taskDate.getTime())) return false; // Guard against invalid date strings
+                
+                return taskDate.getTime() === today.getTime();
             });
         } else {
             tasksToShow = tasks.filter(task => task.listId === activeListId);
         }
-        return tasksToShow.sort((a,b) => (a.completed ? 1 : -1) - (b.completed ? 1 : -1) || (new Date(a.dueDate || 0).getTime() - new Date(b.dueDate || 0).getTime()));
+
+        return [...tasksToShow].sort((a, b) => {
+            // Sort by completion status first (incomplete tasks first)
+            if (a.completed !== b.completed) {
+                return a.completed ? 1 : -1;
+            }
+
+            // Then sort by due date (earlier dates first)
+            const aTime = a.dueDate ? new Date(a.dueDate + 'T00:00:00').getTime() : Infinity;
+            const bTime = b.dueDate ? new Date(b.dueDate + 'T00:00:00').getTime() : Infinity;
+
+            // Handle invalid dates by treating them as Infinity (pushing them to the end)
+            const validATime = isNaN(aTime) ? Infinity : aTime;
+            const validBTime = isNaN(bTime) ? Infinity : bTime;
+
+            return validATime - validBTime;
+        });
     }, [tasks, activeListId]);
 
     const activeListName = useMemo(() => {

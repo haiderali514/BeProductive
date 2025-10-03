@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Task, Priority, Subtask, Recurrence } from '../types';
 import { PRIORITY_COLORS, PRIORITY_BG_COLORS } from '../constants';
 import { RecurrencePicker } from './RecurrencePicker';
@@ -53,6 +52,17 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, onToggleComplete, onTo
     const handleSetRecurrence = (recurrence: Recurrence | null) => {
         onSetRecurrence(task.id, recurrence);
     };
+
+    const formattedDueDate = useMemo(() => {
+        if (!task.dueDate) return null;
+        // Interpret YYYY-MM-DD as a local date. Appending T00:00:00 makes parsing consistent.
+        const date = new Date(task.dueDate + 'T00:00:00');
+        if (isNaN(date.getTime())) {
+            // If the date string is invalid, don't display anything.
+            return null;
+        }
+        return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+    }, [task.dueDate]);
     
     return (
         <div className={`group bg-background-secondary p-3 rounded-lg hover:bg-background-tertiary transition-colors duration-200 border-l-4 ${PRIORITY_COLORS[task.priority]}`}>
@@ -61,7 +71,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, onToggleComplete, onTo
                 <div className="ml-3 flex-grow">
                     <p className={`text-content-primary ${task.completed ? 'line-through text-content-tertiary' : ''}`}>{task.title}</p>
                     <div className="flex items-center space-x-3 mt-1">
-                        {task.dueDate && <p className="text-sm text-green-500">{new Date(task.dueDate).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</p>}
+                        {formattedDueDate && <p className="text-sm text-green-500">{formattedDueDate}</p>}
                         {task.recurrence && (
                             <div className="flex items-center text-sm text-blue-400">
                                 <RepeatIcon className="h-3 w-3 mr-1" />
