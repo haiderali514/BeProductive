@@ -1,11 +1,15 @@
 
 import React from 'react';
+import { Settings } from '../hooks/useSettings';
+import { AnalyticsIcon } from './Icons';
 
-type ActiveView = 'tasks' | 'pomodoro' | 'habits' | 'settings';
+type ActiveView = 'tasks' | 'pomodoro' | 'habits' | 'analytics';
 
 interface SidebarProps {
   activeView: ActiveView;
   setActiveView: (view: ActiveView) => void;
+  onOpenSettings: () => void;
+  settings: Settings;
 }
 
 const SidebarIcon: React.FC<{
@@ -37,7 +41,8 @@ const HabitIcon = () => ( <svg xmlns="http://www.w3.org/2000/svg" className="h-6
 const PomodoroIcon = () => ( <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> );
 const SettingsIcon = () => ( <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.096 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg> );
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView }) => {
+
+export const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, onOpenSettings, settings }) => {
   return (
     <aside className="w-20 bg-background-secondary flex flex-col items-center py-4 space-y-4 border-r border-border-primary">
       <div className="w-10 h-10 bg-primary rounded-full mb-4"></div>
@@ -50,16 +55,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView }) =
         <SidebarIcon label="Tasks" isActive={activeView === 'tasks'} onClick={() => setActiveView('tasks')}>
           <TasksIcon />
         </SidebarIcon>
-        <SidebarIcon label="Habits" isActive={activeView === 'habits'} onClick={() => setActiveView('habits')}>
-          <HabitIcon />
+        <SidebarIcon label="Analytics" isActive={activeView === 'analytics'} onClick={() => setActiveView('analytics')}>
+            <AnalyticsIcon />
         </SidebarIcon>
-        <SidebarIcon label="Pomodoro" isActive={activeView === 'pomodoro'} onClick={() => setActiveView('pomodoro')}>
-          <PomodoroIcon />
-        </SidebarIcon>
+        {settings.showHabitTracker && (
+            <SidebarIcon label="Habits" isActive={activeView === 'habits'} onClick={() => setActiveView('habits')}>
+                <HabitIcon />
+            </SidebarIcon>
+        )}
+        {settings.showPomodoro && (
+            <SidebarIcon label="Pomodoro" isActive={activeView === 'pomodoro'} onClick={() => setActiveView('pomodoro')}>
+                <PomodoroIcon />
+            </SidebarIcon>
+        )}
       </div>
 
       <div className="flex flex-col space-y-2 items-center">
-        <SidebarIcon label="Settings" isActive={activeView === 'settings'} onClick={() => setActiveView('settings')}>
+        <SidebarIcon label="Settings" isActive={false} onClick={onOpenSettings}>
             <SettingsIcon />
         </SidebarIcon>
       </div>

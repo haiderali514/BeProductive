@@ -1,22 +1,70 @@
+
 import React, { useState, useCallback } from 'react';
 import { List, Task, Priority, Subtask, Habit, PomodoroSession, Recurrence } from './types';
 import { Sidebar } from './components/Sidebar';
 import { TasksPage } from './components/TasksPage';
 import { HabitPage } from './components/HabitPage';
 import { PomodoroPage } from './components/PomodoroPage';
+import { AnalyticsPage } from './components/AnalyticsPage';
 import { generateSubtasks } from './services/geminiService';
 import useLocalStorage from './hooks/useLocalStorage';
 import { DEFAULT_LISTS, DEFAULT_TASKS, DEFAULT_HABITS, DEFAULT_POMODORO_SESSIONS } from './constants';
+import { LandingPage } from './components/auth/LandingPage';
+import { LoginPage } from './components/auth/LoginPage';
+import { SignupPage } from './components/auth/SignupPage';
+import { SettingsModal } from './components/settings/SettingsModal';
+import { useSettings, Settings } from './hooks/useSettings';
 
-type ActiveView = 'tasks' | 'pomodoro' | 'habits' | 'settings';
+
+type ActiveView = 'tasks' | 'pomodoro' | 'habits' | 'analytics';
+type AuthView = 'landing' | 'login' | 'signup';
+
+// A simple User type for demo purposes
+interface User {
+    email: string;
+    pass: string; // In a real app, this would be a hash
+}
 
 const App: React.FC = () => {
+    // Auth state
+    const [isAuthenticated, setIsAuthenticated] = useLocalStorage<boolean>('app_isAuthenticated', false);
+    const [users, setUsers] = useLocalStorage<User[]>('app_users', []);
+    const [authView, setAuthView] = useState<AuthView>('landing');
+
+    // App Data State
     const [lists, setLists] = useLocalStorage<List[]>('lists', DEFAULT_LISTS);
     const [tasks, setTasks] = useLocalStorage<Task[]>('tasks', DEFAULT_TASKS);
     const [habits, setHabits] = useLocalStorage<Habit[]>('habits', DEFAULT_HABITS);
     const [pomodoroSessions, setPomodoroSessions] = useLocalStorage<PomodoroSession[]>('pomodoroSessions', DEFAULT_POMODORO_SESSIONS);
+    
+    // UI State
+    const [settings, setSettings] = useSettings();
+    const [activeView, setActiveView] = useState<ActiveView>('tasks');
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-    const [activeView, setActiveView] = useState<ActiveView>('pomodoro');
+    // Auth handlers
+    const handleSignup = useCallback((email: string, pass: string): boolean => {
+        if (users.some(u => u.email.toLowerCase() === email.toLowerCase())) {
+            return false; // User already exists
+        }
+        setUsers(prev => [...prev, { email, pass }]);
+        setIsAuthenticated(true);
+        return true;
+    }, [users, setUsers, setIsAuthenticated]);
+
+    const handleLogin = useCallback((email: string, pass: string): boolean => {
+        const user = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.pass === pass);
+        if (user) {
+            setIsAuthenticated(true);
+            return true;
+        }
+        return false;
+    }, [users, setIsAuthenticated]);
+
+    const handleLogout = useCallback(() => {
+        setIsAuthenticated(false);
+        setAuthView('landing');
+    }, [setIsAuthenticated]);
 
     const handleAddList = useCallback((listName: string) => {
         if (lists.some(l => l.name.toLowerCase() === listName.toLowerCase())) {
@@ -41,16 +89,13 @@ const App: React.FC = () => {
         const taskToToggle = tasks.find(task => task.id === taskId);
         if (!taskToToggle) return;
 
-        // If it's a recurring task, completing it moves it to the next date
         if (taskToToggle.recurrence && !taskToToggle.completed) {
             let nextDueDate: Date;
 
             if (taskToToggle.dueDate) {
-                // Parse date as UTC to avoid timezone issues
                 const [year, month, day] = taskToToggle.dueDate.split('-').map(Number);
                 nextDueDate = new Date(Date.UTC(year, month - 1, day));
             } else {
-                // if no due date, start from today
                 const today = new Date();
                 nextDueDate = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
             }
@@ -75,13 +120,11 @@ const App: React.FC = () => {
                 ? { 
                     ...task, 
                     dueDate: nextDueDate.toISOString().split('T')[0],
-                    // Reset subtasks for the next occurrence
                     subtasks: task.subtasks.map(st => ({...st, completed: false}))
                   } 
                 : task
             ));
         } else {
-            // Otherwise, just toggle completion state
             setTasks(prevTasks => prevTasks.map(task => 
                 task.id === taskId ? { ...task, completed: !task.completed } : task
             ));
@@ -136,8 +179,6 @@ const App: React.FC = () => {
                 const newCheckIns = h.checkIns.includes(date)
                     ? h.checkIns.filter(d => d !== date)
                     : [...h.checkIns, date];
-                // Note: Streak and totalDays are calculated in the stats panel now.
-                // These base values are from the seed data and aren't dynamically updated.
                 return { ...h, checkIns: newCheckIns };
             }
             return h;
@@ -154,6 +195,23 @@ const App: React.FC = () => {
         };
         setHabits(prevHabits => [...prevHabits, newHabit]);
     }, [setHabits]);
+    
+    const handleUpdateSettings = useCallback((newSettings: Partial<Settings>) => {
+        setSettings(prev => ({...prev, ...newSettings}));
+    }, [setSettings]);
+
+
+    if (!isAuthenticated) {
+        switch (authView) {
+            case 'login':
+                return <LoginPage onLogin={handleLogin} onNavigate={setAuthView} />;
+            case 'signup':
+                return <SignupPage onSignup={handleSignup} onNavigate={setAuthView} />;
+            case 'landing':
+            default:
+                return <LandingPage onNavigate={setAuthView} />;
+        }
+    }
 
     const renderActiveView = () => {
         switch (activeView) {
@@ -170,16 +228,23 @@ const App: React.FC = () => {
                     onSetRecurrence={handleSetRecurrence}
                  />;
             case 'habits':
+                if (!settings.showHabitTracker) return <div className="p-6 text-content-primary"><h1 className="text-2xl font-bold">Habit Tracker Disabled</h1><p>Enable it in settings.</p></div>;
                 return <HabitPage habits={habits} onToggleHabit={handleToggleHabit} onAddHabit={handleAddHabit} />;
             case 'pomodoro':
+                 if (!settings.showPomodoro) return <div className="p-6 text-content-primary"><h1 className="text-2xl font-bold">Pomodoro Disabled</h1><p>Enable it in settings.</p></div>;
                 return <PomodoroPage 
                     sessions={pomodoroSessions}
                     onAddSession={handleAddPomodoroSession}
                     tasks={tasks}
                     habits={habits}
                 />;
-            case 'settings':
-                return <div className="p-6 text-content-primary"><h1 className="text-2xl font-bold">Settings</h1><p>Settings page is under construction.</p></div>;
+            case 'analytics':
+                return <AnalyticsPage
+                    tasks={tasks}
+                    habits={habits}
+                    sessions={pomodoroSessions}
+                    lists={lists}
+                />;
             default:
                 return <div className="p-6 text-content-primary"><h1 className="text-2xl font-bold">Not Found</h1></div>;
         }
@@ -190,10 +255,19 @@ const App: React.FC = () => {
             <Sidebar 
                 activeView={activeView}
                 setActiveView={setActiveView}
+                onOpenSettings={() => setIsSettingsOpen(true)}
+                settings={settings}
             />
             <main className="flex-1 flex flex-col">
                 {renderActiveView()}
             </main>
+            <SettingsModal 
+                isOpen={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
+                onLogout={handleLogout}
+                settings={settings}
+                onSettingsChange={handleUpdateSettings}
+            />
         </div>
     );
 };
