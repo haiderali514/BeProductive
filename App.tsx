@@ -175,6 +175,7 @@ const App: React.FC = () => {
                 return <PomodoroPage 
                     sessions={pomodoroSessions}
                     onAddSession={handleAddPomodoroSession}
+                    tasks={tasks}
                 />;
             case 'settings':
                 return <div className="p-6 text-content-primary"><h1 className="text-2xl font-bold">Settings</h1><p>Settings page is under construction.</p></div>;

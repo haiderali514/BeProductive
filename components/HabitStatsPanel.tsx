@@ -20,13 +20,14 @@ const calculateStreak = (checkIns: string[]): number => {
     if (checkIns.length === 0) return 0;
     
     const checkInSet = new Set(checkIns);
-    const sortedDates = checkIns.map(d => new Date(d)).sort((a, b) => b.getTime() - a.getTime());
     
+    // Streak calculation should start from today or yesterday.
     let currentDate = new Date();
     if (!checkInSet.has(toYYYYMMDD(currentDate))) {
       currentDate.setDate(currentDate.getDate() - 1);
-      if (!checkInSet.has(toYYYYMMDD(currentDate))) {
-        return 0; // Streak is broken if not checked-in today or yesterday
+      // If yesterday is also not checked, streak is 0, unless today is the only check-in.
+      if (!checkInSet.has(toYYYYMMDD(currentDate)) && !(checkInSet.size === 1 && checkInSet.has(toYYYYMMDD(new Date())))) {
+        return 0;
       }
     }
     
@@ -39,7 +40,8 @@ const calculateStreak = (checkIns: string[]): number => {
     return streak;
 };
 
-const Calendar: React.FC<{ habit: Habit }> = ({ habit }) => {
+
+const SpecificHabitCalendar: React.FC<{ habit: Habit }> = ({ habit }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
 
     const monthName = currentDate.toLocaleString('default', { month: 'long' });
@@ -86,7 +88,79 @@ const Calendar: React.FC<{ habit: Habit }> = ({ habit }) => {
             </div>
         </div>
     )
-}
+};
+
+
+const OverallActivityCalendar: React.FC<{ habits: Habit[] }> = ({ habits }) => {
+    const [currentDate, setCurrentDate] = useState(new Date());
+
+    const monthName = currentDate.toLocaleString('default', { month: 'long' });
+    const year = currentDate.getFullYear();
+    
+    const daysInMonth = new Date(year, currentDate.getMonth() + 1, 0).getDate();
+    const firstDayOfMonth = new Date(year, currentDate.getMonth(), 1).getDay(); // 0 = Sunday
+    
+    const checkInsByDate = useMemo(() => {
+        const counts: Record<string, number> = {};
+        habits.forEach(habit => {
+            habit.checkIns.forEach(dateStr => {
+                counts[dateStr] = (counts[dateStr] || 0) + 1;
+            });
+        });
+        return counts;
+    }, [habits]);
+
+    const changeMonth = (offset: number) => {
+        setCurrentDate(prev => {
+            const newDate = new Date(prev);
+            newDate.setMonth(newDate.getMonth() + offset);
+            return newDate;
+        });
+    };
+    
+    const getBgColorForCount = (count: number): string => {
+        if (count === 0) return '';
+        if (count === 1) return 'bg-primary/30';
+        if (count <= 3) return 'bg-primary/60';
+        return 'bg-primary'; // for more than 3
+    };
+
+    return (
+        <div className="mt-8">
+            <h3 className="text-lg font-semibold text-content-primary mb-4">Overall Activity</h3>
+            <div className="bg-background-tertiary p-4 rounded-lg">
+                <div className="flex justify-between items-center mb-4">
+                    <button onClick={() => changeMonth(-1)} className="p-1 rounded-full hover:bg-border-primary">&lt;</button>
+                    <h4 className="font-bold">{monthName} {year}</h4>
+                    <button onClick={() => changeMonth(1)} className="p-1 rounded-full hover:bg-border-primary">&gt;</button>
+                </div>
+                <div className="grid grid-cols-7 gap-2 text-center text-xs text-content-secondary">
+                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(day => <div key={day}>{day}</div>)}
+                </div>
+                <div className="grid grid-cols-7 gap-2 mt-2">
+                    {Array.from({ length: firstDayOfMonth }).map((_, i) => <div key={`empty-${i}`}></div>)}
+                    {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
+                        const dateStr = toYYYYMMDD(new Date(year, currentDate.getMonth(), day));
+                        const checkInCount = checkInsByDate[dateStr] || 0;
+                        const bgColor = getBgColorForCount(checkInCount);
+                        const isToday = dateStr === toYYYYMMDD(new Date());
+                        
+                        return (
+                             <div 
+                                key={day} 
+                                title={checkInCount > 0 ? `${checkInCount} habit${checkInCount > 1 ? 's' : ''} completed` : undefined}
+                                className={`w-8 h-8 flex items-center justify-center rounded-full text-sm transition-colors ${isToday ? 'border-2 border-primary' : ''} ${bgColor}`}
+                             >
+                                {day}
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 
 const OverallStats: React.FC<{ habits: Habit[] }> = ({ habits }) => {
     const { totalHabits, todaysCheckins, completionRate, longestStreak } = useMemo(() => {
@@ -108,6 +182,7 @@ const OverallStats: React.FC<{ habits: Habit[] }> = ({ habits }) => {
                 <StatCard title="Completion Rate" value={`${completionRate}%`} description="For today" />
                 <StatCard title="Longest Streak" value={longestStreak} description="Across all habits" />
             </div>
+            <OverallActivityCalendar habits={habits} />
         </div>
     );
 };
@@ -143,7 +218,7 @@ const SpecificHabitStats: React.FC<{ habit: Habit }> = ({ habit }) => {
                 <StatCard title="Monthly check-in rate" value={`${monthlyRate}%`} />
                 <StatCard title="Streak" value={`${currentStreak} Day${currentStreak !== 1 ? 's' : ''}`} />
             </div>
-            <Calendar habit={habit} />
+            <SpecificHabitCalendar habit={habit} />
         </div>
     );
 };

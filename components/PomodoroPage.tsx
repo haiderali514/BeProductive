@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
-import { PomodoroSession } from '../types';
+import { PomodoroSession, Task } from '../types';
 
 interface PomodoroPageProps {
     sessions: PomodoroSession[];
     onAddSession: (session: Omit<PomodoroSession, 'id'>) => void;
+    tasks: Task[];
 }
 
 const formatTime = (seconds: number) => {
@@ -13,7 +13,72 @@ const formatTime = (seconds: number) => {
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 };
 
-const Timer: React.FC<{onAddSession: PomodoroPageProps['onAddSession']}> = ({ onAddSession }) => {
+interface TaskSelectorProps {
+    tasks: Task[];
+    selectedTaskId: string | null;
+    onSelectTask: (taskId: string | null) => void;
+    disabled: boolean;
+}
+
+const TaskSelector: React.FC<TaskSelectorProps> = ({ tasks, selectedTaskId, onSelectTask, disabled }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    // Only show tasks that are not completed
+    const availableTasks = useMemo(() => tasks.filter(task => !task.completed), [tasks]);
+    const selectedTask = useMemo(() => availableTasks.find(task => task.id === selectedTaskId), [availableTasks, selectedTaskId]);
+
+    const handleSelect = (taskId: string) => {
+        onSelectTask(taskId);
+        setIsOpen(false);
+    };
+
+    return (
+        <div className="relative">
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                disabled={disabled}
+                className="w-full px-4 py-3 bg-background-secondary border border-border-primary rounded-lg flex justify-between items-center text-left disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                <span className={`truncate ${selectedTask ? 'text-content-primary' : 'text-content-secondary'}`}>
+                    {selectedTask ? selectedTask.title : 'Select a task to focus on'}
+                </span>
+                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 text-content-secondary transition-transform flex-shrink-0 ml-2 ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+            </button>
+
+            {isOpen && (
+                <div className="absolute z-10 mt-1 w-full bg-background-tertiary rounded-lg shadow-lg max-h-60 overflow-y-auto border border-border-primary">
+                    <ul className="py-1">
+                        {availableTasks.length > 0 ? (
+                            availableTasks.map(task => (
+                                <li
+                                    key={task.id}
+                                    onClick={() => handleSelect(task.id)}
+                                    className="px-4 py-2 text-content-primary hover:bg-primary hover:text-primary-content cursor-pointer truncate"
+                                >
+                                    {task.title}
+                                </li>
+                            ))
+                        ) : (
+                            <li className="px-4 py-2 text-content-secondary">No available tasks.</li>
+                        )}
+                    </ul>
+                </div>
+            )}
+        </div>
+    );
+};
+
+
+interface TimerProps {
+    onAddSession: PomodoroPageProps['onAddSession'];
+    tasks: Task[];
+    selectedTaskId: string | null;
+    setSelectedTaskId: React.Dispatch<React.SetStateAction<string | null>>;
+}
+
+
+const Timer: React.FC<TimerProps> = ({ onAddSession, tasks, selectedTaskId, setSelectedTaskId }) => {
     const FOCUS_DURATION = 90 * 60; // 90 minutes
     const [timeRemaining, setTimeRemaining] = useState(FOCUS_DURATION);
     const [isActive, setIsActive] = useState(false);
@@ -26,7 +91,8 @@ const Timer: React.FC<{onAddSession: PomodoroPageProps['onAddSession']}> = ({ on
                 setTimeRemaining(prev => {
                     if (prev <= 1) {
                         setIsActive(false);
-                        onAddSession({ startTime: startTime!, endTime: Date.now(), taskName: 'Vibe Coding' });
+                        const taskName = tasks.find(t => t.id === selectedTaskId)?.title || 'Focus Session';
+                        onAddSession({ startTime: startTime!, endTime: Date.now(), taskName });
                         return FOCUS_DURATION;
                     }
                     return prev - 1;
@@ -36,7 +102,7 @@ const Timer: React.FC<{onAddSession: PomodoroPageProps['onAddSession']}> = ({ on
         return () => {
             if (interval) clearInterval(interval);
         };
-    }, [isActive, startTime, onAddSession]);
+    }, [isActive, startTime, onAddSession, tasks, selectedTaskId]);
 
     const handleStart = () => {
         if (!isActive) {
@@ -56,6 +122,14 @@ const Timer: React.FC<{onAddSession: PomodoroPageProps['onAddSession']}> = ({ on
         <div className="flex flex-col items-center justify-center h-full">
             <div className="w-64 h-64 rounded-full border-8 border-background-tertiary flex items-center justify-center mb-8">
                 <h2 className="text-6xl font-mono text-content-primary">{formatTime(timeRemaining)}</h2>
+            </div>
+            <div className="mb-8 w-80">
+                <TaskSelector
+                    tasks={tasks}
+                    selectedTaskId={selectedTaskId}
+                    onSelectTask={setSelectedTaskId}
+                    disabled={isActive}
+                />
             </div>
             {isActive ? (
                 <div className="flex space-x-4">
@@ -172,11 +246,28 @@ const FocusOverview: React.FC<{ sessions: PomodoroSession[] }> = ({ sessions }) 
     );
 }
 
-export const PomodoroPage: React.FC<PomodoroPageProps> = ({ sessions, onAddSession }) => {
+export const PomodoroPage: React.FC<PomodoroPageProps> = ({ sessions, onAddSession, tasks }) => {
+    const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+
+    // When tasks change, if the selected task is now completed or deleted, deselect it.
+    useEffect(() => {
+        if (selectedTaskId) {
+            const task = tasks.find(t => t.id === selectedTaskId);
+            if (!task || task.completed) {
+                setSelectedTaskId(null);
+            }
+        }
+    }, [tasks, selectedTaskId]);
+
     return (
         <div className="flex flex-1">
             <div className="flex-1">
-                <Timer onAddSession={onAddSession} />
+                <Timer
+                    onAddSession={onAddSession}
+                    tasks={tasks}
+                    selectedTaskId={selectedTaskId}
+                    setSelectedTaskId={setSelectedTaskId}
+                />
             </div>
             <FocusOverview sessions={sessions} />
         </div>
