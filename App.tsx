@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback } from 'react';
 import { List, Task, Priority, Subtask, Habit, PomodoroSession, Recurrence } from './types';
 import { Sidebar } from './components/Sidebar';
@@ -17,28 +16,28 @@ const App: React.FC = () => {
     const [habits, setHabits] = useLocalStorage<Habit[]>('habits', DEFAULT_HABITS);
     const [pomodoroSessions, setPomodoroSessions] = useLocalStorage<PomodoroSession[]>('pomodoroSessions', DEFAULT_POMODORO_SESSIONS);
 
-    const [activeView, setActiveView] = useState<ActiveView>('tasks');
+    const [activeView, setActiveView] = useState<ActiveView>('habits');
 
-    const handleAddList = (listName: string) => {
+    const handleAddList = useCallback((listName: string) => {
         if (lists.some(l => l.name.toLowerCase() === listName.toLowerCase())) {
             alert("A list with this name already exists.");
             return;
         }
         const newList: List = { id: Date.now().toString(), name: listName };
-        setLists([...lists, newList]);
-    };
+        setLists(prevLists => [...prevLists, newList]);
+    }, [lists, setLists]);
 
-    const handleAddTask = (taskData: { title: string; listId: string; priority: Priority; dueDate: string | null; recurrence: Recurrence | null; }) => {
+    const handleAddTask = useCallback((taskData: { title: string; listId: string; priority: Priority; dueDate: string | null; recurrence: Recurrence | null; }) => {
         const newTask: Task = {
             id: Date.now().toString(),
             ...taskData,
             completed: false,
             subtasks: [],
         };
-        setTasks([...tasks, newTask]);
-    };
+        setTasks(prevTasks => [...prevTasks, newTask]);
+    }, [setTasks]);
 
-    const handleToggleComplete = (taskId: string) => {
+    const handleToggleComplete = useCallback((taskId: string) => {
         const taskToToggle = tasks.find(task => task.id === taskId);
         if (!taskToToggle) return;
 
@@ -71,7 +70,7 @@ const App: React.FC = () => {
                     break;
             }
             
-            setTasks(tasks.map(task => 
+            setTasks(prevTasks => prevTasks.map(task => 
                 task.id === taskId 
                 ? { 
                     ...task, 
@@ -83,14 +82,14 @@ const App: React.FC = () => {
             ));
         } else {
             // Otherwise, just toggle completion state
-            setTasks(tasks.map(task => 
+            setTasks(prevTasks => prevTasks.map(task => 
                 task.id === taskId ? { ...task, completed: !task.completed } : task
             ));
         }
-    };
+    }, [tasks, setTasks]);
     
-    const handleToggleSubtaskComplete = (taskId: string, subtaskId: string) => {
-        setTasks(tasks.map(task => {
+    const handleToggleSubtaskComplete = useCallback((taskId: string, subtaskId: string) => {
+        setTasks(prevTasks => prevTasks.map(task => {
             if (task.id === taskId) {
                 return {
                     ...task,
@@ -99,17 +98,17 @@ const App: React.FC = () => {
             }
             return task;
         }));
-    };
+    }, [setTasks]);
 
-    const handleDeleteTask = (taskId: string) => {
-        setTasks(tasks.filter(task => task.id !== taskId));
-    };
+    const handleDeleteTask = useCallback((taskId: string) => {
+        setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
+    }, [setTasks]);
     
-    const handleSetRecurrence = (taskId: string, recurrence: Recurrence | null) => {
-        setTasks(tasks.map(task => 
+    const handleSetRecurrence = useCallback((taskId: string, recurrence: Recurrence | null) => {
+        setTasks(prevTasks => prevTasks.map(task => 
             task.id === taskId ? { ...task, recurrence } : task
         ));
-    };
+    }, [setTasks]);
 
     const handleGenerateSubtasks = useCallback(async (taskId: string, taskTitle: string) => {
         const newSubtaskTitles = await generateSubtasks(taskTitle);
@@ -126,23 +125,35 @@ const App: React.FC = () => {
         ));
     }, [setTasks]);
     
-    const handleAddPomodoroSession = (session: Omit<PomodoroSession, 'id'>) => {
+    const handleAddPomodoroSession = useCallback((session: Omit<PomodoroSession, 'id'>) => {
         const newSession: PomodoroSession = { ...session, id: Date.now().toString() };
         setPomodoroSessions(prev => [newSession, ...prev]);
-    };
+    }, [setPomodoroSessions]);
 
-    const handleToggleHabit = (habitId: string, date: string) => {
-        setHabits(habits.map(h => {
+    const handleToggleHabit = useCallback((habitId: string, date: string) => {
+        setHabits(prevHabits => prevHabits.map(h => {
             if (h.id === habitId) {
                 const newCheckIns = h.checkIns.includes(date)
                     ? h.checkIns.filter(d => d !== date)
                     : [...h.checkIns, date];
-                // Note: Streak and totalDays logic would be more complex in a real app
+                // Note: Streak and totalDays are calculated in the stats panel now.
+                // These base values are from the seed data and aren't dynamically updated.
                 return { ...h, checkIns: newCheckIns };
             }
             return h;
         }));
-    };
+    }, [setHabits]);
+
+    const handleAddHabit = useCallback((habitData: { name: string; icon: string; period: 'Morning' | 'Afternoon' | 'Night' }) => {
+        const newHabit: Habit = {
+            id: Date.now().toString(),
+            ...habitData,
+            checkIns: [],
+            totalDays: 0,
+            streak: 0,
+        };
+        setHabits(prevHabits => [...prevHabits, newHabit]);
+    }, [setHabits]);
 
     const renderActiveView = () => {
         switch (activeView) {
@@ -159,7 +170,7 @@ const App: React.FC = () => {
                     onSetRecurrence={handleSetRecurrence}
                  />;
             case 'habits':
-                return <HabitPage habits={habits} onToggleHabit={handleToggleHabit} />;
+                return <HabitPage habits={habits} onToggleHabit={handleToggleHabit} onAddHabit={handleAddHabit} />;
             case 'pomodoro':
                 return <PomodoroPage 
                     sessions={pomodoroSessions}
