@@ -1,11 +1,11 @@
 
 import React, { useState } from 'react';
 import { parseTaskFromString } from '../services/geminiService';
-import { List, Priority } from '../types';
+import { List, Priority, Recurrence } from '../types';
 
 interface SmartAddTaskFormProps {
   lists: List[];
-  onAddTask: (task: { title: string; listId: string; priority: Priority; dueDate: string | null; }) => void;
+  onAddTask: (task: { title: string; listId: string; priority: Priority; dueDate: string | null; recurrence: Recurrence | null; }) => void;
 }
 
 const MagicIcon: React.FC<{className?: string}> = ({ className }) => (
@@ -56,7 +56,7 @@ export const SmartAddTaskForm: React.FC<SmartAddTaskFormProps> = ({ lists, onAdd
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     disabled={isLoading}
-                    placeholder="e.g., Dinner with Mom next Friday 7pm #personal !medium"
+                    placeholder="e.g., Pay rent monthly #personal !high"
                     className="w-full pl-10 pr-4 py-3 bg-background-secondary border border-border-primary rounded-lg focus:outline-none focus:ring-2 focus:ring-primary transition-shadow text-content-primary placeholder-content-tertiary"
                 />
                 {isLoading && (

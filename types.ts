@@ -6,6 +6,13 @@ export enum Priority {
   HIGH = 'High',
 }
 
+export enum Recurrence {
+  DAILY = 'Daily',
+  WEEKLY = 'Weekly',
+  MONTHLY = 'Monthly',
+  YEARLY = 'Yearly',
+}
+
 export interface Subtask {
   id: string;
   title: string;
@@ -20,6 +27,7 @@ export interface Task {
   priority: Priority;
   completed: boolean;
   subtasks: Subtask[];
+  recurrence?: Recurrence | null;
 }
 
 export interface List {

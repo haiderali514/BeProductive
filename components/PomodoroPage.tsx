@@ -144,25 +144,29 @@ const FocusOverview: React.FC<{ sessions: PomodoroSession[] }> = ({ sessions }) 
             </div>
             <h3 className="font-bold mb-4">Focus Record</h3>
             <div className="space-y-4">
-                {Object.entries(groupedSessions).map(([date, dateSessions]) => (
-                    <div key={date}>
-                        <p className="text-sm text-content-secondary mb-2">{new Date(date).toLocaleDateString(undefined, { month: 'long', day: 'numeric'})}</p>
-                        <div className="border-l-2 border-border-primary pl-4 space-y-4">
-                            {dateSessions.map(session => (
-                                <div key={session.id} className="relative">
-                                    <div className="absolute -left-[21px] top-1 w-3 h-3 bg-primary rounded-full border-2 border-background-secondary"></div>
-                                    <div className="flex justify-between items-center">
-                                        <div>
-                                            <p className="text-xs text-content-secondary">{formatSessionTime(session.startTime, session.endTime)}</p>
-                                            <p className="font-medium">{session.taskName}</p>
+                {/* Fix: Use Object.keys to iterate over grouped sessions to ensure correct typing */}
+                {Object.keys(groupedSessions).map((date) => {
+                    const dateSessions = groupedSessions[date];
+                    return (
+                        <div key={date}>
+                            <p className="text-sm text-content-secondary mb-2">{new Date(date).toLocaleDateString(undefined, { month: 'long', day: 'numeric'})}</p>
+                            <div className="border-l-2 border-border-primary pl-4 space-y-4">
+                                {dateSessions.map(session => (
+                                    <div key={session.id} className="relative">
+                                        <div className="absolute -left-[21px] top-1 w-3 h-3 bg-primary rounded-full border-2 border-background-secondary"></div>
+                                        <div className="flex justify-between items-center">
+                                            <div>
+                                                <p className="text-xs text-content-secondary">{formatSessionTime(session.startTime, session.endTime)}</p>
+                                                <p className="font-medium">{session.taskName}</p>
+                                            </div>
+                                            <p className="text-sm text-content-secondary">{formatDuration(session.startTime, session.endTime)}</p>
                                         </div>
-                                        <p className="text-sm text-content-secondary">{formatDuration(session.startTime, session.endTime)}</p>
                                     </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
     );

@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { Priority } from '../types';
+import { Priority, Recurrence } from '../types';
 
 if (!process.env.API_KEY) {
   // In a real app, you'd want to handle this more gracefully.
@@ -30,6 +30,11 @@ const smartAddTaskSchema = {
             type: Type.STRING,
             description: "The due date of the task in YYYY-MM-DD format. Can be relative like 'tomorrow' or 'next friday'. If a time is included, keep it with the date. Defaults to null.",
         },
+        recurrence: {
+            type: Type.STRING,
+            enum: Object.values(Recurrence),
+            description: "The recurrence rule for the task, e.g., 'Daily', 'Weekly'. Inferred from phrases like 'every day', 'every monday'. Defaults to null."
+        },
     },
     required: ["title"],
 };
@@ -56,7 +61,7 @@ export const parseTaskFromString = async (prompt: string, listNames: string[]) =
   try {
     const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
-        contents: `Parse the following user input into a structured task object. Today's date is ${new Date().toDateString()}. Available lists are: ${listNames.join(', ')}. Default list is 'Inbox'. Input: "${prompt}"`,
+        contents: `Parse the following user input into a structured task object. Today's date is ${new Date().toDateString()}. Available lists are: ${listNames.join(', ')}. Default list is 'Inbox'. Recurrence can be Daily, Weekly, Monthly, or Yearly. Input: "${prompt}"`,
         config: {
             responseMimeType: "application/json",
             responseSchema: smartAddTaskSchema,
@@ -71,6 +76,7 @@ export const parseTaskFromString = async (prompt: string, listNames: string[]) =
         priority: Object.values(Priority).includes(parsedJson.priority) ? parsedJson.priority : Priority.NONE,
         listName: listNames.includes(parsedJson.listName) ? parsedJson.listName : 'Inbox',
         dueDate: parsedJson.dueDate || null,
+        recurrence: Object.values(Recurrence).includes(parsedJson.recurrence) ? parsedJson.recurrence : null,
     };
 
   } catch (error) {

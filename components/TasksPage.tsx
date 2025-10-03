@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { List, Task, Priority } from '../types';
+import { List, Task, Priority, Recurrence } from '../types';
 import { TaskItem } from './TaskItem';
 import { SmartAddTaskForm } from './SmartAddTaskForm';
 
@@ -8,30 +8,36 @@ interface TasksPageProps {
   lists: List[];
   tasks: Task[];
   onAddList: (listName: string) => void;
-  onAddTask: (taskData: { title: string; listId: string; priority: Priority; dueDate: string | null; }) => void;
+  onAddTask: (taskData: { title: string; listId: string; priority: Priority; dueDate: string | null; recurrence: Recurrence | null; }) => void;
   onToggleComplete: (taskId: string) => void;
   onToggleSubtaskComplete: (taskId: string, subtaskId: string) => void;
   onDeleteTask: (taskId: string) => void;
   onGenerateSubtasks: (taskId: string, taskTitle: string) => Promise<void>;
+  onSetRecurrence: (taskId: string, recurrence: Recurrence | null) => void;
 }
 
 export const TasksPage: React.FC<TasksPageProps> = (props) => {
-    const { lists, tasks, onAddList, onAddTask, onToggleComplete, onToggleSubtaskComplete, onDeleteTask, onGenerateSubtasks } = props;
+    const { lists, tasks, onAddList, onAddTask, onToggleComplete, onToggleSubtaskComplete, onDeleteTask, onGenerateSubtasks, onSetRecurrence } = props;
     const [activeListId, setActiveListId] = useState('inbox');
     const [newListName, setNewListName] = useState('');
     const [isAddingList, setIsAddingList] = useState(false);
 
     const isDateToday = (date: Date) => {
         const today = new Date();
-        return date.getDate() === today.getDate() &&
-               date.getMonth() === today.getMonth() &&
-               date.getFullYear() === today.getFullYear();
+        return date.getUTCDate() === today.getUTCDate() &&
+               date.getUTCMonth() === today.getUTCMonth() &&
+               date.getUTCFullYear() === today.getUTCFullYear();
     }
 
     const filteredTasks = useMemo(() => {
         let tasksToShow = tasks;
         if (activeListId === 'today') {
-            tasksToShow = tasks.filter(task => task.dueDate && isDateToday(new Date(task.dueDate)));
+             tasksToShow = tasks.filter(task => {
+                if (!task.dueDate) return false;
+                // Parse date as UTC to avoid timezone issues
+                const taskDate = new Date(task.dueDate + 'T00:00:00Z');
+                return isDateToday(taskDate);
+            });
         } else {
             tasksToShow = tasks.filter(task => task.listId === activeListId);
         }
@@ -97,6 +103,7 @@ export const TasksPage: React.FC<TasksPageProps> = (props) => {
                             onToggleSubtaskComplete={onToggleSubtaskComplete}
                             onDelete={onDeleteTask}
                             onGenerateSubtasks={onGenerateSubtasks}
+                            onSetRecurrence={onSetRecurrence}
                         />
                     ))}
                     {filteredTasks.length === 0 && (

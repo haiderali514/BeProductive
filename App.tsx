@@ -1,6 +1,6 @@
 
-import React, { useState, useMemo, useCallback } from 'react';
-import { List, Task, Priority, Subtask, Habit, PomodoroSession } from './types';
+import React, { useState, useCallback } from 'react';
+import { List, Task, Priority, Subtask, Habit, PomodoroSession, Recurrence } from './types';
 import { Sidebar } from './components/Sidebar';
 import { TasksPage } from './components/TasksPage';
 import { HabitPage } from './components/HabitPage';
@@ -17,7 +17,7 @@ const App: React.FC = () => {
     const [habits, setHabits] = useLocalStorage<Habit[]>('habits', DEFAULT_HABITS);
     const [pomodoroSessions, setPomodoroSessions] = useLocalStorage<PomodoroSession[]>('pomodoroSessions', DEFAULT_POMODORO_SESSIONS);
 
-    const [activeView, setActiveView] = useState<ActiveView>('habits');
+    const [activeView, setActiveView] = useState<ActiveView>('tasks');
 
     const handleAddList = (listName: string) => {
         if (lists.some(l => l.name.toLowerCase() === listName.toLowerCase())) {
@@ -28,7 +28,7 @@ const App: React.FC = () => {
         setLists([...lists, newList]);
     };
 
-    const handleAddTask = (taskData: { title: string; listId: string; priority: Priority; dueDate: string | null; }) => {
+    const handleAddTask = (taskData: { title: string; listId: string; priority: Priority; dueDate: string | null; recurrence: Recurrence | null; }) => {
         const newTask: Task = {
             id: Date.now().toString(),
             ...taskData,
@@ -39,7 +39,54 @@ const App: React.FC = () => {
     };
 
     const handleToggleComplete = (taskId: string) => {
-        setTasks(tasks.map(task => task.id === taskId ? { ...task, completed: !task.completed } : task));
+        const taskToToggle = tasks.find(task => task.id === taskId);
+        if (!taskToToggle) return;
+
+        // If it's a recurring task, completing it moves it to the next date
+        if (taskToToggle.recurrence && !taskToToggle.completed) {
+            let nextDueDate: Date;
+
+            if (taskToToggle.dueDate) {
+                // Parse date as UTC to avoid timezone issues
+                const [year, month, day] = taskToToggle.dueDate.split('-').map(Number);
+                nextDueDate = new Date(Date.UTC(year, month - 1, day));
+            } else {
+                // if no due date, start from today
+                const today = new Date();
+                nextDueDate = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+            }
+            
+            switch (taskToToggle.recurrence) {
+                case Recurrence.DAILY:
+                    nextDueDate.setUTCDate(nextDueDate.getUTCDate() + 1);
+                    break;
+                case Recurrence.WEEKLY:
+                    nextDueDate.setUTCDate(nextDueDate.getUTCDate() + 7);
+                    break;
+                case Recurrence.MONTHLY:
+                    nextDueDate.setUTCMonth(nextDueDate.getUTCMonth() + 1);
+                    break;
+                case Recurrence.YEARLY:
+                    nextDueDate.setUTCFullYear(nextDueDate.getUTCFullYear() + 1);
+                    break;
+            }
+            
+            setTasks(tasks.map(task => 
+                task.id === taskId 
+                ? { 
+                    ...task, 
+                    dueDate: nextDueDate.toISOString().split('T')[0],
+                    // Reset subtasks for the next occurrence
+                    subtasks: task.subtasks.map(st => ({...st, completed: false}))
+                  } 
+                : task
+            ));
+        } else {
+            // Otherwise, just toggle completion state
+            setTasks(tasks.map(task => 
+                task.id === taskId ? { ...task, completed: !task.completed } : task
+            ));
+        }
     };
     
     const handleToggleSubtaskComplete = (taskId: string, subtaskId: string) => {
@@ -56,6 +103,12 @@ const App: React.FC = () => {
 
     const handleDeleteTask = (taskId: string) => {
         setTasks(tasks.filter(task => task.id !== taskId));
+    };
+    
+    const handleSetRecurrence = (taskId: string, recurrence: Recurrence | null) => {
+        setTasks(tasks.map(task => 
+            task.id === taskId ? { ...task, recurrence } : task
+        ));
     };
 
     const handleGenerateSubtasks = useCallback(async (taskId: string, taskTitle: string) => {
@@ -103,6 +156,7 @@ const App: React.FC = () => {
                     onGenerateSubtasks={handleGenerateSubtasks}
                     onToggleComplete={handleToggleComplete}
                     onToggleSubtaskComplete={handleToggleSubtaskComplete}
+                    onSetRecurrence={handleSetRecurrence}
                  />;
             case 'habits':
                 return <HabitPage habits={habits} onToggleHabit={handleToggleHabit} />;

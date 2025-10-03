@@ -84,16 +84,20 @@ export const HabitPage: React.FC<HabitPageProps> = ({ habits, onToggleHabit }) =
         <WeeklyCalendarHeader />
 
         <div className="space-y-8">
-            {Object.entries(groupedHabits).map(([period, periodHabits]) => (
-                <div key={period}>
-                    <h2 className="text-lg font-semibold text-content-secondary mb-3">{period} <span className="text-sm font-normal text-content-tertiary">{periodHabits.length}</span></h2>
-                    <div className="space-y-3">
-                        {periodHabits.map(habit => (
-                            <HabitItem key={habit.id} habit={habit} onToggleHabit={onToggleHabit} />
-                        ))}
+            {/* Fix: Use Object.keys to iterate over grouped habits to ensure correct typing */}
+            {Object.keys(groupedHabits).map((period) => {
+                const periodHabits = groupedHabits[period];
+                return (
+                    <div key={period}>
+                        <h2 className="text-lg font-semibold text-content-secondary mb-3">{period} <span className="text-sm font-normal text-content-tertiary">{periodHabits.length}</span></h2>
+                        <div className="space-y-3">
+                            {periodHabits.map(habit => (
+                                <HabitItem key={habit.id} habit={habit} onToggleHabit={onToggleHabit} />
+                            ))}
+                        </div>
                     </div>
-                </div>
-            ))}
+                );
+            })}
         </div>
     </div>
   );
