@@ -1,6 +1,6 @@
 
 
-import { GoogleGenAI, Type, FunctionDeclaration, GenerateContentResponse, Content } from "@google/ai/generativelanguage";
+import { GoogleGenAI, Type, FunctionDeclaration, GenerateContentResponse, Content } from "@google/genai";
 import { Priority, Recurrence, Task, List, Habit, UserProfile } from '../types';
 
 if (!process.env.API_KEY) {
@@ -285,12 +285,14 @@ export const chatWithAssistant = async (history: Content[], context: AIContext):
       - Habits: ${JSON.stringify(context.habits)}
     `;
     
-    // We add the full context to the latest user message
-    const historyWithContext = [...history];
+    // Create a deep copy of the history to avoid mutating the original state object.
+    const historyWithContext = JSON.parse(JSON.stringify(history));
+    
+    // Add the full context to the latest user message in the copied history.
     const lastMessage = historyWithContext[historyWithContext.length - 1];
-    if (lastMessage.role === 'user') {
+    if (lastMessage && lastMessage.role === 'user') {
         const lastPart = lastMessage.parts[lastMessage.parts.length - 1];
-        if ('text' in lastPart) {
+        if (lastPart && 'text' in lastPart) {
            lastPart.text = `${lastPart.text}\n\n[CONTEXT]\n${fullContext}`;
         }
     }

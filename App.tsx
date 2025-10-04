@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { List, Task, Priority, Subtask, Habit, PomodoroSession, Recurrence, ActiveView, UserProfile, ChatMessage, UserTrait, Notification, Conversation, TraitType, GoalSubtype } from './types';
 import { Sidebar } from './components/Sidebar';
@@ -368,38 +369,29 @@ const App: React.FC = () => {
         });
     };
     
-    const appendMessageToConversation = (conversationId: string, message: ChatMessage) => {
-        setConversations(prev => {
-            const convoIndex = prev.findIndex(c => c.id === conversationId);
-            if (convoIndex === -1) return prev;
-
-            const updatedConvo = {
-                ...prev[convoIndex],
-                messages: [...prev[convoIndex].messages, message],
-            };
-
-            const newConversations = [...prev];
-            newConversations[convoIndex] = updatedConvo;
-            return newConversations;
-        });
-    };
-
     const handleSendMessageToAI = async (prompt: string) => {
-        if (!activeConversationId) return;
+        const conversationId = activeConversationId;
+        if (!conversationId) return;
     
         setIsAILoading(true);
+        
         const newUserMessage: ChatMessage = { id: Date.now().toString(), role: 'user', parts: [{ text: prompt }] };
         
-        const activeConvoBeforeUpdate = conversations.find(c => c.id === activeConversationId)!;
-        const isNewChat = activeConvoBeforeUpdate.messages.filter(m => m.role === 'user').length === 0;
-
-        appendMessageToConversation(activeConversationId, newUserMessage);
+        // Find the conversation and determine if it's a new chat
+        const activeConvo = conversations.find(c => c.id === conversationId)!;
+        const isNewChat = activeConvo.messages.filter(m => m.role === 'user').length === 0;
         
-        const historyForAPI: Content[] = [...activeConvoBeforeUpdate.messages, newUserMessage].map(m => ({ role: m.role, parts: m.parts }));
-    
+        // Prepare history for API *before* updating state
+        const historyForAPI: Content[] = [...activeConvo.messages, newUserMessage].map(m => ({ role: m.role, parts: m.parts }));
+
+        // First state update: Add the user's message
+        setConversations(prev => prev.map(c => 
+            c.id === conversationId ? { ...c, messages: [...c.messages, newUserMessage] } : c
+        ));
+
         try {
             const context: AIContext = { tasks, lists, habits, profile: userProfile };
-            const response = await chatWithAssistant(historyForAPI, context);
+            let response = await chatWithAssistant(historyForAPI, context);
             let finalModelMessage: ChatMessage;
     
             if (response.functionCalls) {
@@ -426,12 +418,16 @@ const App: React.FC = () => {
                             text: funcCall.args.traitText as string,
                             subtype: (funcCall.args.goalSubtype as GoalSubtype) || undefined,
                         };
-                        if (!userProfile.traits.some(t => t.text.toLowerCase() === newTrait.text.toLowerCase() && t.type === newTrait.type)) {
-                            handleUpdateProfile({ traits: [...userProfile.traits, newTrait] });
-                            result = { success: true, trait: newTrait };
-                        } else {
-                            result = { success: false, message: "Trait already exists." };
-                        }
+                        // Use a functional update to avoid stale state issues with userProfile
+                        setUserProfile(currentProfile => {
+                            if (!currentProfile.traits.some(t => t.text.toLowerCase() === newTrait.text.toLowerCase() && t.type === newTrait.type)) {
+                                result = { success: true, trait: newTrait };
+                                return { ...currentProfile, traits: [...currentProfile.traits, newTrait] };
+                            } else {
+                                result = { success: false, message: "Trait already exists." };
+                                return currentProfile;
+                            }
+                        });
                     } else {
                         result = { error: `Function ${funcCall.name} not found.` };
                     }
@@ -442,16 +438,18 @@ const App: React.FC = () => {
                     });
                 }
                 
+                const historyWithFunctionCall = [...historyForAPI];
                 if (response.candidates?.[0]?.content) {
-                    historyForAPI.push(response.candidates[0].content);
+                    historyWithFunctionCall.push(response.candidates[0].content);
                 }
-                historyForAPI.push({ role: 'user', parts: [{ functionResponse: { name: 'tool_response', response: { responses: functionResponses }} }] });
+                historyWithFunctionCall.push({ role: 'user', parts: [{ functionResponse: { name: 'tool_response', response: { responses: functionResponses }} }] });
                 
-                // We need to get the latest profile data for the context in case it was just updated.
-                // A better approach would be to update context directly, but for now we re-read from state.
+                // The context might be stale if a trait was just added. Re-read from state before the second call.
+                // This is a limitation; a better solution might involve passing state setters or using a state manager.
+                // For now, we accept this potential micro-delay in context update for the second call.
                 const refreshedContext: AIContext = { ...context, profile: userProfile };
 
-                const finalResponse = await chatWithAssistant(historyForAPI, refreshedContext);
+                const finalResponse = await chatWithAssistant(historyWithFunctionCall, refreshedContext);
                 const responseText = finalResponse.text?.trim();
                 const finalText = responseText || "I've processed that. What would you like to do next?";
                 finalModelMessage = { id: Date.now().toString() + '-final', role: 'model', parts: [{ text: finalText }] };
@@ -461,19 +459,26 @@ const App: React.FC = () => {
                 finalModelMessage = { id: Date.now().toString(), role: 'model', parts: [{ text: finalText }] };
             }
 
-            appendMessageToConversation(activeConversationId, finalModelMessage);
+            // Second state update: Add the model's message
+            setConversations(prev => prev.map(c => 
+                c.id === conversationId ? { ...c, messages: [...c.messages, finalModelMessage] } : c
+            ));
 
             if (isNewChat) {
                 const title = await generateChatTitle(prompt);
+                // Third state update: Update title
                 setConversations(prev => prev.map(c =>
-                    c.id === activeConversationId ? { ...c, title } : c
+                    c.id === conversationId ? { ...c, title } : c
                 ));
             }
 
         } catch (error) {
             console.error("AI Assistant Error:", error);
             const errorMessage: ChatMessage = { id: Date.now().toString(), role: 'model', parts: [{ text: "Sorry, I encountered an error. Please try again." }] };
-            appendMessageToConversation(activeConversationId, errorMessage);
+            // Error state update
+            setConversations(prev => prev.map(c => 
+                c.id === conversationId ? { ...c, messages: [...c.messages, errorMessage] } : c
+            ));
         } finally {
             setIsAILoading(false);
         }

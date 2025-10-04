@@ -1,5 +1,5 @@
 
-import { useState, useEffect, Dispatch, SetStateAction } from 'react';
+import { useState, Dispatch, SetStateAction } from 'react';
 
 function useLocalStorage<T,>(key: string, initialValue: T): [T, Dispatch<SetStateAction<T>>] {
   const [storedValue, setStoredValue] = useState<T>(() => {
@@ -14,24 +14,16 @@ function useLocalStorage<T,>(key: string, initialValue: T): [T, Dispatch<SetStat
 
   const setValue: Dispatch<SetStateAction<T>> = (value) => {
     try {
-      const valueToStore = value instanceof Function ? value(storedValue) : value;
-      setStoredValue(valueToStore);
-      window.localStorage.setItem(key, JSON.stringify(valueToStore));
+      // Use the updater form of the state setter to avoid stale state.
+      setStoredValue(prevStoredValue => {
+        const valueToStore = value instanceof Function ? value(prevStoredValue) : value;
+        window.localStorage.setItem(key, JSON.stringify(valueToStore));
+        return valueToStore;
+      });
     } catch (error) {
       console.error(error);
     }
   };
-
-  useEffect(() => {
-    try {
-        const item = window.localStorage.getItem(key);
-        if (item) {
-            setStoredValue(JSON.parse(item));
-        }
-    } catch (error) {
-        console.error(error)
-    }
-  }, [key]);
 
   return [storedValue, setValue];
 }
