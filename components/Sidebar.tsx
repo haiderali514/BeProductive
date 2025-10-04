@@ -1,15 +1,20 @@
 
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { Settings } from '../hooks/useSettings';
-import { AnalyticsIcon } from './Icons';
-
-type ActiveView = 'tasks' | 'pomodoro' | 'habits' | 'analytics';
+import { AnalyticsIcon, UserIcon, TasksIcon, HabitIcon, PomodoroIcon, SettingsIcon, AIAssistantIcon, NotificationBellIcon } from './Icons';
+import { ActiveView, Notification } from '../types';
+import { NotificationCenter } from './NotificationCenter';
 
 interface SidebarProps {
   activeView: ActiveView;
   setActiveView: (view: ActiveView) => void;
   onOpenSettings: () => void;
   settings: Settings;
+  viewOrder: ActiveView[];
+  onViewOrderChange: (newOrder: ActiveView[]) => void;
+  notifications: Notification[];
+  onMarkNotificationAsRead: (id: string) => void;
+  onClearAllNotifications: () => void;
 }
 
 const SidebarIcon: React.FC<{
@@ -34,47 +39,163 @@ const SidebarIcon: React.FC<{
   </div>
 );
 
-// SVG Icon Components
-const UserIcon = () => ( <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg> );
-const TasksIcon = () => ( <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg> );
-const HabitIcon = () => ( <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg> );
-const PomodoroIcon = () => ( <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> );
-const SettingsIcon = () => ( <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.096 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg> );
+export const Sidebar: React.FC<SidebarProps> = (props) => {
+    const { 
+        activeView, setActiveView, onOpenSettings, settings, 
+        viewOrder, onViewOrderChange, notifications,
+        onMarkNotificationAsRead, onClearAllNotifications
+    } = props;
 
+    const draggedViewRef = useRef<ActiveView | null>(null);
+    const [draggingView, setDraggingView] = useState<ActiveView | null>(null);
+    const dragHappened = useRef(false);
+    const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+    const unreadCount = notifications.filter(n => !n.read).length;
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, onOpenSettings, settings }) => {
-  return (
-    <aside className="w-20 bg-background-secondary flex flex-col items-center py-4 space-y-4 border-r border-border-primary">
-      <div className="w-10 h-10 bg-primary rounded-full mb-4"></div>
-      
-      <div className="flex flex-col space-y-2 items-center flex-grow">
-        <SidebarIcon label="Profile" isActive={false} onClick={() => {}}>
-          <UserIcon />
-        </SidebarIcon>
-        <div className="w-10/12 border-t border-border-primary my-2"></div>
-        <SidebarIcon label="Tasks" isActive={activeView === 'tasks'} onClick={() => setActiveView('tasks')}>
-          <TasksIcon />
-        </SidebarIcon>
-        <SidebarIcon label="Analytics" isActive={activeView === 'analytics'} onClick={() => setActiveView('analytics')}>
-            <AnalyticsIcon />
-        </SidebarIcon>
-        {settings.showHabitTracker && (
-            <SidebarIcon label="Habits" isActive={activeView === 'habits'} onClick={() => setActiveView('habits')}>
-                <HabitIcon />
+    const handleDragStart = (e: React.DragEvent, view: ActiveView) => {
+        dragHappened.current = false;
+        draggedViewRef.current = view;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', view);
+        setTimeout(() => {
+            setDraggingView(view);
+        }, 0);
+    };
+
+    const handleDragEnter = (e: React.DragEvent, targetView: ActiveView) => {
+        e.preventDefault();
+        dragHappened.current = true;
+        const draggedView = draggedViewRef.current;
+        if (!draggedView || targetView === draggedView) {
+            return;
+        }
+
+        const fromIndex = viewOrder.indexOf(draggedView);
+        const toIndex = viewOrder.indexOf(targetView);
+
+        if (fromIndex !== -1 && toIndex !== -1) {
+            const newOrder = [...viewOrder];
+            const [movedItem] = newOrder.splice(fromIndex, 1);
+            newOrder.splice(toIndex, 0, movedItem);
+            onViewOrderChange(newOrder);
+        }
+    };
+    
+    const handleDragEnd = () => {
+        draggedViewRef.current = null;
+        setDraggingView(null);
+        setTimeout(() => {
+            dragHappened.current = false;
+        }, 0);
+    };
+    
+    const handleIconClick = (view: ActiveView) => {
+        if (dragHappened.current) {
+            return;
+        }
+        setActiveView(view);
+        setIsNotificationsOpen(false);
+    };
+    
+    const handleProfileClick = () => {
+        setActiveView('profile');
+        setIsNotificationsOpen(false);
+    };
+
+    const toggleNotifications = () => {
+        setIsNotificationsOpen(prev => !prev);
+    };
+
+    const iconConfig: Record<ActiveView, { label: string; icon: React.ReactNode; isVisible: boolean }> = {
+        tasks: { label: 'Tasks', icon: <TasksIcon />, isVisible: true },
+        'ai-assistant': { label: 'AI Assistant', icon: <AIAssistantIcon />, isVisible: true },
+        analytics: { label: 'Analytics', icon: <AnalyticsIcon />, isVisible: true },
+        habits: { label: 'Habits', icon: <HabitIcon />, isVisible: settings.showHabitTracker },
+        pomodoro: { label: 'Pomodoro', icon: <PomodoroIcon />, isVisible: settings.showPomodoro },
+        profile: { label: 'Profile', icon: <UserIcon />, isVisible: true } // Added for type completeness, but not used in draggable list
+    };
+    
+    const visibleViews = viewOrder.filter(view => iconConfig[view] && iconConfig[view].isVisible);
+  
+    return (
+        <aside className="w-20 bg-background-secondary flex flex-col items-center py-4 space-y-4 border-r border-border-primary">
+          <div className="w-10 h-10 bg-primary rounded-full mb-4"></div>
+          
+          <div className="flex flex-col items-center flex-grow w-full">
+            <SidebarIcon label="Profile" isActive={activeView === 'profile'} onClick={handleProfileClick}>
+              <UserIcon />
             </SidebarIcon>
-        )}
-        {settings.showPomodoro && (
-            <SidebarIcon label="Pomodoro" isActive={activeView === 'pomodoro'} onClick={() => setActiveView('pomodoro')}>
-                <PomodoroIcon />
-            </SidebarIcon>
-        )}
-      </div>
+            <div className="w-10/12 border-t border-border-primary my-2"></div>
+            
+            <div className="w-full space-y-2">
+                {visibleViews.map(view => {
+                    const config = iconConfig[view];
+                    if (!config) return null;
+                    const isDragging = draggingView === view;
+                    return (
+                        <div
+                            key={view}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, view)}
+                            onDragEnter={(e) => handleDragEnter(e, view)}
+                            onDragEnd={handleDragEnd}
+                            onDragOver={(e) => e.preventDefault()}
+                            className={`w-full cursor-grab transition-all duration-300 ease-in-out ${isDragging ? 'opacity-30 scale-110' : 'opacity-100'}`}
+                        >
+                            <SidebarIcon label={config.label} isActive={activeView === view} onClick={() => handleIconClick(view)}>
+                                {config.icon}
+                            </SidebarIcon>
+                        </div>
+                    );
+                })}
+            </div>
 
-      <div className="flex flex-col space-y-2 items-center">
-        <SidebarIcon label="Settings" isActive={false} onClick={onOpenSettings}>
-            <SettingsIcon />
-        </SidebarIcon>
-      </div>
-    </aside>
-  );
+            <div 
+                className="flex-grow w-full"
+                onDragOver={(e) => e.preventDefault()}
+                onDragEnter={(e) => {
+                    e.preventDefault();
+                    dragHappened.current = true;
+                    const draggedView = draggedViewRef.current;
+                    if (!draggedView) return;
+
+                    const lastItemInOrder = viewOrder[viewOrder.length - 1];
+                    if (draggedView !== lastItemInOrder) {
+                        const fromIndex = viewOrder.indexOf(draggedView);
+                        if (fromIndex === -1) return;
+                        
+                        const newOrder = [...viewOrder];
+                        const [item] = newOrder.splice(fromIndex, 1);
+                        newOrder.push(item);
+                        
+                        onViewOrderChange(newOrder);
+                    }
+                }}
+            />
+          </div>
+    
+          <div className="flex flex-col space-y-2 items-center">
+             <div className="relative">
+                <SidebarIcon label="Notifications" isActive={isNotificationsOpen} onClick={toggleNotifications}>
+                    <NotificationBellIcon />
+                     {unreadCount > 0 && (
+                        <span className="absolute top-2 right-2 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-background-secondary"></span>
+                    )}
+                </SidebarIcon>
+                {isNotificationsOpen && (
+                    <NotificationCenter
+                        notifications={notifications}
+                        onClose={() => setIsNotificationsOpen(false)}
+                        onMarkAsRead={onMarkNotificationAsRead}
+                        onClearAll={onClearAllNotifications}
+                    />
+                )}
+            </div>
+
+            <SidebarIcon label="Settings" isActive={false} onClick={onOpenSettings}>
+                <SettingsIcon />
+            </SidebarIcon>
+          </div>
+        </aside>
+    );
 };

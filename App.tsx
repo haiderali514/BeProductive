@@ -1,22 +1,25 @@
 
-import React, { useState, useCallback } from 'react';
-import { List, Task, Priority, Subtask, Habit, PomodoroSession, Recurrence } from './types';
+
+import React, { useState, useCallback, useEffect } from 'react';
+import { List, Task, Priority, Subtask, Habit, PomodoroSession, Recurrence, ActiveView, UserProfile, ChatMessage, UserTrait, Notification, Conversation, TraitType, GoalSubtype } from './types';
 import { Sidebar } from './components/Sidebar';
 import { TasksPage } from './components/TasksPage';
 import { HabitPage } from './components/HabitPage';
 import { PomodoroPage } from './components/PomodoroPage';
 import { AnalyticsPage } from './components/AnalyticsPage';
-import { generateSubtasks } from './services/geminiService';
+import { ProfilePage } from './components/ProfilePage';
+import { AIAssistantPage } from './components/AIAssistantPage';
+import { generateSubtasks, chatWithAssistant, AIContext, getProactiveSuggestion, generateChatTitle } from './services/geminiService';
 import useLocalStorage from './hooks/useLocalStorage';
-import { DEFAULT_LISTS, DEFAULT_TASKS, DEFAULT_HABITS, DEFAULT_POMODORO_SESSIONS } from './constants';
+import { DEFAULT_LISTS, DEFAULT_TASKS, DEFAULT_HABITS, DEFAULT_POMODORO_SESSIONS, DEFAULT_USER_PROFILE } from './constants';
 import { LandingPage } from './components/auth/LandingPage';
 import { LoginPage } from './components/auth/LoginPage';
 import { SignupPage } from './components/auth/SignupPage';
 import { SettingsModal } from './components/settings/SettingsModal';
 import { useSettings, Settings } from './hooks/useSettings';
+import { Content } from '@google/genai';
 
 
-type ActiveView = 'tasks' | 'pomodoro' | 'habits' | 'analytics';
 type AuthView = 'landing' | 'login' | 'signup';
 
 // A simple User type for demo purposes
@@ -27,7 +30,7 @@ interface User {
 
 const App: React.FC = () => {
     // Auth state
-    const [isAuthenticated, setIsAuthenticated] = useLocalStorage<boolean>('app_isAuthenticated', false);
+    const [isAuthenticated, setIsAuthenticated] = useLocalStorage<boolean>('app_isAuthenticated', true);
     const [users, setUsers] = useLocalStorage<User[]>('app_users', []);
     const [authView, setAuthView] = useState<AuthView>('landing');
 
@@ -36,11 +39,50 @@ const App: React.FC = () => {
     const [tasks, setTasks] = useLocalStorage<Task[]>('tasks', DEFAULT_TASKS);
     const [habits, setHabits] = useLocalStorage<Habit[]>('habits', DEFAULT_HABITS);
     const [pomodoroSessions, setPomodoroSessions] = useLocalStorage<PomodoroSession[]>('pomodoroSessions', DEFAULT_POMODORO_SESSIONS);
+    const [userProfile, setUserProfile] = useLocalStorage<UserProfile>('userProfile', DEFAULT_USER_PROFILE);
+    const [notifications, setNotifications] = useLocalStorage<Notification[]>('notifications', []);
     
     // UI State
     const [settings, setSettings] = useSettings();
+    const initialViewOrder: ActiveView[] = ['tasks', 'ai-assistant', 'analytics', 'habits', 'pomodoro'];
+    const [viewOrder, setViewOrder] = useLocalStorage<ActiveView[]>('viewOrder', initialViewOrder);
     const [activeView, setActiveView] = useState<ActiveView>('tasks');
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+    // AI Assistant State
+    const [conversations, setConversations] = useLocalStorage<Conversation[]>('aiConversations', [
+        { 
+            id: '1', 
+            title: 'Welcome Chat', 
+            messages: [
+                { id: '0', role: 'model', parts: [{ text: "Hello! I'm Aura, your personal AI assistant. How can I help you organize your day?" }]}
+            ] 
+        }
+    ]);
+    const [activeConversationId, setActiveConversationId] = useLocalStorage<string | null>('activeConversationId', '1');
+    const [isAILoading, setIsAILoading] = useState(false);
+    const [lastAISuggestion, setLastAISuggestion] = useLocalStorage<number>('lastAISuggestion', 0);
+
+    // One-time data migration for user profile
+    useEffect(() => {
+        const profile = userProfile as any;
+        if (profile && (profile.longTermGoals || profile.shortTermGoals || profile.struggles) && !profile.traits) {
+            console.log("Migrating user profile to new 'traits' structure...");
+            const newTraits: UserTrait[] = [];
+            (profile.longTermGoals || []).forEach((g: any) => newTraits.push({ id: g.id, type: 'goal', subtype: 'long-term', text: g.text }));
+            (profile.shortTermGoals || []).forEach((g: any) => newTraits.push({ id: g.id, type: 'goal', subtype: 'short-term', text: g.text }));
+            (profile.struggles || []).forEach((s: any) => newTraits.push({ id: s.id, type: 'struggle', text: s.text }));
+
+            const migratedProfile: UserProfile = {
+                name: profile.name,
+                email: profile.email,
+                avatarUrl: profile.avatarUrl,
+                traits: newTraits,
+            };
+            
+            setUserProfile(migratedProfile);
+        }
+    }, []);
 
     // Auth handlers
     const handleSignup = useCallback((email: string, pass: string): boolean => {
@@ -66,6 +108,74 @@ const App: React.FC = () => {
         setAuthView('landing');
     }, [setIsAuthenticated]);
 
+    const addNotification = useCallback((message: string, type: Notification['type'], relatedId?: string) => {
+        if (type === 'task-due' && relatedId) {
+            if (notifications.some(n => n.relatedId === relatedId && n.type === 'task-due')) {
+                return;
+            }
+        }
+        const newNotification: Notification = {
+            id: Date.now().toString(),
+            message,
+            type,
+            relatedId,
+            read: false,
+            timestamp: Date.now(),
+        };
+        setNotifications(prev => [newNotification, ...prev].slice(0, 50)); // Keep max 50 notifications
+    }, [notifications, setNotifications]);
+    
+    // Effect for task reminders
+    useEffect(() => {
+        const checkTaskReminders = () => {
+            const todayStr = new Date().toISOString().split('T')[0];
+            
+            tasks.forEach(task => {
+                if (!task.completed && task.dueDate) {
+                    const taskDueDateStr = new Date(task.dueDate + 'T00:00:00').toISOString().split('T')[0];
+                    if (taskDueDateStr <= todayStr) {
+                        addNotification(`Task due: "${task.title}"`, 'task-due', task.id);
+                    }
+                }
+            });
+        };
+    
+        const intervalId = setInterval(checkTaskReminders, 60 * 1000); // Check every minute
+        checkTaskReminders(); // check once on load
+        return () => clearInterval(intervalId);
+    }, [tasks, addNotification]);
+    
+    // Effect for proactive AI suggestions
+    useEffect(() => {
+        const fetchAISuggestion = async () => {
+            const oneDay = 24 * 60 * 60 * 1000;
+            if (Date.now() - lastAISuggestion < oneDay) {
+                return; // Don't fetch if we got one recently
+            }
+    
+            const context: AIContext = { tasks, lists, habits, profile: userProfile };
+            const suggestion = await getProactiveSuggestion(context);
+            
+            if (suggestion) {
+                addNotification(suggestion, 'ai-suggestion');
+                setLastAISuggestion(Date.now());
+            }
+        };
+        
+        const timeoutId = setTimeout(fetchAISuggestion, 5000); // Fetch after a small delay
+        return () => clearTimeout(timeoutId);
+    
+    }, [tasks, lists, habits, userProfile, addNotification, lastAISuggestion, setLastAISuggestion]);
+    
+
+    const handleMarkNotificationAsRead = useCallback((id: string) => {
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    }, [setNotifications]);
+
+    const handleClearAllNotifications = useCallback(() => {
+        setNotifications([]);
+    }, [setNotifications]);
+
     const handleAddList = useCallback((listName: string) => {
         if (lists.some(l => l.name.toLowerCase() === listName.toLowerCase())) {
             alert("A list with this name already exists.");
@@ -83,6 +193,7 @@ const App: React.FC = () => {
             subtasks: [],
         };
         setTasks(prevTasks => [...prevTasks, newTask]);
+        return newTask;
     }, [setTasks]);
 
     const handleToggleComplete = useCallback((taskId: string) => {
@@ -200,6 +311,174 @@ const App: React.FC = () => {
         setSettings(prev => ({...prev, ...newSettings}));
     }, [setSettings]);
 
+    const handleUpdateProfile = useCallback((newProfileData: Partial<UserProfile>) => {
+        setUserProfile(prev => ({...prev, ...newProfileData}));
+    }, [setUserProfile]);
+
+    const getTasksForPeriod = (period: 'today' | 'tomorrow' | 'this week') => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const filterFunc = (task: Task): boolean => {
+            if (!task.dueDate) return false;
+            const taskDate = new Date(task.dueDate + 'T00:00:00');
+            if (isNaN(taskDate.getTime())) return false;
+            if (task.completed) return false;
+
+            switch (period) {
+                case 'today':
+                    return taskDate.getTime() === today.getTime();
+                case 'tomorrow':
+                    const tomorrow = new Date(today);
+                    tomorrow.setDate(today.getDate() + 1);
+                    return taskDate.getTime() === tomorrow.getTime();
+                case 'this week':
+                    const endOfWeek = new Date(today);
+                    const dayOfWeek = today.getDay(); 
+                    const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1; 
+                    endOfWeek.setDate(today.getDate() - diff + 6);
+                    endOfWeek.setHours(23, 59, 59, 999);
+                    return taskDate >= today && taskDate <= endOfWeek;
+                default:
+                    return false;
+            }
+        };
+        return tasks.filter(filterFunc);
+    };
+
+    const handleNewChat = () => {
+        const newConversation: Conversation = {
+            id: Date.now().toString(),
+            title: 'New Chat',
+            messages: [
+                { id: '0', role: 'model', parts: [{ text: "Hi there! What can I help you with?" }]}
+            ]
+        };
+        setConversations(prev => [newConversation, ...prev]);
+        setActiveConversationId(newConversation.id);
+    };
+
+    const handleDeleteConversation = (id: string) => {
+        setConversations(prev => {
+            const remaining = prev.filter(c => c.id !== id);
+            if (activeConversationId === id) {
+                setActiveConversationId(remaining.length > 0 ? remaining[0].id : null);
+            }
+            return remaining;
+        });
+    };
+    
+    const appendMessageToConversation = (conversationId: string, message: ChatMessage) => {
+        setConversations(prev => {
+            const convoIndex = prev.findIndex(c => c.id === conversationId);
+            if (convoIndex === -1) return prev;
+
+            const updatedConvo = {
+                ...prev[convoIndex],
+                messages: [...prev[convoIndex].messages, message],
+            };
+
+            const newConversations = [...prev];
+            newConversations[convoIndex] = updatedConvo;
+            return newConversations;
+        });
+    };
+
+    const handleSendMessageToAI = async (prompt: string) => {
+        if (!activeConversationId) return;
+    
+        setIsAILoading(true);
+        const newUserMessage: ChatMessage = { id: Date.now().toString(), role: 'user', parts: [{ text: prompt }] };
+        
+        const activeConvoBeforeUpdate = conversations.find(c => c.id === activeConversationId)!;
+        const isNewChat = activeConvoBeforeUpdate.messages.filter(m => m.role === 'user').length === 0;
+
+        appendMessageToConversation(activeConversationId, newUserMessage);
+        
+        const historyForAPI: Content[] = [...activeConvoBeforeUpdate.messages, newUserMessage].map(m => ({ role: m.role, parts: m.parts }));
+    
+        try {
+            const context: AIContext = { tasks, lists, habits, profile: userProfile };
+            const response = await chatWithAssistant(historyForAPI, context);
+            let finalModelMessage: ChatMessage;
+    
+            if (response.functionCalls) {
+                const functionResponses = [];
+    
+                for (const funcCall of response.functionCalls) {
+                    let result: any;
+                    if (funcCall.name === 'addTask') {
+                        const list = lists.find(l => l.name.toLowerCase() === ((funcCall.args.listName as string) || 'inbox').toLowerCase()) || lists.find(l => l.id === 'inbox');
+                        const newTask = handleAddTask({
+                            title: funcCall.args.title as string,
+                            listId: list!.id,
+                            priority: (funcCall.args.priority as Priority) || Priority.NONE,
+                            dueDate: (funcCall.args.dueDate as string) || null,
+                            recurrence: null,
+                        });
+                        result = { success: true, task: newTask };
+                    } else if (funcCall.name === 'getTasks') {
+                        result = getTasksForPeriod(funcCall.args.period as 'today' | 'tomorrow' | 'this week');
+                    } else if (funcCall.name === 'saveUserTrait') {
+                        const newTrait: UserTrait = {
+                            id: Date.now().toString(),
+                            type: funcCall.args.traitType as TraitType,
+                            text: funcCall.args.traitText as string,
+                            subtype: (funcCall.args.goalSubtype as GoalSubtype) || undefined,
+                        };
+                        if (!userProfile.traits.some(t => t.text.toLowerCase() === newTrait.text.toLowerCase() && t.type === newTrait.type)) {
+                            handleUpdateProfile({ traits: [...userProfile.traits, newTrait] });
+                            result = { success: true, trait: newTrait };
+                        } else {
+                            result = { success: false, message: "Trait already exists." };
+                        }
+                    } else {
+                        result = { error: `Function ${funcCall.name} not found.` };
+                    }
+
+                    functionResponses.push({
+                        name: funcCall.name,
+                        response: { result: result },
+                    });
+                }
+                
+                if (response.candidates?.[0]?.content) {
+                    historyForAPI.push(response.candidates[0].content);
+                }
+                historyForAPI.push({ role: 'user', parts: [{ functionResponse: { name: 'tool_response', response: { responses: functionResponses }} }] });
+                
+                // We need to get the latest profile data for the context in case it was just updated.
+                // A better approach would be to update context directly, but for now we re-read from state.
+                const refreshedContext: AIContext = { ...context, profile: userProfile };
+
+                const finalResponse = await chatWithAssistant(historyForAPI, refreshedContext);
+                const responseText = finalResponse.text?.trim();
+                const finalText = responseText || "I've processed that. What would you like to do next?";
+                finalModelMessage = { id: Date.now().toString() + '-final', role: 'model', parts: [{ text: finalText }] };
+            } else {
+                const responseText = response.text?.trim();
+                const finalText = responseText || "I'm not sure how to respond to that. Could you try rephrasing?";
+                finalModelMessage = { id: Date.now().toString(), role: 'model', parts: [{ text: finalText }] };
+            }
+
+            appendMessageToConversation(activeConversationId, finalModelMessage);
+
+            if (isNewChat) {
+                const title = await generateChatTitle(prompt);
+                setConversations(prev => prev.map(c =>
+                    c.id === activeConversationId ? { ...c, title } : c
+                ));
+            }
+
+        } catch (error) {
+            console.error("AI Assistant Error:", error);
+            const errorMessage: ChatMessage = { id: Date.now().toString(), role: 'model', parts: [{ text: "Sorry, I encountered an error. Please try again." }] };
+            appendMessageToConversation(activeConversationId, errorMessage);
+        } finally {
+            setIsAILoading(false);
+        }
+    };
+
 
     if (!isAuthenticated) {
         switch (authView) {
@@ -245,6 +524,21 @@ const App: React.FC = () => {
                     sessions={pomodoroSessions}
                     lists={lists}
                 />;
+            case 'profile':
+                return <ProfilePage
+                    profile={userProfile}
+                    onUpdateProfile={handleUpdateProfile}
+                />;
+            case 'ai-assistant':
+                 return <AIAssistantPage 
+                    conversations={conversations}
+                    activeConversationId={activeConversationId}
+                    isLoading={isAILoading}
+                    onSendMessage={handleSendMessageToAI}
+                    onNewChat={handleNewChat}
+                    onSelectConversation={setActiveConversationId}
+                    onDeleteConversation={handleDeleteConversation}
+                 />;
             default:
                 return <div className="p-6 text-content-primary"><h1 className="text-2xl font-bold">Not Found</h1></div>;
         }
@@ -257,6 +551,11 @@ const App: React.FC = () => {
                 setActiveView={setActiveView}
                 onOpenSettings={() => setIsSettingsOpen(true)}
                 settings={settings}
+                viewOrder={viewOrder}
+                onViewOrderChange={setViewOrder}
+                notifications={notifications}
+                onMarkNotificationAsRead={handleMarkNotificationAsRead}
+                onClearAllNotifications={handleClearAllNotifications}
             />
             <main className="flex-1 flex flex-col">
                 {renderActiveView()}

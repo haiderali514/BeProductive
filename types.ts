@@ -52,3 +52,43 @@ export interface PomodoroSession {
     taskId?: string; // Link to a task or habit
     note?: string;
 }
+
+export type TraitType = 'goal' | 'struggle' | 'passion' | 'hobby' | 'routine' | 'preference' | 'weakness';
+export type GoalSubtype = 'long-term' | 'short-term';
+
+export interface UserTrait {
+  id: string;
+  type: TraitType;
+  subtype?: GoalSubtype;
+  text: string;
+}
+
+export interface UserProfile {
+  name: string;
+  email: string;
+  avatarUrl: string;
+  traits: UserTrait[];
+}
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'model';
+  parts: { text: string }[];
+}
+
+export interface Conversation {
+  id: string;
+  title: string;
+  messages: ChatMessage[];
+}
+
+export interface Notification {
+  id: string;
+  message: string;
+  timestamp: number;
+  read: boolean;
+  type: 'task-due' | 'ai-suggestion' | 'habit-reminder';
+  relatedId?: string;
+}
+
+export type ActiveView = 'tasks' | 'pomodoro' | 'habits' | 'analytics' | 'profile' | 'ai-assistant';

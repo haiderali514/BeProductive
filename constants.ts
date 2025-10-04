@@ -1,5 +1,5 @@
 
-import { Priority, Habit, PomodoroSession } from './types';
+import { Priority, Habit, PomodoroSession, UserProfile } from './types';
 
 export const PRIORITY_COLORS: Record<Priority, string> = {
   [Priority.HIGH]: 'border-red-500',
@@ -63,3 +63,15 @@ export const DEFAULT_POMODORO_SESSIONS: PomodoroSession[] = [
     { id: 'p3', startTime: new Date('2024-08-03T00:26:00').getTime(), endTime: new Date('2024-08-03T01:56:00').getTime(), taskName: 'Vibe Coding' },
     { id: 'p4', startTime: new Date('2024-08-02T23:56:00').getTime(), endTime: new Date('2024-08-03T00:00:00').getTime(), taskName: 'Vibe Coding' },
 ];
+
+export const DEFAULT_USER_PROFILE: UserProfile = {
+    name: 'Ch Haider Ali',
+    email: 'chhaiderali0509@gmail.com',
+    avatarUrl: 'https://i.pravatar.cc/150?u=a042581f4e29026704d',
+    traits: [
+        { id: 'ltg1', type: 'goal', subtype: 'long-term', text: 'Become a principal engineer' },
+        { id: 'ltg2', type: 'goal', subtype: 'long-term', text: 'Launch a successful side project' },
+        { id: 'stg1', type: 'goal', subtype: 'short-term', text: 'Master React state management' },
+        { id: 'stg2', type: 'goal', subtype: 'short-term', text: 'Finish the design system for the current project' },
+    ],
+};
