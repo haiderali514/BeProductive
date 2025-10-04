@@ -29,16 +29,20 @@ export const AddFocusRecordModal: React.FC<AddFocusRecordModalProps> = ({ isOpen
         if (!isOpen) return;
 
         const checkValidity = () => {
-            if (!taskId) {
-                setError(null);
-                return true; // Disabled: No task selected
+            // Rule 1: Cannot be in the future
+            const now = new Date();
+            if (startTime > now || endTime > now) {
+                setError("Focus session cannot be in the future.");
+                return true; // Disabled
             }
-
+            
+            // Rule 2: End time must be after start time
             if (endTime <= startTime) {
                 setError("End time must be after start time.");
-                return true; // Disabled: Invalid time range
+                return true; // Disabled
             }
 
+            // Rule 3: No overlap with existing sessions
             const newStartTime = startTime.getTime();
             const newEndTime = endTime.getTime();
 
@@ -51,11 +55,17 @@ export const AddFocusRecordModal: React.FC<AddFocusRecordModalProps> = ({ isOpen
 
             if (hasOverlap) {
                 setError("The selected time conflicts with an existing focus session.");
-                return true; // Disabled: Time conflict
+                return true; // Disabled
+            }
+            
+            // Rule 4: Must have a task linked. If other checks passed, clear error.
+            if (!taskId) {
+                setError(null);
+                return true; // Disabled
             }
 
             setError(null); // All checks passed
-            return false; // Not disabled
+            return false; // Not disabled (enabled)
         };
 
         setIsSaveDisabled(checkValidity());
@@ -67,16 +77,13 @@ export const AddFocusRecordModal: React.FC<AddFocusRecordModalProps> = ({ isOpen
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         
-        // The disabled state should prevent this, but as a safeguard:
         if (isSaveDisabled) {
-            // If there's no error message yet (like on first load with no task), set one.
             if (!taskId) setError("Please link a task or habit to this focus session.");
             return;
         }
         
         const selectedTask = [...tasks, ...habits].find(t => t.id === taskId);
         
-        // This should not happen if logic is correct, but good to have
         if (!selectedTask) {
              setError("Selected task or habit not found. Please select another one.");
              return;
