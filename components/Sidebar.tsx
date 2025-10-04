@@ -1,8 +1,7 @@
-
 import React, { useRef, useState } from 'react';
 import { Settings } from '../hooks/useSettings';
-import { AnalyticsIcon, UserIcon, TasksIcon, HabitIcon, PomodoroIcon, SettingsIcon, AIAssistantIcon, NotificationBellIcon } from './Icons';
-import { ActiveView, Notification } from '../types';
+import { AnalyticsIcon, TasksIcon, HabitIcon, PomodoroIcon, SettingsIcon, AIAssistantIcon, NotificationBellIcon, MatrixIcon, CountdownIcon } from './Icons';
+import { ActiveView, Notification, UserProfile } from '../types';
 import { NotificationCenter } from './NotificationCenter';
 
 interface SidebarProps {
@@ -15,6 +14,7 @@ interface SidebarProps {
   notifications: Notification[];
   onMarkNotificationAsRead: (id: string) => void;
   onClearAllNotifications: () => void;
+  userProfile: UserProfile;
 }
 
 const SidebarIcon: React.FC<{
@@ -43,7 +43,8 @@ export const Sidebar: React.FC<SidebarProps> = (props) => {
     const { 
         activeView, setActiveView, onOpenSettings, settings, 
         viewOrder, onViewOrderChange, notifications,
-        onMarkNotificationAsRead, onClearAllNotifications
+        onMarkNotificationAsRead, onClearAllNotifications,
+        userProfile
     } = props;
 
     const draggedViewRef = useRef<ActiveView | null>(null);
@@ -97,11 +98,6 @@ export const Sidebar: React.FC<SidebarProps> = (props) => {
         setIsNotificationsOpen(false);
     };
     
-    const handleProfileClick = () => {
-        setActiveView('profile');
-        setIsNotificationsOpen(false);
-    };
-
     const toggleNotifications = () => {
         setIsNotificationsOpen(prev => !prev);
     };
@@ -112,21 +108,31 @@ export const Sidebar: React.FC<SidebarProps> = (props) => {
         analytics: { label: 'Analytics', icon: <AnalyticsIcon />, isVisible: true },
         habits: { label: 'Habits', icon: <HabitIcon />, isVisible: settings.showHabitTracker },
         pomodoro: { label: 'Pomodoro', icon: <PomodoroIcon />, isVisible: settings.showPomodoro },
-        profile: { label: 'Profile', icon: <UserIcon />, isVisible: true } // Added for type completeness, but not used in draggable list
+        'eisenhower-matrix': { label: 'Matrix', icon: <MatrixIcon />, isVisible: settings.showEisenhowerMatrix },
+        countdown: { label: 'Countdown', icon: <CountdownIcon />, isVisible: settings.showCountdown },
+        profile: { label: 'Profile', icon: <></>, isVisible: true } // Not rendered in draggable list
     };
     
     const visibleViews = viewOrder.filter(view => iconConfig[view] && iconConfig[view].isVisible);
   
     return (
         <aside className="w-20 bg-background-secondary flex flex-col items-center py-4 space-y-4 border-r border-border-primary">
-          <div className="w-10 h-10 bg-primary rounded-full mb-4"></div>
+          <div className="relative group flex justify-center">
+            <button
+                onClick={() => handleIconClick('profile')}
+                aria-label="Profile"
+                className={`w-12 h-12 rounded-full transition-all duration-200 ring-2 ring-offset-2 ring-offset-background-secondary ${
+                activeView === 'profile' ? 'ring-primary' : 'ring-transparent hover:ring-primary/50'
+                }`}
+            >
+                <img src={userProfile.avatarUrl} alt={userProfile.name} className="w-full h-full rounded-full object-cover" />
+            </button>
+             <span className="absolute left-16 p-2 px-3 text-sm text-primary-content bg-background-tertiary rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap">
+                Profile
+            </span>
+          </div>
           
           <div className="flex flex-col items-center flex-grow w-full">
-            <SidebarIcon label="Profile" isActive={activeView === 'profile'} onClick={handleProfileClick}>
-              <UserIcon />
-            </SidebarIcon>
-            <div className="w-10/12 border-t border-border-primary my-2"></div>
-            
             <div className="w-full space-y-2">
                 {visibleViews.map(view => {
                     const config = iconConfig[view];

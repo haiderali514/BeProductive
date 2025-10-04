@@ -33,9 +33,10 @@ export const TasksPage: React.FC<TasksPageProps> = (props) => {
             
             tasksToShow = tasks.filter(task => {
                 if (!task.dueDate) return false;
-                // Interpret date as local time for "Today" view
-                const taskDate = new Date(task.dueDate + 'T00:00:00');
-                if (isNaN(taskDate.getTime())) return false; // Guard against invalid date strings
+                // Robustly parse date and normalize to the start of the day for comparison
+                const taskDate = new Date(task.dueDate.replace(' ', 'T'));
+                if (isNaN(taskDate.getTime())) return false;
+                taskDate.setHours(0, 0, 0, 0);
                 
                 return taskDate.getTime() === today.getTime();
             });
@@ -49,15 +50,14 @@ export const TasksPage: React.FC<TasksPageProps> = (props) => {
                 return a.completed ? 1 : -1;
             }
 
-            // Then sort by due date (earlier dates first)
-            const aTime = a.dueDate ? new Date(a.dueDate + 'T00:00:00').getTime() : Infinity;
-            const bTime = b.dueDate ? new Date(b.dueDate + 'T00:00:00').getTime() : Infinity;
+            // Then sort by full due date and time (earlier first)
+            const aDate = a.dueDate ? new Date(a.dueDate.replace(' ', 'T')) : null;
+            const bDate = b.dueDate ? new Date(b.dueDate.replace(' ', 'T')) : null;
 
-            // Handle invalid dates by treating them as Infinity (pushing them to the end)
-            const validATime = isNaN(aTime) ? Infinity : aTime;
-            const validBTime = isNaN(bTime) ? Infinity : bTime;
+            const aTime = aDate && !isNaN(aDate.getTime()) ? aDate.getTime() : Infinity;
+            const bTime = bDate && !isNaN(bDate.getTime()) ? bDate.getTime() : Infinity;
 
-            return validATime - validBTime;
+            return aTime - bTime;
         });
     }, [tasks, activeListId]);
 

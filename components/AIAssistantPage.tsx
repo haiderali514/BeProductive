@@ -1,7 +1,9 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import { ChatMessage, Conversation } from '../types';
-import { AIAssistantIcon, UserIcon, PlusIcon, TrashIcon } from './Icons';
+import { AIAssistantIcon, UserIcon, PlusIcon, TrashIcon, EditIcon } from './Icons';
+import { MarkdownRenderer } from './MarkdownRenderer';
 
 interface AIAssistantPageProps {
     conversations: Conversation[];
@@ -11,6 +13,7 @@ interface AIAssistantPageProps {
     onNewChat: () => void;
     onSelectConversation: (id: string) => void;
     onDeleteConversation: (id: string) => void;
+    onRenameConversation: (id: string, newTitle: string) => void;
 }
 
 const ChatBubble: React.FC<{ message: ChatMessage }> = ({ message }) => {
@@ -20,10 +23,10 @@ const ChatBubble: React.FC<{ message: ChatMessage }> = ({ message }) => {
     return (
         <div className={`flex items-start gap-4 ${isModel ? '' : 'flex-row-reverse'}`}>
             <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${isModel ? 'bg-primary' : 'bg-background-tertiary'}`}>
-                {isModel ? <AIAssistantIcon /> : <UserIcon />}
+                {isModel ? <AIAssistantIcon className="text-white"/> : <UserIcon />}
             </div>
             <div className={`p-4 rounded-lg max-w-2xl ${isModel ? 'bg-background-secondary' : 'bg-primary/20'}`}>
-                <p className="whitespace-pre-wrap">{text}</p>
+                <MarkdownRenderer text={text} />
             </div>
         </div>
     );
@@ -32,7 +35,7 @@ const ChatBubble: React.FC<{ message: ChatMessage }> = ({ message }) => {
 const LoadingBubble: React.FC = () => (
     <div className="flex items-start gap-4">
         <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary flex items-center justify-center">
-            <AIAssistantIcon />
+            <AIAssistantIcon className="text-white"/>
         </div>
         <div className="p-4 rounded-lg bg-background-secondary">
             <div className="flex items-center justify-center space-x-1">
@@ -45,8 +48,10 @@ const LoadingBubble: React.FC = () => (
 );
 
 
-export const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ conversations, activeConversationId, isLoading, onSendMessage, onNewChat, onSelectConversation, onDeleteConversation }) => {
+export const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ conversations, activeConversationId, isLoading, onSendMessage, onNewChat, onSelectConversation, onDeleteConversation, onRenameConversation }) => {
     const [prompt, setPrompt] = useState('');
+    const [editingConvoId, setEditingConvoId] = useState<string | null>(null);
+    const [editingTitle, setEditingTitle] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const activeConversation = conversations.find(c => c.id === activeConversationId);
@@ -66,6 +71,31 @@ export const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ conversations,
             setPrompt('');
         }
     };
+
+    const handleStartEditing = (convo: Conversation) => {
+        setEditingConvoId(convo.id);
+        setEditingTitle(convo.title);
+    };
+
+    const handleCancelEditing = () => {
+        setEditingConvoId(null);
+        setEditingTitle('');
+    };
+
+    const handleSaveEditing = () => {
+        if (editingConvoId && editingTitle.trim()) {
+            onRenameConversation(editingConvoId, editingTitle.trim());
+        }
+        handleCancelEditing();
+    };
+    
+    const handleEditKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            handleSaveEditing();
+        } else if (e.key === 'Escape') {
+            handleCancelEditing();
+        }
+    };
     
     const showLoading = isLoading && activeConversation && activeConversation.messages.length > 0 && activeConversation.messages[activeConversation.messages.length - 1].role === 'user';
 
@@ -83,19 +113,42 @@ export const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ conversations,
                 <div className="flex-1 overflow-y-auto -mr-2 pr-2 space-y-2">
                     {conversations.map(convo => (
                         <div key={convo.id} className="relative group">
-                            <button
-                                onClick={() => onSelectConversation(convo.id)}
-                                className={`w-full text-left px-3 py-2.5 rounded-lg truncate text-sm transition-colors ${activeConversationId === convo.id ? 'bg-primary/20 text-primary font-semibold' : 'hover:bg-background-tertiary'}`}
-                            >
-                                {convo.title}
-                            </button>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); onDeleteConversation(convo.id); }}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-content-tertiary hover:text-red-500 hover:bg-background-primary opacity-0 group-hover:opacity-100 transition-opacity"
-                                aria-label="Delete chat"
-                            >
-                                <TrashIcon />
-                            </button>
+                             {editingConvoId === convo.id ? (
+                                <input
+                                    type="text"
+                                    value={editingTitle}
+                                    onChange={(e) => setEditingTitle(e.target.value)}
+                                    onBlur={handleSaveEditing}
+                                    onKeyDown={handleEditKeyDown}
+                                    className="w-full text-left px-3 py-2.5 rounded-lg text-sm bg-background-primary border border-primary ring-1 ring-primary focus:outline-none"
+                                    autoFocus
+                                />
+                            ) : (
+                                <>
+                                    <button
+                                        onClick={() => onSelectConversation(convo.id)}
+                                        className={`w-full text-left px-3 py-2.5 rounded-lg truncate text-sm transition-colors ${activeConversationId === convo.id ? 'bg-primary/20 text-primary font-semibold' : 'hover:bg-background-tertiary'}`}
+                                    >
+                                        {convo.title}
+                                    </button>
+                                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center bg-background-tertiary rounded-md opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleStartEditing(convo); }}
+                                            className="p-1.5 text-content-tertiary hover:text-primary"
+                                            aria-label="Rename chat"
+                                        >
+                                            <EditIcon />
+                                        </button>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); onDeleteConversation(convo.id); }}
+                                            className="p-1.5 text-content-tertiary hover:text-red-500"
+                                            aria-label="Delete chat"
+                                        >
+                                            <TrashIcon />
+                                        </button>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     ))}
                 </div>

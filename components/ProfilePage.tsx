@@ -1,6 +1,6 @@
-
-import React, { useState, useMemo } from 'react';
-import { UserProfile, UserTrait, TraitType, GoalSubtype } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { UserProfile, UserTrait, TraitType, GoalSubtype, Task, GoalProgressReport } from '../types';
+import { generateGoalProgressReport } from '../services/geminiService';
 
 const DataInput: React.FC<{ onAdd: (text: string) => void, placeholder: string }> = ({ onAdd, placeholder }) => {
     const [text, setText] = useState('');
@@ -44,14 +44,16 @@ const DataItem: React.FC<{ item: UserTrait; onDelete: (id: string) => void; show
 
 const TraitSection: React.FC<{
     title: string;
+    description?: string;
     traits: UserTrait[];
     onDelete: (id: string) => void;
     onAdd: (text: string) => void;
     addPlaceholder: string;
     showSuggestButton?: boolean;
-}> = ({ title, traits, onDelete, onAdd, addPlaceholder, showSuggestButton = false }) => (
+}> = ({ title, description, traits, onDelete, onAdd, addPlaceholder, showSuggestButton = false }) => (
      <div>
-        <h3 className="font-bold mb-3 text-content-primary text-lg">{title}</h3>
+        <h3 className="font-bold mb-1 text-content-primary text-lg">{title}</h3>
+        {description && <p className="text-xs text-content-tertiary mb-3">{description}</p>}
         <div className="space-y-3 mb-4">
             {traits.map(trait => (
                 <DataItem key={trait.id} item={trait} onDelete={onDelete} showSuggest={showSuggestButton} />
@@ -62,14 +64,78 @@ const TraitSection: React.FC<{
     </div>
 );
 
+const GoalProgressCard: React.FC<{ goal: UserTrait; allTasks: Task[] }> = ({ goal, allTasks }) => {
+    const [report, setReport] = useState<Omit<GoalProgressReport, 'goalId'> | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchReport = async () => {
+            setIsLoading(true);
+            setError(null);
+            try {
+                const result = await generateGoalProgressReport(goal, allTasks);
+                setReport(result);
+            } catch (e: any) {
+                setError(e.message);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchReport();
+    }, [goal, allTasks]);
+
+    if (isLoading) {
+        return (
+            <div className="bg-background-tertiary p-4 rounded-lg space-y-3 animate-pulse">
+                <div className="h-5 bg-background-primary rounded w-3/4"></div>
+                <div className="h-4 bg-background-primary rounded w-full"></div>
+                <div className="h-3 bg-background-primary rounded w-1/2"></div>
+            </div>
+        );
+    }
+
+    if (error || !report) {
+        return (
+             <div className="bg-background-tertiary p-4 rounded-lg">
+                <p className="font-semibold text-content-primary">{goal.text}</p>
+                <p className="text-xs text-red-500 mt-2">Could not load progress report.</p>
+            </div>
+        )
+    }
+
+    return (
+        <div className="bg-background-tertiary p-4 rounded-lg">
+            <h4 className="font-semibold text-content-primary mb-2">{goal.text}</h4>
+            
+            <div className="flex items-center space-x-3 mb-3">
+                <div className="w-full bg-background-primary rounded-full h-2.5">
+                    <div className="bg-primary h-2.5 rounded-full" style={{ width: `${report.progressPercentage}%`, transition: 'width 0.5s ease-in-out' }}></div>
+                </div>
+                <span className="text-sm font-semibold text-primary">{report.progressPercentage}%</span>
+            </div>
+            
+            <p className="text-sm text-content-secondary italic mb-3">"{report.summaryText}"</p>
+            
+            <div className="bg-primary/10 border-l-4 border-primary p-3 rounded-r-lg">
+                <p className="text-xs font-bold text-primary mb-1">Next Step Suggestion:</p>
+                <p className="text-sm text-content-primary">{report.nextStepSuggestion}</p>
+            </div>
+        </div>
+    );
+};
+
+
 interface ProfilePageProps {
     profile: UserProfile;
     onUpdateProfile: (newProfileData: Partial<UserProfile>) => void;
+    tasks: Task[];
 }
 
 type ProfileSection = 'profile' | 'traits' | 'personalization' | 'data';
 
-export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onUpdateProfile }) => {
+export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onUpdateProfile, tasks }) => {
     const [activeSection, setActiveSection] = useState<ProfileSection>('profile');
     
     const handleAddTrait = (text: string, type: TraitType, subtype?: GoalSubtype) => {
@@ -135,38 +201,62 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onUpdateProfi
                     <div className="max-w-4xl">
                         <p className="text-sm text-content-secondary mb-6">This is what Aura, your AI coach, knows about you. Keeping this up-to-date helps it provide more personalized advice.</p>
                         <div className="space-y-10">
-                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <TraitSection 
-                                    title="Long-term Goals"
-                                    traits={(groupedTraits.goal || []).filter(g => g.subtype === 'long-term')}
-                                    onDelete={handleDeleteTrait}
-                                    onAdd={(text) => handleAddTrait(text, 'goal', 'long-term')}
-                                    addPlaceholder="Add a new long-term goal..."
-                                    showSuggestButton
-                                />
+                            <div>
+                                <h3 className="font-bold mb-1 text-content-primary text-lg">Long-term Goals</h3>
+                                <p className="text-xs text-content-tertiary mb-3">Your big picture ambitions. Aura can help you break them down.</p>
+                                <div className="space-y-3 mb-4">
+                                    {((groupedTraits.goal || []).filter(g => g.subtype === 'long-term')).map(goal => (
+                                        <GoalProgressCard key={goal.id} goal={goal} allTasks={tasks} />
+                                    ))}
+                                    {((groupedTraits.goal || []).filter(g => g.subtype === 'long-term')).length === 0 && <p className="text-sm text-content-tertiary text-center p-4 bg-background-tertiary rounded-lg">No long-term goals added yet.</p>}
+                                </div>
+                                <DataInput onAdd={(text) => handleAddTrait(text, 'goal', 'long-term')} placeholder="Add a new long-term goal..." />
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <TraitSection 
                                     title="Short-term Goals"
+                                    description="What you're focused on right now."
                                     traits={(groupedTraits.goal || []).filter(g => g.subtype === 'short-term')}
                                     onDelete={handleDeleteTrait}
                                     onAdd={(text) => handleAddTrait(text, 'goal', 'short-term')}
                                     addPlaceholder="Add a new short-term goal..."
                                     showSuggestButton
                                 />
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <TraitSection 
                                     title="Struggles & Weaknesses"
+                                    description="Sharing these helps Aura provide better support when you need it."
                                     traits={[...(groupedTraits.struggle || []), ...(groupedTraits.weakness || [])]}
                                     onDelete={handleDeleteTrait}
                                     onAdd={(text) => handleAddTrait(text, 'struggle')}
-                                    addPlaceholder="Add a struggle..."
+                                    addPlaceholder="Add a struggle or weakness..."
                                 />
+                            </div>
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <TraitSection 
                                     title="Passions & Hobbies"
+                                    description="What you love to do. Aura can suggest tasks that align with your interests."
                                     traits={[...(groupedTraits.passion || []), ...(groupedTraits.hobby || [])]}
                                     onDelete={handleDeleteTrait}
                                     onAdd={(text) => handleAddTrait(text, 'hobby')}
                                     addPlaceholder="Add a passion or hobby..."
+                                />
+                                 <TraitSection 
+                                    title="Routines"
+                                    description="Your daily or weekly habits. Aura can help you stick to them."
+                                    traits={groupedTraits.routine || []}
+                                    onDelete={handleDeleteTrait}
+                                    onAdd={(text) => handleAddTrait(text, 'routine')}
+                                    addPlaceholder="Add a routine..."
+                                />
+                            </div>
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <TraitSection 
+                                    title="Preferences"
+                                    description="How you like to work. Aura will adapt its suggestions to your style."
+                                    traits={groupedTraits.preference || []}
+                                    onDelete={handleDeleteTrait}
+                                    onAdd={(text) => handleAddTrait(text, 'preference')}
+                                    addPlaceholder="Add a preference..."
                                 />
                             </div>
                         </div>

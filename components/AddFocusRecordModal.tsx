@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+
+
+import React, { useState, useEffect } from 'react';
 import { Task, Habit, PomodoroSession } from '../types';
 import { DateTimePicker } from './DateTimePicker';
 
@@ -8,9 +10,10 @@ interface AddFocusRecordModalProps {
     onAddSession: (session: Omit<PomodoroSession, 'id'>) => void;
     tasks: Task[];
     habits: Habit[];
+    sessions: PomodoroSession[];
 }
 
-export const AddFocusRecordModal: React.FC<AddFocusRecordModalProps> = ({ isOpen, onClose, onAddSession, tasks, habits }) => {
+export const AddFocusRecordModal: React.FC<AddFocusRecordModalProps> = ({ isOpen, onClose, onAddSession, tasks, habits, sessions }) => {
     const now = new Date();
     const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
 
@@ -18,23 +21,72 @@ export const AddFocusRecordModal: React.FC<AddFocusRecordModalProps> = ({ isOpen
     const [startTime, setStartTime] = useState<Date>(oneHourAgo);
     const [endTime, setEndTime] = useState<Date>(now);
     const [note, setNote] = useState('');
+    const [error, setError] = useState<string | null>(null);
+    const [isSaveDisabled, setIsSaveDisabled] = useState(true);
     
+    // Live validation with useEffect to control button state and error messages
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const checkValidity = () => {
+            if (!taskId) {
+                setError(null);
+                return true; // Disabled: No task selected
+            }
+
+            if (endTime <= startTime) {
+                setError("End time must be after start time.");
+                return true; // Disabled: Invalid time range
+            }
+
+            const newStartTime = startTime.getTime();
+            const newEndTime = endTime.getTime();
+
+            const hasOverlap = sessions.some(existingSession => {
+                const existingStart = existingSession.startTime;
+                const existingEnd = existingSession.endTime;
+                // Check for overlap: (StartA < EndB) and (EndA > StartB)
+                return newStartTime < existingEnd && newEndTime > existingStart;
+            });
+
+            if (hasOverlap) {
+                setError("The selected time conflicts with an existing focus session.");
+                return true; // Disabled: Time conflict
+            }
+
+            setError(null); // All checks passed
+            return false; // Not disabled
+        };
+
+        setIsSaveDisabled(checkValidity());
+
+    }, [isOpen, taskId, startTime, endTime, sessions]);
+
     if (!isOpen) return null;
     
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const selectedTask = [...tasks, ...habits].find(t => t.id === taskId);
-        if (endTime <= startTime) {
-            alert("End time must be after start time.");
+        
+        // The disabled state should prevent this, but as a safeguard:
+        if (isSaveDisabled) {
+            // If there's no error message yet (like on first load with no task), set one.
+            if (!taskId) setError("Please link a task or habit to this focus session.");
             return;
+        }
+        
+        const selectedTask = [...tasks, ...habits].find(t => t.id === taskId);
+        
+        // This should not happen if logic is correct, but good to have
+        if (!selectedTask) {
+             setError("Selected task or habit not found. Please select another one.");
+             return;
         }
 
         onAddSession({
             startTime: startTime.getTime(),
             endTime: endTime.getTime(),
-            // Fix: Use a type guard ('in' operator) to safely access properties on the 'Task | Habit' union type.
-            taskName: selectedTask ? ('title' in selectedTask ? selectedTask.title : selectedTask.name) : 'Unlinked Session',
-            taskId: taskId || undefined,
+            taskName: ('title' in selectedTask ? selectedTask.title : selectedTask.name),
+            taskId: taskId,
             note: note,
         });
         onClose();
@@ -52,7 +104,7 @@ export const AddFocusRecordModal: React.FC<AddFocusRecordModalProps> = ({ isOpen
                             onChange={e => setTaskId(e.target.value)}
                             className="w-full bg-background-primary border border-border-primary rounded-md px-3 py-2 text-content-primary focus:outline-none focus:ring-2 focus:ring-primary"
                         >
-                            <option value="">Set Task</option>
+                            <option value="">-- Select a Task or Habit --</option>
                             <optgroup label="Tasks">
                                 {tasks.filter(t => !t.completed).map(task => <option key={task.id} value={task.id}>{task.title}</option>)}
                             </optgroup>
@@ -83,9 +135,17 @@ export const AddFocusRecordModal: React.FC<AddFocusRecordModalProps> = ({ isOpen
                         ></textarea>
                     </div>
                     
+                    {error && <p className="text-red-500 text-center text-sm">{error}</p>}
+
                     <div className="flex justify-end pt-4 space-x-3">
                         <button type="button" onClick={onClose} className="px-4 py-2 rounded-md bg-background-tertiary hover:bg-border-primary text-content-primary font-semibold transition-colors">Cancel</button>
-                        <button type="submit" className="px-4 py-2 rounded-md bg-primary hover:bg-primary-focus text-white font-semibold transition-colors">Save</button>
+                        <button 
+                            type="submit" 
+                            disabled={isSaveDisabled}
+                            className="px-4 py-2 rounded-md bg-primary hover:bg-primary-focus text-white font-semibold transition-colors disabled:bg-background-tertiary disabled:text-content-secondary disabled:cursor-not-allowed"
+                        >
+                            Save
+                        </button>
                     </div>
                 </form>
             </div>

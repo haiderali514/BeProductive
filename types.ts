@@ -91,4 +91,18 @@ export interface Notification {
   relatedId?: string;
 }
 
-export type ActiveView = 'tasks' | 'pomodoro' | 'habits' | 'analytics' | 'profile' | 'ai-assistant';
+export interface GoalProgressReport {
+  goalId: string;
+  relatedTaskIds: string[];
+  progressPercentage: number;
+  summaryText: string;
+  nextStepSuggestion: string;
+}
+
+export interface Countdown {
+  id: string;
+  title: string;
+  date: string; // ISO string format
+}
+
+export type ActiveView = 'tasks' | 'pomodoro' | 'habits' | 'analytics' | 'profile' | 'ai-assistant' | 'eisenhower-matrix' | 'countdown';

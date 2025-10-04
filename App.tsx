@@ -1,8 +1,5 @@
-
-
-
 import React, { useState, useCallback, useEffect } from 'react';
-import { List, Task, Priority, Subtask, Habit, PomodoroSession, Recurrence, ActiveView, UserProfile, ChatMessage, UserTrait, Notification, Conversation, TraitType, GoalSubtype } from './types';
+import { List, Task, Priority, Subtask, Habit, PomodoroSession, Recurrence, ActiveView, UserProfile, ChatMessage, UserTrait, Notification, Conversation, TraitType, GoalSubtype, Countdown } from './types';
 import { Sidebar } from './components/Sidebar';
 import { TasksPage } from './components/TasksPage';
 import { HabitPage } from './components/HabitPage';
@@ -10,9 +7,11 @@ import { PomodoroPage } from './components/PomodoroPage';
 import { AnalyticsPage } from './components/AnalyticsPage';
 import { ProfilePage } from './components/ProfilePage';
 import { AIAssistantPage } from './components/AIAssistantPage';
+import { EisenhowerMatrixPage } from './components/EisenhowerMatrixPage';
+import { CountdownPage } from './components/CountdownPage';
 import { generateSubtasks, chatWithAssistant, AIContext, getProactiveSuggestion, generateChatTitle } from './services/geminiService';
 import useLocalStorage from './hooks/useLocalStorage';
-import { DEFAULT_LISTS, DEFAULT_TASKS, DEFAULT_HABITS, DEFAULT_POMODORO_SESSIONS, DEFAULT_USER_PROFILE } from './constants';
+import { DEFAULT_LISTS, DEFAULT_TASKS, DEFAULT_HABITS, DEFAULT_POMODORO_SESSIONS, DEFAULT_USER_PROFILE, DEFAULT_COUNTDOWNS } from './constants';
 import { LandingPage } from './components/auth/LandingPage';
 import { LoginPage } from './components/auth/LoginPage';
 import { SignupPage } from './components/auth/SignupPage';
@@ -29,6 +28,71 @@ interface User {
     pass: string; // In a real app, this would be a hash
 }
 
+const findFreeSlots = (dateStr: string, durationMinutes: number, sessions: PomodoroSession[]): string[] => {
+    // 1. Define working hours for the target day
+    const targetDate = new Date(dateStr + 'T00:00:00');
+    if (isNaN(targetDate.getTime())) {
+        console.error(`Invalid date string received from AI: ${dateStr}`);
+        return ["I couldn't understand that date. Please use YYYY-MM-DD format, like '2024-08-10'."];
+    }
+    const workingHoursStart = new Date(targetDate.getTime());
+    workingHoursStart.setHours(9, 0, 0, 0);
+    const workingHoursEnd = new Date(targetDate.getTime());
+    workingHoursEnd.setHours(18, 0, 0, 0);
+
+    // 2. Get busy slots from pomodoro sessions for that day
+    const busySlots = sessions
+        .filter(s => new Date(s.startTime).toDateString() === targetDate.toDateString())
+        .map(s => ({ start: s.startTime, end: s.endTime }))
+        .sort((a, b) => a.start - b.start);
+
+    // 3. Find gaps
+    const freeSlots: { start: number, end: number }[] = [];
+    let searchStart = workingHoursStart.getTime();
+
+    // Add gaps between start of day and first busy slot, or whole day if no slots
+    if (busySlots.length > 0) {
+        if (busySlots[0].start > searchStart) {
+            freeSlots.push({ start: searchStart, end: busySlots[0].start });
+        }
+    } else {
+        freeSlots.push({ start: workingHoursStart.getTime(), end: workingHoursEnd.getTime() });
+    }
+
+    // Add gaps between busy slots
+    for (let i = 0; i < busySlots.length - 1; i++) {
+        const currentSlotEnd = busySlots[i].end;
+        const nextSlotStart = busySlots[i + 1].start;
+        if (nextSlotStart > currentSlotEnd) {
+            freeSlots.push({ start: currentSlotEnd, end: nextSlotStart });
+        }
+    }
+    
+    // Add gap between last busy slot and end of day
+    if (busySlots.length > 0) {
+        const lastSlotEnd = busySlots[busySlots.length - 1].end;
+        if (workingHoursEnd.getTime() > lastSlotEnd) {
+            freeSlots.push({ start: lastSlotEnd, end: workingHoursEnd.getTime() });
+        }
+    }
+
+    // 4. Filter gaps by the required duration
+    const durationMs = durationMinutes * 60 * 1000;
+    const validSlots = freeSlots.filter(slot => (slot.end - slot.start) >= durationMs);
+    
+    // 5. Format for the AI
+    const to12Hour = (date: Date) => date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+    return validSlots.map(slot => {
+        const start = new Date(slot.start);
+        const end = new Date(slot.end);
+        // We can just return the start time for simplicity, AI can offer that.
+        // Example: "I found a slot at 10:00 AM" is easier than "10:00 AM - 11:30 AM"
+        return to12Hour(start);
+    });
+};
+
+
 const App: React.FC = () => {
     // Auth state
     const [isAuthenticated, setIsAuthenticated] = useLocalStorage<boolean>('app_isAuthenticated', true);
@@ -42,10 +106,11 @@ const App: React.FC = () => {
     const [pomodoroSessions, setPomodoroSessions] = useLocalStorage<PomodoroSession[]>('pomodoroSessions', DEFAULT_POMODORO_SESSIONS);
     const [userProfile, setUserProfile] = useLocalStorage<UserProfile>('userProfile', DEFAULT_USER_PROFILE);
     const [notifications, setNotifications] = useLocalStorage<Notification[]>('notifications', []);
+    const [countdowns, setCountdowns] = useLocalStorage<Countdown[]>('countdowns', DEFAULT_COUNTDOWNS);
     
     // UI State
     const [settings, setSettings] = useSettings();
-    const initialViewOrder: ActiveView[] = ['tasks', 'ai-assistant', 'analytics', 'habits', 'pomodoro'];
+    const initialViewOrder: ActiveView[] = ['tasks', 'ai-assistant', 'eisenhower-matrix', 'analytics', 'habits', 'pomodoro', 'countdown'];
     const [viewOrder, setViewOrder] = useLocalStorage<ActiveView[]>('viewOrder', initialViewOrder);
     const [activeView, setActiveView] = useState<ActiveView>('tasks');
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -133,7 +198,7 @@ const App: React.FC = () => {
             
             tasks.forEach(task => {
                 if (!task.completed && task.dueDate) {
-                    const taskDueDateStr = new Date(task.dueDate + 'T00:00:00').toISOString().split('T')[0];
+                    const taskDueDateStr = task.dueDate.split(' ')[0];
                     if (taskDueDateStr <= todayStr) {
                         addNotification(`Task due: "${task.title}"`, 'task-due', task.id);
                     }
@@ -205,7 +270,20 @@ const App: React.FC = () => {
             let nextDueDate: Date;
 
             if (taskToToggle.dueDate) {
-                const [year, month, day] = taskToToggle.dueDate.split('-').map(Number);
+                // FIX: Handle dates with time components (e.g., "YYYY-MM-DD HH:MM") to prevent crash
+                const datePart = taskToToggle.dueDate.split(' ')[0];
+                const [year, month, day] = datePart.split('-').map(Number);
+                
+                // Add validation to prevent crash on malformed dates
+                if (isNaN(year) || isNaN(month) || isNaN(day)) {
+                     console.error(`Invalid date format for recurring task: ${taskToToggle.dueDate}. Completing without recurrence.`);
+                     // Complete the task and remove recurrence to prevent future errors
+                     setTasks(prevTasks => prevTasks.map(task => 
+                        task.id === taskId ? { ...task, completed: true, recurrence: null } : task
+                     ));
+                     return;
+                }
+
                 nextDueDate = new Date(Date.UTC(year, month - 1, day));
             } else {
                 const today = new Date();
@@ -316,14 +394,15 @@ const App: React.FC = () => {
         setUserProfile(prev => ({...prev, ...newProfileData}));
     }, [setUserProfile]);
 
-    const getTasksForPeriod = (period: 'today' | 'tomorrow' | 'this week') => {
+    const getTasksForPeriod = (period: 'today' | 'tomorrow' | 'this week', startDay: Settings['startWeekOn']) => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
         const filterFunc = (task: Task): boolean => {
             if (!task.dueDate) return false;
-            const taskDate = new Date(task.dueDate + 'T00:00:00');
+            const taskDate = new Date(task.dueDate.replace(' ', 'T'));
             if (isNaN(taskDate.getTime())) return false;
+            taskDate.setHours(0,0,0,0);
             if (task.completed) return false;
 
             switch (period) {
@@ -333,13 +412,26 @@ const App: React.FC = () => {
                     const tomorrow = new Date(today);
                     tomorrow.setDate(today.getDate() + 1);
                     return taskDate.getTime() === tomorrow.getTime();
-                case 'this week':
-                    const endOfWeek = new Date(today);
-                    const dayOfWeek = today.getDay(); 
-                    const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1; 
-                    endOfWeek.setDate(today.getDate() - diff + 6);
+                case 'this week': {
+                    const dayOfWeek = today.getDay(); // Sunday = 0, Monday = 1, ...
+                    
+                    // Calculate the difference to the start of the week
+                    let diff;
+                    if (startDay === 'monday') {
+                        diff = (dayOfWeek + 6) % 7; // 0 for Mon, 1 for Tue, ..., 6 for Sun
+                    } else { // Sunday start
+                        diff = dayOfWeek; // 0 for Sun, 1 for Mon, ...
+                    }
+
+                    const startOfWeek = new Date(today);
+                    startOfWeek.setDate(today.getDate() - diff);
+                    
+                    const endOfWeek = new Date(startOfWeek);
+                    endOfWeek.setDate(startOfWeek.getDate() + 6);
                     endOfWeek.setHours(23, 59, 59, 999);
-                    return taskDate >= today && taskDate <= endOfWeek;
+
+                    return taskDate >= startOfWeek && taskDate <= endOfWeek;
+                }
                 default:
                     return false;
             }
@@ -369,6 +461,25 @@ const App: React.FC = () => {
         });
     };
     
+    const handleRenameConversation = (id: string, newTitle: string) => {
+        setConversations(prev =>
+            prev.map(c => (c.id === id ? { ...c, title: newTitle } : c))
+        );
+    };
+
+    const handleAddCountdown = useCallback((title: string, date: string) => {
+        const newCountdown: Countdown = {
+            id: Date.now().toString(),
+            title,
+            date,
+        };
+        setCountdowns(prev => [newCountdown, ...prev].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+    }, [setCountdowns]);
+
+    const handleDeleteCountdown = useCallback((id: string) => {
+        setCountdowns(prev => prev.filter(c => c.id !== id));
+    }, [setCountdowns]);
+
     const handleSendMessageToAI = async (prompt: string) => {
         const conversationId = activeConversationId;
         if (!conversationId) return;
@@ -410,7 +521,7 @@ const App: React.FC = () => {
                         });
                         result = { success: true, task: newTask };
                     } else if (funcCall.name === 'getTasks') {
-                        result = getTasksForPeriod(funcCall.args.period as 'today' | 'tomorrow' | 'this week');
+                        result = getTasksForPeriod(funcCall.args.period as 'today' | 'tomorrow' | 'this week', settings.startWeekOn);
                     } else if (funcCall.name === 'saveUserTrait') {
                         const newTrait: UserTrait = {
                             id: Date.now().toString(),
@@ -428,6 +539,12 @@ const App: React.FC = () => {
                                 return currentProfile;
                             }
                         });
+                    } else if (funcCall.name === 'getFreeSlots') {
+                        result = findFreeSlots(
+                            funcCall.args.date as string,
+                            (funcCall.args.durationMinutes as number) || 60,
+                            pomodoroSessions
+                        );
                     } else {
                         result = { error: `Function ${funcCall.name} not found.` };
                     }
@@ -513,7 +630,7 @@ const App: React.FC = () => {
                  />;
             case 'habits':
                 if (!settings.showHabitTracker) return <div className="p-6 text-content-primary"><h1 className="text-2xl font-bold">Habit Tracker Disabled</h1><p>Enable it in settings.</p></div>;
-                return <HabitPage habits={habits} onToggleHabit={handleToggleHabit} onAddHabit={handleAddHabit} />;
+                return <HabitPage habits={habits} onToggleHabit={handleToggleHabit} onAddHabit={handleAddHabit} settings={settings} />;
             case 'pomodoro':
                  if (!settings.showPomodoro) return <div className="p-6 text-content-primary"><h1 className="text-2xl font-bold">Pomodoro Disabled</h1><p>Enable it in settings.</p></div>;
                 return <PomodoroPage 
@@ -528,11 +645,13 @@ const App: React.FC = () => {
                     habits={habits}
                     sessions={pomodoroSessions}
                     lists={lists}
+                    profile={userProfile}
                 />;
             case 'profile':
                 return <ProfilePage
                     profile={userProfile}
                     onUpdateProfile={handleUpdateProfile}
+                    tasks={tasks}
                 />;
             case 'ai-assistant':
                  return <AIAssistantPage 
@@ -543,7 +662,14 @@ const App: React.FC = () => {
                     onNewChat={handleNewChat}
                     onSelectConversation={setActiveConversationId}
                     onDeleteConversation={handleDeleteConversation}
+                    onRenameConversation={handleRenameConversation}
                  />;
+            case 'eisenhower-matrix':
+                if (!settings.showEisenhowerMatrix) return <div className="p-6 text-content-primary"><h1 className="text-2xl font-bold">Eisenhower Matrix Disabled</h1><p>Enable it in settings.</p></div>;
+                return <EisenhowerMatrixPage tasks={tasks} />;
+            case 'countdown':
+                if (!settings.showCountdown) return <div className="p-6 text-content-primary"><h1 className="text-2xl font-bold">Countdown Disabled</h1><p>Enable it in settings.</p></div>;
+                return <CountdownPage countdowns={countdowns} onAddCountdown={handleAddCountdown} onDeleteCountdown={handleDeleteCountdown} />;
             default:
                 return <div className="p-6 text-content-primary"><h1 className="text-2xl font-bold">Not Found</h1></div>;
         }
@@ -561,6 +687,7 @@ const App: React.FC = () => {
                 notifications={notifications}
                 onMarkNotificationAsRead={handleMarkNotificationAsRead}
                 onClearAllNotifications={handleClearAllNotifications}
+                userProfile={userProfile}
             />
             <main className="flex-1 flex flex-col">
                 {renderActiveView()}

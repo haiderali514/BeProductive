@@ -17,9 +17,13 @@ const SettingRow: React.FC<{ label: string, description?: string, children: Reac
     </div>
 );
 
-const Dropdown: React.FC<{ value: string; options: string[] }> = ({ value, options }) => (
-     <select defaultValue={value} className="bg-background-tertiary border border-border-primary rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary">
-        {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+const Dropdown: React.FC<{ value: string; options: {value: string, label: string}[]; onChange: (value: string) => void }> = ({ value, options, onChange }) => (
+     <select 
+        value={value} 
+        onChange={(e) => onChange(e.target.value)}
+        className="bg-background-tertiary border border-border-primary rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+    >
+        {options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
     </select>
 );
 
@@ -36,15 +40,30 @@ export const DateTimeSettings: React.FC<DateTimeSettingsProps> = ({ settings, on
             <h2 className="text-2xl font-bold mb-2">Date & Time</h2>
             <div className="bg-background-primary rounded-lg p-4 divide-y divide-border-primary">
                 <SettingRow label="Time Format">
-                    <Dropdown value="24 Hour (13:00)" options={["24 Hour (13:00)", "12 Hour (1:00 PM)"]} />
+                    <Dropdown 
+                        value={settings.timeFormat} 
+                        onChange={(val) => onSettingsChange({ timeFormat: val as '12h' | '24h' })}
+                        options={[
+                            { value: '24h', label: '24 Hour (13:00)'}, 
+                            { value: '12h', label: '12 Hour (1:00 PM)'}
+                        ]} 
+                    />
                 </SettingRow>
                  <SettingRow label="Start Week On">
-                    <Dropdown value="Monday" options={["Saturday", "Sunday", "Monday"]} />
+                    <Dropdown 
+                        value={settings.startWeekOn} 
+                        onChange={(val) => onSettingsChange({ startWeekOn: val as 'saturday' | 'sunday' | 'monday' })}
+                        options={[
+                            { value: 'saturday', label: 'Saturday'},
+                            { value: 'sunday', label: 'Sunday'},
+                            { value: 'monday', label: 'Monday'}
+                        ]} 
+                    />
                 </SettingRow>
             </div>
              <div className="bg-background-primary rounded-lg p-4 mt-8 divide-y divide-border-primary">
                 <SettingRow label="Additional Calendar">
-                    <Dropdown value="Hijri (Civil)" options={["None", "Hijri (Civil)", "Persian"]} />
+                    <Dropdown value="None" options={[{value: 'none', label: 'None'}, {value: 'hijri', label: 'Hijri (Civil)'}, {value: 'persian', label: 'Persian'}]} onChange={() => {}} />
                 </SettingRow>
                 <SettingRow label="Show Week Numbers(W)">
                      <ToggleSwitch checked={settings.showWeekNumbers} onChange={(val) => onSettingsChange({ showWeekNumbers: val })} />

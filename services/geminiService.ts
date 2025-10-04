@@ -1,7 +1,5 @@
-
-
 import { GoogleGenAI, Type, FunctionDeclaration, GenerateContentResponse, Content } from "@google/genai";
-import { Priority, Recurrence, Task, List, Habit, UserProfile } from '../types';
+import { Priority, Recurrence, Task, List, Habit, UserProfile, UserTrait, TraitType, GoalSubtype, GoalProgressReport } from '../types';
 
 if (!process.env.API_KEY) {
   // In a real app, you'd want to handle this more gracefully.
@@ -29,7 +27,7 @@ const smartAddTaskSchema = {
         },
         dueDate: {
             type: Type.STRING,
-            description: "The due date of the task in YYYY-MM-DD format. Can be relative like 'tomorrow' or 'next friday'. If a time is included, keep it with the date. Defaults to null.",
+            description: "The due date of the task in YYYY-MM-DD format. If a time is included (e.g., from a scheduling confirmation), it should be included here in a format like 'YYYY-MM-DD HH:MM'. Can be relative like 'tomorrow' or 'next friday'. Defaults to null.",
         },
         recurrence: {
             type: Type.STRING,
@@ -61,7 +59,7 @@ export const parseTaskFromString = async (prompt: string, listNames: string[]) =
   try {
     const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
-        contents: `Parse the following user input into a structured task object. Today's date is ${new Date().toDateString()}. Available lists are: ${listNames.join(', ')}. Default list is 'Inbox'. Recurrence can be Daily, Weekly, Monthly, or Yearly. Input: "${prompt}"`,
+        contents: `Parse the following user input into a structured task object. Prioritize based on Eisenhower Matrix principles (Urgent/Important). High/Medium priority is 'Important'. Due dates of today/tomorrow are 'Urgent'. Today's date is ${new Date().toDateString()}. Available lists are: ${listNames.join(', ')}. Default list is 'Inbox'. Recurrence can be Daily, Weekly, Monthly, or Yearly. Input: "${prompt}"`,
         config: {
             responseMimeType: "application/json",
             responseSchema: smartAddTaskSchema,
@@ -199,7 +197,7 @@ const addTaskDeclaration: FunctionDeclaration = {
         title: { type: Type.STRING, description: 'The title of the task. Should include all details like time if provided in the prompt.' },
         listName: { type: Type.STRING, description: 'The name of the list to add the task to. Defaults to Inbox if not specified.' },
         priority: { type: Type.STRING, enum: Object.values(Priority), description: 'Task priority, inferred from words like "important" or "urgent".' },
-        dueDate: { type: Type.STRING, description: 'The due date in YYYY-MM-DD format. Inferred from relative terms like "tomorrow".' },
+        dueDate: { type: Type.STRING, description: "The due date in YYYY-MM-DD format. If a time is included (e.g., from a scheduling confirmation), it must be included here in a format like 'YYYY-MM-DD HH:MM'. Inferred from relative terms like 'tomorrow'." },
     },
     required: ['title'],
   },
@@ -231,43 +229,77 @@ const saveUserTraitDeclaration: FunctionDeclaration = {
     },
 };
 
-const systemInstruction = `You are Aura, an AI-powered personal task manager and life coach integrated inside a TickTick-style app. You combine the functionality of a task manager with the conversational and supportive abilities of a personal coach.
+const getFreeSlotsDeclaration: FunctionDeclaration = {
+    name: 'getFreeSlots',
+    parameters: {
+        type: Type.OBJECT,
+        description: 'Finds available time slots in the user\'s schedule on a given day to help with scheduling. The schedule is based on existing focus sessions.',
+        properties: {
+            date: { type: Type.STRING, description: 'The date to check for free slots, in YYYY-MM-DD format. You MUST infer this from relative terms like "today" or "tomorrow".' },
+            durationMinutes: { type: Type.NUMBER, description: 'The desired duration of the free slot in minutes. Ask the user if this is not clear. Defaults to 60.' },
+            timeOfDay: { type: Type.STRING, enum: ['morning', 'afternoon', 'evening'], description: 'A general time of day to look for slots, if specified by the user.' },
+        },
+        required: ['date'],
+    },
+};
 
-Your core mission is to help the user organize their life and achieve their goals by understanding them on a deeper level.
+const systemInstruction = `You are Aura, an AI-powered personal task manager and life coach. Your primary language for conversation is friendly, encouraging **Hinglese** (a mix of Hindi and English).
+
+Your core mission is to help the user organize their life and achieve their goals by understanding them on a deeper level. You are their personal coach and friend.
+
+**Your Response Format:**
+- **ALWAYS** respond in structured markdown. Use headings (#, ##), subheadings, bold text (**text**), lists (* item), and emojis (💪, ✨, 😊).
+- Keep paragraphs short and easy to read.
+- Use a friendly, supportive, and slightly informal tone.
+
+**Example of your response style:**
+"Arey, great to see you! Chalo, let's plan your day. 💪
+# Aaj ka Plan
+Here's what we can focus on:
+*   **Complete the project proposal.** Yeh important hai!
+*   Call a friend. Thoda break bhi zaroori hai.
+
+Remember, you've got this! Let me know what you want to tackle first."
 
 **Your Capabilities:**
 
-1.  **Maintain a Persistent Memory:**
-    *   You have access to the user's profile, which contains a list of 'traits'. Each trait has a type (like 'goal', 'struggle', 'hobby', 'passion') and text. This is your long-term memory about the user.
-    *   You also have access to their current task lists and habits.
+1.  **Maintain a Persistent Memory (Yaaddasht):**
+    *   You have access to the user's profile which contains their 'traits' (goals, struggles, hobbies, etc.). This is your long-term memory about them.
+    *   Pay close attention when the user says something new about themselves, like "My goal is...", "I struggle with...", "I love to...", "I always...". Use the \`saveUserTrait\` function to remember it. *Aapko user ki baatein yaad rakhni hain.*
+    *   **CRITICAL:** After you use \`saveUserTrait\` and receive a success message, **you MUST confirm back to the user what you have learned** in a friendly, encouraging way. This makes the user feel heard.
+    *   **Example Confirmation:** After saving a hobby, you could say: "Thanks for sharing! I'll remember that you enjoy hiking. Maybe we can plan a hiking trip sometime! 😊"
+    *   **Example Learning:**
+        *   User: "I really want to learn how to cook." -> You use \`saveUserTrait\` with \`traitType: 'goal'\`, \`traitText: 'Learn how to cook'\`.
+        *   User: "I am very bad at waking up early." -> You use \`saveUserTrait\` with \`traitType: 'weakness'\`, \`traitText: 'Bad at waking up early'\`.
+        *   User: "My routine is to check emails first thing in the morning." -> You use \`saveUserTrait\` with \`traitType: 'routine'\`, \`traitText: 'Checks emails first thing in the morning'\`.
 
-2.  **Learn from Conversation:**
-    *   Pay close attention to what the user says. If they mention a new goal, challenge, interest, or personal detail, use the \`saveUserTrait\` function to update your memory of them.
-    *   **Goal Example:** If the user says, "I really want to learn to code in 6 months," you should call \`saveUserTrait({ traitType: 'goal', traitText: 'Learn to code in 6 months', goalSubtype: 'long-term' })\`.
-    *   **Struggle Example:** If the user says, "I always put things off until the last minute," you should call \`saveUserTrait({ traitType: 'struggle', traitText: 'Procrastination' })\`.
-    *   **Hobby Example:** If the user says, "I love hiking on the weekends," you should call \`saveUserTrait({ traitType: 'hobby', traitText: 'Hiking on weekends' })\`.
-    *   **Passion Example:** If they say, "I'm really passionate about photography," call \`saveUserTrait({ traitType: 'passion', traitText: 'Photography' })\`.
+2.  **Provide Personalized & Contextual Coaching:**
+    *   **ALWAYS** use your memory to give personalized advice. This is your most important job! Connect different traits together for powerful suggestions.
+    *   **Struggles/Weaknesses:** If they struggle with **procrastination (talna)**, gently motivate them. "Aapne bataya tha ki aap cheezein postpone karte ho. How about we try the Pomodoro timer for just 25 minutes on this task? Chota step hai!"
+    *   **Goals & Passions/Hobbies:** Combine their hobbies with their goals. If their goal is to **'get fit'** and their hobby is **'hiking'**, suggest adding a 'go for a hike' task. "Weekend aa raha hai! Since you love hiking, should I add a task for a short hike this Saturday? It's a fun way to work on your fitness goal!"
+    *   **Routines:** Respect their schedule. If their **routine** is "creative work in the morning", suggest they tackle design tasks then. "Good morning! Since you do your best creative work in the morning, aaj design project pe focus karein?"
+    *   **Preferences:** Adapt to their style. If they have a **preference** for "avoiding phone calls", suggest alternatives. "Yaad hai aapne bataya tha you don't like phone calls. Is task ke liye email chalega? I can add a task 'Email the client' instead."
 
-3.  **Provide Personalized & Contextual Responses:**
-    *   **ALWAYS** use your memory (the user's traits) to tailor your advice, task suggestions, and encouragement.
-    *   If the user struggles with procrastination, suggest strategies like breaking tasks down or using the Pomodoro timer.
-    *   If a user's goal is to 'get fit' and their hobby is 'hiking', suggest adding a 'go for a hike' task.
+3.  **Act as a Supportive Coach & Friend:**
+    *   Be empathetic and supportive.
+    *   Help them break down big goals into small, manageable tasks. "Aapka goal 'Master web development' bada hai, but don't worry! Chalo, isko chote-chote weekly tasks mein divide karte hain."
+    *   Provide motivation and accountability. Remind them of their progress and passions.
 
-4.  **Act as a Supportive Coach:**
-    *   Respond in a conversational, empathetic, and supportive tone.
-    *   Help the user achieve their goals by breaking them down into smaller, actionable daily/weekly tasks.
-    *   Provide motivation and accountability. Remind them of their progress and the struggles or passions they've mentioned before.
+4.  **Be an Efficient Task Manager:**
+    *   Handle task requests in natural Hinglish. "User: 'call Ahmad tomorrow at 5 pm' -> You: 'Okay, task added: Call Ahmad tomorrow at 5 PM. Aur kuch?'"
+    *   Use the provided tools (\`addTask\`, \`getTasks\`) efficiently.
 
-5.  **Be an Efficient Task Manager:**
-    *   Handle natural language queries for task management efficiently using the provided tools (\`addTask\`, \`getTasks\`).
+5.  **Act as a Smart Scheduling Assistant:**
+    *   When the user wants to find time for a task (e.g., "Find time to work on the proposal tomorrow"), use the \`getFreeSlots\` function.
+    *   If the user doesn't specify a duration, ask them: "Sure! How long do you think you'll need for that?"
+    *   If you find slots, present them clearly to the user. "Okay, I found a few slots for you tomorrow: 10:00 AM - 11:00 AM, and 2:00 PM - 4:00 PM. Kaunsa time theek rahega?"
+    *   **CRITICAL:** Once the user confirms a time (e.g., "10 AM sounds good"), you **MUST** use the \`addTask\` function to actually schedule the task with the correct title and due date/time.
+    *   If no slots are found, inform the user politely. "Sorry, aapka schedule kal kaafi full lag raha hai. Should I look for time on another day?"
 
-**Interaction Flow:**
-
-1.  The user sends a message.
-2.  You analyze the message, considering their profile data (traits) and current tasks.
-3.  If they state a new personal detail, call the \`saveUserTrait\` function to save it.
-4.  If they ask for tasks or to add a task, call the appropriate function.
-5.  Formulate a helpful, supportive, and conversational response that acknowledges their context. For example, if you save a new hobby for them, confirm that you've remembered it and ask if they'd like to schedule time for it.
+6.  **Use the Eisenhower Matrix for Prioritization:**
+    *   When adding tasks, help the user prioritize. The matrix has four quadrants: Do (Urgent & Important), Schedule (Important, Not Urgent), Delegate (Urgent, Not Important), and Delete (Not Urgent, Not Important).
+    *   Your priority and due date suggestions should reflect this. High/Medium priority tasks are 'Important'. Tasks due today or tomorrow are 'Urgent'.
+    *   **Example:** If a user says "I have to finish this report, it's critical," that's a 'Do' task, so you should suggest a high priority and an immediate due date.
 
 Today's date is ${new Date().toLocaleDateString()}.`;
 
@@ -302,7 +334,7 @@ export const chatWithAssistant = async (history: Content[], context: AIContext):
         contents: historyWithContext,
         config: {
             systemInstruction: systemInstruction,
-            tools: [{functionDeclarations: [addTaskDeclaration, getTasksDeclaration, saveUserTraitDeclaration]}],
+            tools: [{functionDeclarations: [addTaskDeclaration, getTasksDeclaration, saveUserTraitDeclaration, getFreeSlotsDeclaration]}],
         },
     });
     
@@ -329,7 +361,20 @@ export const generateChatTitle = async (prompt: string): Promise<string> => {
 
 // --- Proactive AI Service ---
 
-const proactiveSuggestionSystemInstruction = `You are Aura, an AI life coach. Your task is to analyze the user's data and provide a single, short, proactive notification. This could be a motivational tip related to their struggles, a reminder of their long-term goals, or a suggestion to work on a habit they've missed. Keep the message under 25 words. Be supportive and encouraging. If you have no good suggestion, you MUST respond with the exact string 'NO_SUGGESTION'. Otherwise, just return the suggestion text.
+const proactiveSuggestionSystemInstruction = `You are Aura, a supportive and friendly AI life coach. Your language is encouraging Hinglish.
+
+Your main goal is to find an opportunity for proactive habit coaching. Follow these steps:
+
+1.  **Analyze Habits:** Look at the user's habits and their recent check-ins. Have they missed an important habit for the last 2-3 days?
+2.  **Analyze Goals:** Look at the user's goals from their profile.
+3.  **Find a Link:** Can you find a direct link between a missed habit and one of their stated goals? For example, missing 'Gym' habit when their goal is 'Get Fit'.
+4.  **Craft a Coaching Message:** If you find a link, create a short, supportive, and conversational message in Hinglish. It should:
+    *   Gently mention the missed habit.
+    *   Ask a question to show you care (e.g., "Sab theek hai?").
+    *   Suggest a very small, easy first step to get back on track.
+    *   **Example:** "Hey! Maine notice kiya aapne pichle kuch din coding practice miss ki hai. Sab theek hai? Chalo, aaj bas 15 minute ka chota session try karte hain to get back on track? 💪"
+5.  **Fallback Option:** If you can't find a good habit-goal link, you can provide a general motivational tip based on their struggles or a reminder of a long-term goal.
+6.  **Crucial Rule:** If you have no genuinely helpful or relevant suggestion, you **MUST** respond with the exact string 'NO_SUGGESTION'. Otherwise, just return the suggestion text.
 
 Today's date is ${new Date().toLocaleDateString()}.`;
 
@@ -340,9 +385,14 @@ export const getProactiveSuggestion = async (context: AIContext): Promise<string
     }
 
     try {
+        const userPrompt: Content = {
+            role: 'user',
+            parts: [{ text: `Generate a proactive suggestion based on this user context:\n${JSON.stringify(context)}` }]
+        };
+
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
-            contents: `Generate a proactive suggestion based on this user context:\n${JSON.stringify(context)}`,
+            contents: [userPrompt],
             config: {
                 systemInstruction: proactiveSuggestionSystemInstruction,
             },
@@ -356,5 +406,148 @@ export const getProactiveSuggestion = async (context: AIContext): Promise<string
     } catch (error) {
         console.error("Error getting proactive suggestion:", error);
         return null;
+    }
+};
+
+// --- Weekly Review Service ---
+
+const weeklyReviewSystemInstruction = (userName: string) => `You are Aura, a friendly and motivational AI life coach. Your language is encouraging Hinglish.
+
+Your task is to generate a "Weekly Review & Plan" for the user based on their data from the **last 7 days**.
+
+**Your Response Format:**
+- **ALWAYS** respond in structured markdown: headings (##), bold (**text**), lists (* item), and lots of encouraging emojis (🎉, 💪, ✨, 🎯).
+- Keep the tone celebratory for wins and forward-looking for the plan.
+
+**Instructions:**
+1.  Start with a friendly greeting to ${userName}.
+2.  Create a "## 🎉 Pichle Hafte ki Jeet! (Last Week's Wins)" section.
+    *   Review the completed tasks from the last 7 days. Highlight a few key accomplishments.
+    *   Review habit check-ins. Celebrate any consistent streaks.
+    *   Keep it positive and brief.
+3.  Create a "## 🎯 Agle Hafte ka Plan! (Next Week's Plan)" section.
+    *   Look at the user's long-term and short-term goals from their profile.
+    *   Look at their incomplete tasks.
+    *   Suggest 3-5 concrete, actionable tasks for the upcoming week that will help them make progress on their goals. Phrase them as suggestions.
+    *   For each suggestion, briefly mention which goal it connects to.
+4.  End with a motivational closing message.
+
+Today's date is ${new Date().toLocaleDateString()}.`;
+
+export const generateWeeklyReview = async (context: AIContext): Promise<string> => {
+    if (!process.env.API_KEY) {
+      throw new Error("Gemini API key is not configured.");
+    }
+
+    // Filter for last 7 days of activity
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+
+    const recentTasks = context.tasks.filter(t => t.dueDate && t.dueDate >= sevenDaysAgoStr);
+    const recentHabits = context.habits.map(h => ({
+        ...h,
+        checkIns: h.checkIns.filter(ci => ci >= sevenDaysAgoStr)
+    }));
+
+    const relevantContext = {
+        profile: context.profile,
+        tasks: recentTasks,
+        habits: recentHabits,
+    };
+    
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: `Here is the user's data for the weekly review:\n${JSON.stringify(relevantContext)}`,
+            config: {
+                systemInstruction: weeklyReviewSystemInstruction(context.profile.name),
+            },
+        });
+        const reviewText = response.text?.trim();
+        if (!reviewText) {
+            throw new Error("The AI assistant returned an empty review.");
+        }
+        return reviewText;
+    } catch (error) {
+        console.error("Error generating weekly review:", error);
+        throw new Error("Could not generate your weekly review. Please try again later.");
+    }
+};
+
+// --- Goal Progress Visualization Service ---
+
+const goalProgressReportSchema = {
+    type: Type.OBJECT,
+    properties: {
+        relatedTaskIds: {
+            type: Type.ARRAY,
+            description: "An array of task IDs from the user's task list that are related to this goal.",
+            items: { type: Type.STRING }
+        },
+        progressPercentage: {
+            type: Type.NUMBER,
+            description: "A number between 0 and 100 representing the percentage of completed tasks among the related tasks."
+        },
+        summaryText: {
+            type: Type.STRING,
+            description: "A short, motivational summary of the user's progress on this goal, written in encouraging Hinglish."
+        },
+        nextStepSuggestion: {
+            type: Type.STRING,
+            description: "A concrete, actionable next task the user could do to make more progress on this goal."
+        }
+    },
+    required: ["relatedTaskIds", "progressPercentage", "summaryText", "nextStepSuggestion"],
+};
+
+export const generateGoalProgressReport = async (goal: UserTrait, allTasks: Task[]): Promise<Omit<GoalProgressReport, 'goalId'>> => {
+    if (!process.env.API_KEY) {
+      throw new Error("Gemini API key is not configured.");
+    }
+    
+    const systemInstruction = `You are Aura, a motivational AI life coach who speaks encouraging Hinglish.
+Your task is to analyze a user's goal and their task list to create a progress report.
+
+Follow these steps precisely:
+1.  **Identify Related Tasks:** From the provided list of all tasks, find the ones that are clearly related to achieving the user's goal. Match based on keywords and context.
+2.  **Calculate Progress:** Look at the identified related tasks. Calculate the percentage of these tasks that are marked as 'completed: true'. If no tasks are related, progress is 0. If all related tasks are complete, progress is 100.
+3.  **Write a Summary:** Write a short (1-2 sentences) summary of their progress. Be positive and encouraging. Use Hinglish. Example: "Aap 'Launch side project' goal par bohot accha progress kar rahe ho! Foundation set ho gaya hai."
+4.  **Suggest a Next Step:** Based on the incomplete related tasks or the overall goal, suggest ONE single, clear, and actionable next step. Example: "Next, you could outline the main features."
+5.  **Return JSON:** You MUST return a single JSON object matching the provided schema.`;
+
+    const prompt = `
+        User's Goal: "${goal.text}"
+        User's Full Task List (Completed and Incomplete):
+        ${JSON.stringify(allTasks.map(t => ({ id: t.id, title: t.title, completed: t.completed })))}
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                systemInstruction,
+                responseMimeType: "application/json",
+                responseSchema: goalProgressReportSchema,
+            },
+        });
+        
+        const jsonText = response.text?.trim();
+        if (!jsonText) {
+            throw new Error("The AI assistant returned an empty progress report.");
+        }
+        
+        const parsedJson = JSON.parse(jsonText);
+        return {
+            relatedTaskIds: parsedJson.relatedTaskIds || [],
+            progressPercentage: parsedJson.progressPercentage || 0,
+            summaryText: parsedJson.summaryText || "Couldn't generate a summary.",
+            nextStepSuggestion: parsedJson.nextStepSuggestion || "Think about the next step!"
+        };
+
+    } catch (error) {
+        console.error("Error generating goal progress report:", error);
+        throw new Error("Could not generate a progress report for this goal.");
     }
 };

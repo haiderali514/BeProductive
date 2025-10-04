@@ -1,5 +1,5 @@
 
-import { Priority, Habit, PomodoroSession, UserProfile } from './types';
+import { Priority, Habit, PomodoroSession, UserProfile, Countdown } from './types';
 
 export const PRIORITY_COLORS: Record<Priority, string> = {
   [Priority.HIGH]: 'border-red-500',
@@ -75,3 +75,8 @@ export const DEFAULT_USER_PROFILE: UserProfile = {
         { id: 'stg2', type: 'goal', subtype: 'short-term', text: 'Finish the design system for the current project' },
     ],
 };
+
+export const DEFAULT_COUNTDOWNS: Countdown[] = [
+    { id: 'cd1', title: 'New Year 2025', date: '2025-01-01T00:00:00.000Z' },
+    { id: 'cd2', title: 'Project Deadline', date: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString() }, // 15 days from now
+];

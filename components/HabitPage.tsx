@@ -1,23 +1,46 @@
+
 import React, { useState, useMemo } from 'react';
 import { Habit } from '../types';
 import { HabitStatsPanel } from './HabitStatsPanel';
 import { CreateHabitModal } from './CreateHabitModal';
+import { Settings } from '../hooks/useSettings';
 
 interface HabitPageProps {
   habits: Habit[];
   onToggleHabit: (habitId: string, date: string) => void;
   onAddHabit: (habitData: { name: string; icon: string; period: 'Morning' | 'Afternoon' | 'Night' }) => void;
+  settings: Settings;
 }
 
-const dayShortNames = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+const dayShortNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const WeeklyCalendarHeader: React.FC = () => {
+// Helper to get a timezone-safe YYYY-MM-DD string from a Date object
+const toYYYYMMDD = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const WeeklyCalendarHeader: React.FC<{ startWeekOn: Settings['startWeekOn'] }> = ({ startWeekOn }) => {
     const today = new Date();
+    const startDayIndex = startWeekOn === 'monday' ? 1 : 0; // 0 for Sunday, 1 for Monday
+
+    const dayHeaders = useMemo(() => {
+        const headers = [...dayShortNames];
+        if (startWeekOn === 'monday') {
+            headers.push(headers.shift()!); // Move Sunday to the end
+        }
+        return headers;
+    }, [startWeekOn]);
+    
+    // Calculate the day of the week, adjusted for the start day
+    const currentDayOfWeek = today.getDay(); // 0 for Sunday
+    const adjustedDayOfWeek = (currentDayOfWeek - startDayIndex + 7) % 7;
+
     const dates = Array.from({ length: 7 }).map((_, i) => {
         const d = new Date();
-        const dayOfWeek = today.getDay(); // Sunday is 0, Saturday is 6
-        const dateOffset = i - ((dayOfWeek + 1) % 7); // Adjust so Saturday is the first day (index 0)
-        d.setDate(today.getDate() + dateOffset);
+        d.setDate(today.getDate() - adjustedDayOfWeek + i);
         return d;
     });
 
@@ -25,7 +48,7 @@ const WeeklyCalendarHeader: React.FC = () => {
         <div className="flex justify-between items-center mb-6">
             {dates.map((date, index) => (
                 <div key={index} className="text-center w-12">
-                    <p className="text-xs text-content-secondary">{dayShortNames[index]}</p>
+                    <p className="text-xs text-content-secondary">{dayHeaders[index]}</p>
                     <div className={`mt-2 w-8 h-8 flex items-center justify-center rounded-full mx-auto ${date.toDateString() === today.toDateString() ? 'bg-primary text-white font-bold' : ''}`}>
                         {date.getDate()}
                     </div>
@@ -40,14 +63,13 @@ const HabitItem: React.FC<{
     onToggleHabit: (habitId: string, date: string) => void;
     onSelect: (habitId: string) => void;
     isSelected: boolean;
-}> = ({ habit, onToggleHabit, onSelect, isSelected }) => {
-    const today = new Date();
+    startWeekOn: Settings['startWeekOn'];
+}> = ({ habit, onToggleHabit, onSelect, isSelected, startWeekOn }) => {
+    // Display a rolling 7-day history ending today.
     const dates = Array.from({ length: 7 }).map((_, i) => {
         const d = new Date();
-        const dayOfWeek = today.getDay();
-        const dateOffset = i - ((dayOfWeek + 1) % 7);
-        d.setDate(today.getDate() + dateOffset);
-        return d.toISOString().split('T')[0];
+        d.setDate(d.getDate() - (6 - i)); // 6-i results in a sequence from 6 days ago to today
+        return toYYYYMMDD(d);
     });
 
     return (
@@ -84,12 +106,27 @@ const HabitItem: React.FC<{
     );
 };
 
-export const HabitPage: React.FC<HabitPageProps> = ({ habits, onToggleHabit, onAddHabit }) => {
+const ChevronIcon: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className={`w-4 h-4 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : 'rotate-0'}`}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+    </svg>
+);
+
+
+export const HabitPage: React.FC<HabitPageProps> = ({ habits, onToggleHabit, onAddHabit, settings }) => {
   const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null);
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
+  const [collapsedPeriods, setCollapsedPeriods] = useState<Record<string, boolean>>({});
 
   const handleSelectHabit = (habitId: string) => {
     setSelectedHabitId(prevId => (prevId === habitId ? null : habitId));
+  };
+  
+  const handleTogglePeriod = (period: string) => {
+    setCollapsedPeriods(prev => ({
+        ...prev,
+        [period]: !prev[period],
+    }));
   };
 
   const selectedHabit = useMemo(() => {
@@ -119,26 +156,34 @@ export const HabitPage: React.FC<HabitPageProps> = ({ habits, onToggleHabit, onA
                 <span>Create Habit</span>
             </button>
         </div>
-        <WeeklyCalendarHeader />
+        <WeeklyCalendarHeader startWeekOn={settings.startWeekOn} />
 
         <div className="space-y-8">
             {(['Morning', 'Afternoon', 'Night'] as const).map((period) => {
                 const periodHabits = groupedHabits[period];
                 if (!periodHabits || periodHabits.length === 0) return null;
+                const isCollapsed = collapsedPeriods[period];
                 return (
                     <div key={period}>
-                        <h2 className="text-lg font-semibold text-content-secondary mb-3">{period} <span className="text-sm font-normal text-content-tertiary">{periodHabits.length}</span></h2>
-                        <div className="space-y-3">
-                            {periodHabits.map(habit => (
-                                <HabitItem
-                                    key={habit.id}
-                                    habit={habit}
-                                    onToggleHabit={onToggleHabit}
-                                    onSelect={handleSelectHabit}
-                                    isSelected={selectedHabitId === habit.id}
-                                />
-                            ))}
-                        </div>
+                        <button onClick={() => handleTogglePeriod(period)} className="w-full flex items-center text-lg font-semibold text-content-secondary mb-3 hover:text-content-primary transition-colors">
+                           <ChevronIcon isCollapsed={!!isCollapsed} />
+                           <span className="ml-2">{period}</span>
+                           <span className="ml-2 text-sm font-normal text-content-tertiary">{periodHabits.length}</span>
+                        </button>
+                        {!isCollapsed && (
+                            <div className="space-y-3 pl-7">
+                                {periodHabits.map(habit => (
+                                    <HabitItem
+                                        key={habit.id}
+                                        habit={habit}
+                                        onToggleHabit={onToggleHabit}
+                                        onSelect={handleSelectHabit}
+                                        isSelected={selectedHabitId === habit.id}
+                                        startWeekOn={settings.startWeekOn}
+                                    />
+                                ))}
+                            </div>
+                        )}
                     </div>
                 );
             })}

@@ -1,13 +1,18 @@
 
-import React, { useMemo } from 'react';
-import { Task, Habit, PomodoroSession, List, Priority } from '../types';
+import React, { useMemo, useState } from 'react';
+import { Task, Habit, PomodoroSession, List, Priority, UserProfile } from '../types';
+import { generateWeeklyReview, AIContext } from '../services/geminiService';
+import { WeeklyReviewModal } from './WeeklyReviewModal';
 
 interface AnalyticsPageProps {
   tasks: Task[];
   habits: Habit[];
   sessions: PomodoroSession[];
   lists: List[];
+  profile: UserProfile;
 }
+
+type AnalyticsFilter = 'all' | 'tasks' | 'focus' | 'habits';
 
 // Helper components for charts and stats, defined within this file for simplicity
 
@@ -81,7 +86,9 @@ const PieChart: React.FC<{ title: string; data: { label: string; value: number }
 };
 
 
-export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ tasks, habits, sessions, lists }) => {
+export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ tasks, habits, sessions, lists, profile }) => {
+    const [filter, setFilter] = useState<AnalyticsFilter>('all');
+    const [isReviewModalOpen, setReviewModalOpen] = useState(false);
     
     const analyticsData = useMemo(() => {
         // --- Top Stats ---
@@ -163,40 +170,94 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ tasks, habits, ses
         };
     }, [tasks, habits, sessions, lists]);
 
+    const handleGenerateReview = async () => {
+        const context: AIContext = { tasks, lists, habits, profile };
+        return await generateWeeklyReview(context);
+    };
+
+    const filterButtons: { id: AnalyticsFilter; label: string }[] = [
+        { id: 'all', label: 'All' },
+        { id: 'tasks', label: 'Tasks' },
+        { id: 'focus', label: 'Focus' },
+        { id: 'habits', label: 'Habits' },
+    ];
+
+    const getButtonClass = (buttonId: AnalyticsFilter) => {
+        return `px-4 py-2 rounded-lg font-semibold transition-colors ${
+            filter === buttonId 
+            ? 'bg-primary text-white' 
+            : 'bg-background-secondary hover:bg-background-tertiary text-content-secondary'
+        }`;
+    };
+
     return (
-        <div className="flex-1 overflow-y-auto p-8 bg-background-primary">
-            <h1 className="text-3xl font-bold text-content-primary mb-8">Analytics Dashboard</h1>
-
-            {/* Top Stat Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <StatCard title="Tasks Completed" value={analyticsData.tasksCompleted} />
-                <StatCard title="Total Focus Duration" value={analyticsData.totalFocusDuration} />
-                <StatCard title="Total Habit Check-ins" value={analyticsData.totalHabitCheckIns} />
-            </div>
-
-            {/* Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                <BarChart title="Task Completion Trend (Last 7 Days)" data={analyticsData.taskTrendData} unit="tasks" />
-                <BarChart title="Focus Time Distribution (Last 7 Days)" data={analyticsData.focusTrendData} unit="minutes" />
-                <PieChart title="Tasks by Priority" data={analyticsData.priorityData} />
-                <PieChart title="Tasks by List" data={analyticsData.listData} />
-            </div>
-
-            {/* Habit Performance */}
-            <div className="bg-background-secondary p-6 rounded-lg shadow">
-                <h3 className="text-lg font-semibold mb-4">Top Habit Performance</h3>
-                <ul className="space-y-3">
-                    {analyticsData.habitPerformance.map(habit => (
-                        <li key={habit.name} className="flex justify-between items-center bg-background-tertiary p-3 rounded-md">
-                            <span className="font-medium">{habit.name}</span>
-                            <span className="font-semibold text-primary">{habit.checkIns} check-ins</span>
-                        </li>
+        <>
+            <div className="flex-1 overflow-y-auto p-8 bg-background-primary">
+                <div className="flex justify-between items-center mb-4">
+                    <h1 className="text-3xl font-bold text-content-primary">Analytics Dashboard</h1>
+                    <button 
+                        onClick={() => setReviewModalOpen(true)}
+                        className="px-4 py-2 bg-primary/20 text-primary rounded-lg font-semibold hover:bg-primary/30 transition-colors flex items-center space-x-2"
+                    >
+                        <span>Generate Weekly Review ✨</span>
+                    </button>
+                </div>
+                
+                <div className="flex space-x-2 mb-8">
+                    {filterButtons.map(btn => (
+                        <button key={btn.id} onClick={() => setFilter(btn.id)} className={getButtonClass(btn.id)}>
+                            {btn.label}
+                        </button>
                     ))}
-                    {analyticsData.habitPerformance.length === 0 && (
-                        <p className="text-content-secondary text-center py-4">No habit data yet.</p>
-                    )}
-                </ul>
+                </div>
+
+                {/* Top Stat Cards */}
+                <div className={`grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 ${filter !== 'all' ? '!grid-cols-1' : ''}`}>
+                    {(filter === 'all' || filter === 'tasks') && <StatCard title="Tasks Completed" value={analyticsData.tasksCompleted} />}
+                    {(filter === 'all' || filter === 'focus') && <StatCard title="Total Focus Duration" value={analyticsData.totalFocusDuration} />}
+                    {(filter === 'all' || filter === 'habits') && <StatCard title="Total Habit Check-ins" value={analyticsData.totalHabitCheckIns} />}
+                </div>
+
+                {/* Tasks Section */}
+                {(filter === 'all' || filter === 'tasks') && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                        <BarChart title="Task Completion Trend (Last 7 Days)" data={analyticsData.taskTrendData} unit="tasks" />
+                        <PieChart title="Tasks by Priority" data={analyticsData.priorityData} />
+                        <PieChart title="Tasks by List" data={analyticsData.listData} />
+                    </div>
+                )}
+                
+                {/* Focus Section */}
+                {(filter === 'all' || filter === 'focus') && (
+                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                        <BarChart title="Focus Time Distribution (Last 7 Days)" data={analyticsData.focusTrendData} unit="minutes" />
+                    </div>
+                )}
+
+
+                {/* Habit Performance */}
+                {(filter === 'all' || filter === 'habits') && (
+                    <div className="bg-background-secondary p-6 rounded-lg shadow">
+                        <h3 className="text-lg font-semibold mb-4">Top Habit Performance</h3>
+                        <ul className="space-y-3">
+                            {analyticsData.habitPerformance.map(habit => (
+                                <li key={habit.name} className="flex justify-between items-center bg-background-tertiary p-3 rounded-md">
+                                    <span className="font-medium">{habit.name}</span>
+                                    <span className="font-semibold text-primary">{habit.checkIns} check-ins</span>
+                                </li>
+                            ))}
+                            {analyticsData.habitPerformance.length === 0 && (
+                                <p className="text-content-secondary text-center py-4">No habit data yet.</p>
+                            )}
+                        </ul>
+                    </div>
+                )}
             </div>
-        </div>
+            <WeeklyReviewModal 
+                isOpen={isReviewModalOpen}
+                onClose={() => setReviewModalOpen(false)}
+                onGenerate={handleGenerateReview}
+            />
+        </>
     );
 };
