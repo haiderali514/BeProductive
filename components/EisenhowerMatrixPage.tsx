@@ -67,7 +67,7 @@ interface EisenhowerMatrixPageProps {
 
 export const EisenhowerMatrixPage: React.FC<EisenhowerMatrixPageProps> = ({ tasks }) => {
     const categorizedTasks = useMemo(() => {
-        const incompleteTasks = tasks.filter(t => !t.completed);
+        const incompleteTasks = tasks.filter(t => !t.completed && !t.wontDo && !t.trashed);
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Task, Habit } from '../types';
+import { Task, Habit } from '../types.ts';
 
 interface TaskSelectorPopoverProps {
     isOpen: boolean;

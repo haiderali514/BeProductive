@@ -1,9 +1,10 @@
 
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { PomodoroSession, Task, Habit } from '../types';
-import { TaskSelectorPopover } from './TaskSelectorPopover';
-import { AddFocusRecordModal } from './AddFocusRecordModal';
+import { PomodoroSession, Task, Habit } from '../types.ts';
+import { TaskSelectorPopover } from './TaskSelectorPopover.tsx';
+import { AddFocusRecordModal } from './AddFocusRecordModal.tsx';
+import { ResizablePanel } from './ResizablePanel.tsx';
 
 interface PomodoroPageProps {
     sessions: PomodoroSession[];
@@ -220,105 +221,116 @@ export const PomodoroPage: React.FC<PomodoroPageProps> = ({ sessions, onAddSessi
     
 
     return (
-        <div className="flex flex-1 h-full">
-            <div className="flex-1 flex flex-col items-center justify-center p-8">
-                {isActive ? (
-                    <>
-                         <p className="text-content-secondary mb-4">{selectedFocus?.name || 'Focus'}</p>
-                         <div className="w-[400px] h-[400px] rounded-full border-[10px] border-background-tertiary flex items-center justify-center mb-8">
-                            <div className="text-center">
-                                <p className={`text-8xl font-mono transition-colors ${isPaused ? 'text-content-tertiary' : 'text-content-primary'}`}>
-                                    {formatTime(timeRemaining)}
-                                </p>
-                                {isPaused && <p className="text-yellow-500 font-semibold mt-2 text-lg">Paused</p>}
-                                <p className="text-base text-content-tertiary mt-2">
-                                    {startTime && `${new Date(startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${new Date(sessionEndTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`}
-                                </p>
-                            </div>
-                        </div>
-                         <div className="flex space-x-4">
-                            {isPaused ? (
-                                <>
-                                    <button onClick={handleContinue} className="px-10 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary-focus transition-colors">Continue</button>
-                                    <button onClick={() => handleEnd(false)} className="px-10 py-3 bg-background-tertiary text-content-primary rounded-lg font-semibold hover:bg-border-primary transition-colors">End</button>
-                                </>
-                            ) : (
-                                 <button onClick={handlePause} className="px-16 py-4 bg-primary text-white rounded-lg font-semibold text-lg hover:bg-primary-focus transition-colors">Pause</button>
-                            )}
-                         </div>
-                    </>
-                ) : (
-                    <>
-                        <div className="flex space-x-2 mb-8">
-                            <button className="px-4 py-1.5 rounded-full bg-primary/20 text-primary text-sm font-semibold">Pomo</button>
-                            <button className="px-4 py-1.5 rounded-full hover:bg-background-tertiary text-content-secondary text-sm font-semibold">Stopwatch</button>
-                        </div>
-                        
-                        <div className="text-center mb-8">
-                            <TaskSelectorPopover
-                                isOpen={isTaskSelectorOpen}
-                                onClose={() => setTaskSelectorOpen(false)}
-                                onSelect={setSelectedFocus}
-                                tasks={tasks}
-                                habits={habits}
-                            >
-                                 <button onClick={() => setTaskSelectorOpen(true)} className="text-lg text-content-secondary hover:text-content-primary transition-colors">
-                                    {selectedFocus?.name || 'Focus'} &gt;
-                                </button>
-                            </TaskSelectorPopover>
-                        </div>
-
-                        <div className="w-[400px] h-[400px] rounded-full border-[10px] border-background-secondary flex items-center justify-center mb-8">
-                            <h2 className="text-7xl font-mono text-content-primary">{formatTime(timeRemaining)}</h2>
-                        </div>
-                        
-                        <button onClick={handleStart} className="px-16 py-4 bg-primary text-white rounded-lg font-semibold text-lg hover:bg-primary-focus transition-colors">
-                            Start
-                        </button>
-                    </>
-                )}
-            </div>
-             <div className="w-[400px] bg-background-secondary border-l border-border-primary overflow-y-auto">
-                {isActive ? (
-                     <div className="p-6 flex flex-col h-full">
-                        <div className="flex justify-between items-center mb-4">
-                            <div className="flex items-center space-x-2">
-                                <span className="text-lg">🎮</span>
-                                <p className="font-semibold">Welcome to your AI-powered todo list!</p>
-                            </div>
-                            <div className="flex items-center space-x-2 text-content-tertiary">
-                                <button className="p-1 hover:text-primary"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" /></svg></button>
-                                <button className="p-1 hover:text-primary" onClick={() => handleEnd(false)}><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg></button>
-                            </div>
-                        </div>
-                        <div className="bg-background-tertiary rounded-lg p-4 flex-grow flex flex-col">
-                            <div className="relative flex-shrink-0" style={{ height: `${(totalHours + 1) * 2}rem` }}>
-                                {Array.from({ length: totalHours + 1 }).map((_, i) => (
-                                    <div key={i} className="flex items-start h-8 text-xs text-content-tertiary">
-                                        <span className="w-6">{timelineStartHour + i}</span>
-                                        <div className="flex-1 border-t border-dashed border-border-primary mt-2"></div>
-                                    </div>
-                                ))}
-                                <div className="absolute top-0 left-6 right-0 bottom-0">
-                                    <div className="absolute w-full bg-yellow-500/20 border-l-2 border-red-500 overflow-hidden" style={{ top: `${sessionStartPercent}%`, height: `${sessionDurationPercent}%` }}>
-                                        <div className="absolute -left-[3.5px] -top-[3.5px] w-1.5 h-1.5 bg-red-500 rounded-full"></div>
-                                        <div className="absolute top-0 left-0 w-full bg-primary/40 transition-all duration-1000 linear" style={{ height: `${progressPercent}%` }}></div>
-                                    </div>
+        <>
+            <ResizablePanel
+                storageKey="pomodoro-overview-width"
+                panelSide="right"
+                initialWidth={400}
+                minWidth={320}
+                maxWidth={600}
+            >
+                {/* Panel Content (child 1) */}
+                <div className="bg-background-secondary h-full overflow-y-auto">
+                    {isActive ? (
+                         <div className="p-6 flex flex-col h-full">
+                            <div className="flex justify-between items-center mb-4">
+                                <div className="flex items-center space-x-2">
+                                    <span className="text-lg">🎮</span>
+                                    <p className="font-semibold">Welcome to your AI-powered todo list!</p>
+                                </div>
+                                <div className="flex items-center space-x-2 text-content-tertiary">
+                                    <button className="p-1 hover:text-primary"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" /></svg></button>
+                                    <button className="p-1 hover:text-primary" onClick={() => handleEnd(false)}><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg></button>
                                 </div>
                             </div>
-                            <h4 className="font-semibold mt-auto pt-4 mb-2">Focus Note</h4>
-                            <textarea
-                                value={focusNote}
-                                onChange={(e) => setFocusNote(e.target.value)}
-                                placeholder="What do you have in mind?"
-                                className="w-full h-24 bg-background-primary border border-border-primary rounded-md p-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none"
-                            ></textarea>
+                            <div className="bg-background-tertiary rounded-lg p-4 flex-grow flex flex-col">
+                                <div className="relative flex-shrink-0" style={{ height: `${(totalHours + 1) * 2}rem` }}>
+                                    {Array.from({ length: totalHours + 1 }).map((_, i) => (
+                                        <div key={i} className="flex items-start h-8 text-xs text-content-tertiary">
+                                            <span className="w-6">{timelineStartHour + i}</span>
+                                            <div className="flex-1 border-t border-dashed border-border-primary mt-2"></div>
+                                        </div>
+                                    ))}
+                                    <div className="absolute top-0 left-6 right-0 bottom-0">
+                                        <div className="absolute w-full bg-yellow-500/20 border-l-2 border-red-500 overflow-hidden" style={{ top: `${sessionStartPercent}%`, height: `${sessionDurationPercent}%` }}>
+                                            <div className="absolute -left-[3.5px] -top-[3.5px] w-1.5 h-1.5 bg-red-500 rounded-full"></div>
+                                            <div className="absolute top-0 left-0 w-full bg-primary/40 transition-all duration-1000 linear" style={{ height: `${progressPercent}%` }}></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <h4 className="font-semibold mt-auto pt-4 mb-2">Focus Note</h4>
+                                <textarea
+                                    value={focusNote}
+                                    onChange={(e) => setFocusNote(e.target.value)}
+                                    placeholder="What do you have in mind?"
+                                    className="w-full h-24 bg-background-primary border border-border-primary rounded-md p-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+                                ></textarea>
+                            </div>
                         </div>
-                    </div>
-                ) : (
-                    <FocusOverview sessions={sessions} onAddManual={() => setAddModalOpen(true)} />
-                )}
-            </div>
+                    ) : (
+                        <FocusOverview sessions={sessions} onAddManual={() => setAddModalOpen(true)} />
+                    )}
+                </div>
+
+                {/* Main Content (child 2) */}
+                <div className="flex-1 flex flex-col items-center justify-center p-8">
+                    {isActive ? (
+                        <>
+                             <p className="text-content-secondary mb-4">{selectedFocus?.name || 'Focus'}</p>
+                             <div className="w-[400px] h-[400px] rounded-full border-[10px] border-background-tertiary flex items-center justify-center mb-8">
+                                <div className="text-center">
+                                    <p className={`text-8xl font-mono transition-colors ${isPaused ? 'text-content-tertiary' : 'text-content-primary'}`}>
+                                        {formatTime(timeRemaining)}
+                                    </p>
+                                    {isPaused && <p className="text-yellow-500 font-semibold mt-2 text-lg">Paused</p>}
+                                    <p className="text-base text-content-tertiary mt-2">
+                                        {startTime && `${new Date(startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${new Date(sessionEndTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`}
+                                    </p>
+                                </div>
+                            </div>
+                             <div className="flex space-x-4">
+                                {isPaused ? (
+                                    <>
+                                        <button onClick={handleContinue} className="px-10 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary-focus transition-colors">Continue</button>
+                                        <button onClick={() => handleEnd(false)} className="px-10 py-3 bg-background-tertiary text-content-primary rounded-lg font-semibold hover:bg-border-primary transition-colors">End</button>
+                                    </>
+                                ) : (
+                                     <button onClick={handlePause} className="px-16 py-4 bg-primary text-white rounded-lg font-semibold text-lg hover:bg-primary-focus transition-colors">Pause</button>
+                                )}
+                             </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="flex space-x-2 mb-8">
+                                <button className="px-4 py-1.5 rounded-full bg-primary/20 text-primary text-sm font-semibold">Pomo</button>
+                                <button className="px-4 py-1.5 rounded-full hover:bg-background-tertiary text-content-secondary text-sm font-semibold">Stopwatch</button>
+                            </div>
+                            
+                            <div className="text-center mb-8">
+                                <TaskSelectorPopover
+                                    isOpen={isTaskSelectorOpen}
+                                    onClose={() => setTaskSelectorOpen(false)}
+                                    onSelect={setSelectedFocus}
+                                    tasks={tasks}
+                                    habits={habits}
+                                >
+                                     <button onClick={() => setTaskSelectorOpen(true)} className="text-lg text-content-secondary hover:text-content-primary transition-colors">
+                                        {selectedFocus?.name || 'Focus'} &gt;
+                                    </button>
+                                </TaskSelectorPopover>
+                            </div>
+    
+                            <div className="w-[400px] h-[400px] rounded-full border-[10px] border-background-secondary flex items-center justify-center mb-8">
+                                <h2 className="text-7xl font-mono text-content-primary">{formatTime(timeRemaining)}</h2>
+                            </div>
+                            
+                            <button onClick={handleStart} className="px-16 py-4 bg-primary text-white rounded-lg font-semibold text-lg hover:bg-primary-focus transition-colors">
+                                Start
+                            </button>
+                        </>
+                    )}
+                </div>
+            </ResizablePanel>
 
             <AddFocusRecordModal 
                 isOpen={isAddModalOpen}
@@ -328,6 +340,6 @@ export const PomodoroPage: React.FC<PomodoroPageProps> = ({ sessions, onAddSessi
                 habits={habits}
                 sessions={sessions}
             />
-        </div>
+        </>
     );
 };

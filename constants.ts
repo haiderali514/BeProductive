@@ -1,5 +1,6 @@
 
-import { Priority, Habit, PomodoroSession, UserProfile, Countdown } from './types';
+
+import { Priority, Habit, PomodoroSession, UserProfile, Countdown, List } from './types';
 
 export const PRIORITY_COLORS: Record<Priority, string> = {
   [Priority.HIGH]: 'border-red-500',
@@ -15,37 +16,48 @@ export const PRIORITY_BG_COLORS: Record<Priority, string> = {
   [Priority.NONE]: 'bg-background-tertiary text-content-secondary',
 };
 
-export const DEFAULT_LISTS = [
-    { id: 'inbox', name: 'Inbox' },
-    { id: 'work', name: 'Work' },
+export const DEFAULT_LISTS: List[] = [
+    { id: 'inbox', name: 'Inbox', color: '#F5A623', emoji: '📥' },
+    { id: 'welcome', name: 'Welcome', emoji: '👋', color: '#50E3C2', isPinned: false },
+    { id: 'work', name: 'Work', emoji: '💼', color: '#4A90E2', isPinned: false },
+    { id: 'study', name: 'Study', emoji: '📖', color: '#BD10E0', isPinned: false },
 ];
 
 export const DEFAULT_TASKS = [
     {
       id: '1',
       title: 'Welcome to your AI-powered todo list!',
-      listId: 'inbox',
+      description: 'This is where you can add more details, notes, or links related to your task. Use the subtask section below to break this down into smaller steps!',
+      listId: 'welcome',
       priority: Priority.MEDIUM,
       completed: false,
       subtasks: [],
+      tags: [],
+      pinned: true,
     },
     {
       id: '2',
       title: 'Try the smart add: "Review project proposal tomorrow 3pm #work !high"',
+      description: '',
       listId: 'inbox',
       priority: Priority.HIGH,
       completed: false,
       subtasks: [],
+      tags: [],
+      pinned: false,
     },
     {
       id: '3',
       title: 'Generate subtasks for "Plan team offsite"',
+      description: 'Click the magic wand icon on this task in the list to see the AI generate a list of actionable subtasks for you.',
       listId: 'work',
       priority: Priority.LOW,
       completed: false,
       subtasks: [
         { id: '3-1', title: 'Click the ✨ icon on this task!', completed: false },
       ],
+      tags: [],
+      pinned: false,
     },
 ];
 

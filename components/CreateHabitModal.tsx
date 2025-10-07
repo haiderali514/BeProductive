@@ -23,7 +23,7 @@ export const CreateHabitModal: React.FC<CreateHabitModalProps> = ({ isOpen, onCl
 
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center" onClick={onClose}>
-            <div className="bg-background-secondary rounded-lg shadow-xl p-8 w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="bg-background-secondary rounded-lg shadow-xl p-8 w-full max-w-[392px]" onClick={e => e.stopPropagation()}>
                 <h2 className="text-2xl font-bold mb-6 text-content-primary">Create New Habit</h2>
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div>

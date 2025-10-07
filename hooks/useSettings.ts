@@ -1,7 +1,13 @@
 
-import useLocalStorage from './useLocalStorage';
+
+import useLocalStorage from './useLocalStorage.ts';
+
+export type SmartListVisibility = 'show' | 'show-if-not-empty' | 'hide';
 
 export interface Settings {
+    // AI Features
+    enableAIFeatures: boolean;
+    
     // Features
     showCalendar: boolean;
     showEisenhowerMatrix: boolean;
@@ -25,9 +31,31 @@ export interface Settings {
     // Appearance
     theme: string;
     autoSwitchTheme: boolean;
+    font: 'default' | 'roboto' | 'arial' | 'inter' | 'poppins' | 'nunito';
+    fontSize: 'normal' | 'large' | 'extra-large';
+    sidebarCount: 'show' | 'hover' | 'hide';
+    completedTaskStyle: 'default' | 'strikethrough';
+    taskInputStyle: 'simple' | 'detailed';
+
+    // Smart Lists & Sidebar Sections
+    smartListSettings: {
+        all: SmartListVisibility;
+        today: SmartListVisibility;
+        tomorrow: SmartListVisibility;
+        next7days: SmartListVisibility;
+        assignedToMe: SmartListVisibility;
+        inbox: SmartListVisibility;
+        summary: SmartListVisibility;
+        filters: SmartListVisibility;
+        tags: SmartListVisibility;
+        completed: SmartListVisibility;
+        trash: SmartListVisibility;
+        wontdo: SmartListVisibility;
+    };
 }
 
 const defaultSettings: Settings = {
+    enableAIFeatures: false,
     showCalendar: true,
     showEisenhowerMatrix: true,
     showHabitTracker: true,
@@ -44,6 +72,25 @@ const defaultSettings: Settings = {
     showWeekNumbers: true,
     theme: 'dark',
     autoSwitchTheme: false,
+    font: 'default',
+    fontSize: 'extra-large',
+    sidebarCount: 'show',
+    completedTaskStyle: 'default',
+    taskInputStyle: 'detailed',
+    smartListSettings: {
+        all: 'show',
+        today: 'show',
+        tomorrow: 'show-if-not-empty',
+        next7days: 'show',
+        assignedToMe: 'hide',
+        inbox: 'show',
+        summary: 'hide',
+        filters: 'show',
+        tags: 'show',
+        completed: 'show',
+        trash: 'show',
+        wontdo: 'show',
+    },
 };
 
 export const useSettings = () => {

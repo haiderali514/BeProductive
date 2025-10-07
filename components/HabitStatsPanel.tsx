@@ -1,19 +1,47 @@
-
 import React, { useState, useMemo } from 'react';
-import { Habit } from '../types';
+import { Habit } from '../types.ts';
 
 interface HabitStatsPanelProps {
     habits: Habit[];
     selectedHabit: Habit | null;
 }
 
-const StatCard: React.FC<{ title: string; value: string | number; description?: string }> = ({ title, value, description }) => (
-    <div className="bg-background-tertiary p-4 rounded-lg">
-        <p className="text-sm text-content-secondary">{title}</p>
-        <p className="text-2xl font-bold text-content-primary">{value}</p>
-        {description && <p className="text-xs text-content-tertiary">{description}</p>}
-    </div>
+const SwitchIcon: React.FC = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5M5 12a7 7 0 117 7" />
+    </svg>
 );
+
+const SwitchableStatCard: React.FC<{
+  title1: string; value1: string | number; description1?: string;
+  title2: string; value2: string | number; description2?: string;
+}> = ({ title1, value1, description1, title2, value2, description2 }) => {
+  const [showFirst, setShowFirst] = useState(true);
+
+  const StatContent: React.FC<{title: string, value: string|number, description?: string}> = ({title, value, description}) => (
+    <>
+      <p className="text-sm text-content-secondary pr-4 h-8">{title}</p>
+      <p className="text-2xl font-bold text-content-primary truncate">{value}</p>
+      <div className="h-4">
+        {description && <p className="text-xs text-content-tertiary">{description}</p>}
+      </div>
+    </>
+  );
+
+  return (
+    <div onClick={() => setShowFirst(!showFirst)} className="bg-background-tertiary p-4 rounded-lg cursor-pointer relative group transition-transform hover:scale-105 min-h-[110px]">
+      <div className="absolute top-3 right-3 text-content-tertiary opacity-0 group-hover:opacity-100 transition-opacity">
+        <SwitchIcon />
+      </div>
+      {showFirst ? (
+        <StatContent title={title1} value={value1} description={description1} />
+      ) : (
+        <StatContent title={title2} value={value2} description={description2} />
+      )}
+    </div>
+  );
+};
+
 
 const toYYYYMMDD = (date: Date): string => {
     const year = date.getFullYear();
@@ -27,12 +55,10 @@ const calculateStreak = (checkIns: string[]): number => {
     
     const checkInSet = new Set(checkIns);
     
-    // Streak calculation should start from today or yesterday.
     let currentDate = new Date();
     if (!checkInSet.has(toYYYYMMDD(currentDate))) {
       currentDate.setDate(currentDate.getDate() - 1);
-      // If yesterday is also not checked, streak is 0, unless today is the only check-in.
-      if (!checkInSet.has(toYYYYMMDD(currentDate)) && !(checkInSet.size === 1 && checkInSet.has(toYYYYMMDD(new Date())))) {
+      if (!checkInSet.has(toYYYYMMDD(currentDate))) {
         return 0;
       }
     }
@@ -44,6 +70,39 @@ const calculateStreak = (checkIns: string[]): number => {
     }
     
     return streak;
+};
+
+const calculateLongestStreak = (checkIns: string[]): number => {
+    if (checkIns.length < 2) return checkIns.length;
+
+    const sortedDates = checkIns.map(d => new Date(d).getTime()).sort((a, b) => a - b);
+    
+    const uniqueDates = [...new Set(sortedDates)];
+
+    let longestStreak = 0;
+    let currentStreak = 0;
+    
+    if (uniqueDates.length > 0) {
+        longestStreak = 1;
+        currentStreak = 1;
+    }
+
+    for (let i = 1; i < uniqueDates.length; i++) {
+        const diff = uniqueDates[i] - uniqueDates[i-1];
+        const oneDay = 1000 * 60 * 60 * 24;
+
+        if (diff === oneDay) {
+            currentStreak++;
+        } else {
+            currentStreak = 1;
+        }
+        
+        if (currentStreak > longestStreak) {
+            longestStreak = currentStreak;
+        }
+    }
+
+    return longestStreak;
 };
 
 
@@ -169,24 +228,59 @@ const OverallActivityCalendar: React.FC<{ habits: Habit[] }> = ({ habits }) => {
 
 
 const OverallStats: React.FC<{ habits: Habit[] }> = ({ habits }) => {
-    const { totalHabits, todaysCheckins, completionRate, longestStreak } = useMemo(() => {
-        const todayStr = toYYYYMMDD(new Date());
+    const {
+        monthlyCheckins,
+        todaysCheckins,
+        completionRate,
+        highestCurrentStreak,
+        totalCheckins,
+        totalCompletionRate,
+        monthlyRate,
+        longestStreakEver
+    } = useMemo(() => {
+        const now = new Date();
+        const todayStr = toYYYYMMDD(now);
         const todaysCheckins = habits.filter(h => h.checkIns.includes(todayStr)).length;
         const totalHabits = habits.length;
         const completionRate = totalHabits > 0 ? Math.round((todaysCheckins / totalHabits) * 100) : 0;
-        const longestStreak = Math.max(0, ...habits.map(h => calculateStreak(h.checkIns)));
         
-        return { totalHabits, todaysCheckins, completionRate, longestStreak };
+        const highestCurrentStreak = Math.max(0, ...habits.map(h => calculateStreak(h.checkIns)));
+        
+        const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        const monthlyCheckins = habits.reduce((sum, h) => sum + h.checkIns.filter(ci => ci.startsWith(monthPrefix)).length, 0);
+
+        const totalCheckins = habits.reduce((sum, h) => sum + h.checkIns.length, 0);
+        const totalDaysSum = habits.reduce((sum, h) => sum + (h.totalDays || 1), 1);
+        const totalCompletionRate = totalDaysSum > 0 ? Math.round((totalCheckins / totalDaysSum) * 100) : 0;
+        
+        const daysInMonthSoFar = now.getDate();
+        const monthlyRate = (totalHabits * daysInMonthSoFar) > 0 ? Math.round((monthlyCheckins / (totalHabits * daysInMonthSoFar)) * 100) : 0;
+        
+        const longestStreakEver = Math.max(0, ...habits.map(h => calculateLongestStreak(h.checkIns)));
+
+        return { monthlyCheckins, todaysCheckins, completionRate, highestCurrentStreak, totalCheckins, totalCompletionRate, monthlyRate, longestStreakEver };
     }, [habits]);
 
     return (
         <div>
             <h2 className="text-xl font-bold mb-6 text-content-primary">Overall Stats</h2>
             <div className="grid grid-cols-2 gap-4">
-                <StatCard title="Total Habits" value={totalHabits} />
-                <StatCard title="Today's Check-ins" value={todaysCheckins} />
-                <StatCard title="Completion Rate" value={`${completionRate}%`} description="For today" />
-                <StatCard title="Longest Streak" value={longestStreak} description="Across all habits" />
+                <SwitchableStatCard 
+                    title1="Today's Check-ins" value1={todaysCheckins}
+                    title2="Total Check-ins" value2={totalCheckins} description2="All time"
+                />
+                <SwitchableStatCard 
+                    title1="Today's Completion Rate" value1={`${completionRate}%`}
+                    title2="Overall Completion Rate" value2={`${totalCompletionRate}%`} description2="All time"
+                />
+                <SwitchableStatCard
+                    title1="Highest Current Streak" value1={highestCurrentStreak} description1="Across all habits"
+                    title2="Longest Streak Ever" value2={longestStreakEver} description2="Across all habits"
+                />
+                <SwitchableStatCard
+                    title1="Monthly Check-ins" value1={monthlyCheckins}
+                    title2="Monthly Completion Rate" value2={`${monthlyRate}%`}
+                />
             </div>
             <OverallActivityCalendar habits={habits} />
         </div>
@@ -194,21 +288,37 @@ const OverallStats: React.FC<{ habits: Habit[] }> = ({ habits }) => {
 };
 
 const SpecificHabitStats: React.FC<{ habit: Habit }> = ({ habit }) => {
-    const { totalCheckins, currentStreak, monthlyCheckins, monthlyRate } = useMemo(() => {
+    const {
+        totalCheckins,
+        currentStreak,
+        monthlyCheckins,
+        monthlyRate,
+        todaysCheckin,
+        overallCompletionRate,
+        longestStreak
+    } = useMemo(() => {
         const now = new Date();
-        const year = now.getFullYear();
-        const month = now.getMonth();
-        const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`;
+        const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
         
         const monthlyCheckins = habit.checkIns.filter(d => d.startsWith(monthPrefix)).length;
         const daysInMonthSoFar = now.getDate();
-        const monthlyRate = Math.round((monthlyCheckins / daysInMonthSoFar) * 100);
+        const monthlyRate = daysInMonthSoFar > 0 ? Math.round((monthlyCheckins / daysInMonthSoFar) * 100) : 0;
+        
+        const todayStr = toYYYYMMDD(now);
+        const todaysCheckin = habit.checkIns.includes(todayStr);
+
+        const overallCompletionRate = habit.totalDays > 0 ? Math.round((habit.checkIns.length / habit.totalDays) * 100) : 0;
+
+        const longestStreak = calculateLongestStreak(habit.checkIns);
         
         return {
             totalCheckins: habit.checkIns.length,
             currentStreak: calculateStreak(habit.checkIns),
             monthlyCheckins,
-            monthlyRate
+            monthlyRate,
+            todaysCheckin,
+            overallCompletionRate,
+            longestStreak
         };
     }, [habit]);
 
@@ -219,10 +329,22 @@ const SpecificHabitStats: React.FC<{ habit: Habit }> = ({ habit }) => {
                 <h2 className="text-2xl font-bold text-content-primary truncate">{habit.name}</h2>
             </div>
             <div className="grid grid-cols-2 gap-4">
-                <StatCard title="Monthly check-ins" value={monthlyCheckins} />
-                <StatCard title="Total check-ins" value={totalCheckins} />
-                <StatCard title="Monthly check-in rate" value={`${monthlyRate}%`} />
-                <StatCard title="Streak" value={`${currentStreak} Day${currentStreak !== 1 ? 's' : ''}`} />
+                <SwitchableStatCard
+                    title1="Today's Check-in" value1={todaysCheckin ? '✅ Completed' : '❌ Pending'}
+                    title2="Total Check-ins" value2={totalCheckins} description2="All time"
+                />
+                 <SwitchableStatCard
+                    title1="Monthly Check-ins" value1={monthlyCheckins}
+                    title2="Monthly Completion Rate" value2={`${monthlyRate}%`}
+                />
+                <SwitchableStatCard
+                    title1="Current Streak" value1={`${currentStreak} Day${currentStreak !== 1 ? 's' : ''}`}
+                    title2="Longest Streak Ever" value2={`${longestStreak} Day${longestStreak !== 1 ? 's' : ''}`}
+                />
+                <SwitchableStatCard
+                    title1="Today's Completion Rate" value1={todaysCheckin ? '100%' : '0%'}
+                    title2="Overall Completion Rate" value2={`${overallCompletionRate}%`} description2="All time"
+                />
             </div>
             <SpecificHabitCalendar habit={habit} />
         </div>
@@ -231,7 +353,7 @@ const SpecificHabitStats: React.FC<{ habit: Habit }> = ({ habit }) => {
 
 export const HabitStatsPanel: React.FC<HabitStatsPanelProps> = ({ habits, selectedHabit }) => {
     return (
-        <aside className="w-[400px] bg-background-secondary border-l border-border-primary p-6 overflow-y-auto hidden md:block">
+        <aside className="h-full bg-background-secondary p-6 overflow-y-auto hidden md:block w-full">
             {selectedHabit ? <SpecificHabitStats habit={selectedHabit} /> : <OverallStats habits={habits} />}
         </aside>
     );

@@ -1,8 +1,8 @@
 
 
 import React, { useState, useEffect } from 'react';
-import { Task, Habit, PomodoroSession } from '../types';
-import { DateTimePicker } from './DateTimePicker';
+import { Task, Habit, PomodoroSession } from '../types.ts';
+import { DateTimePicker } from './DateTimePicker.tsx';
 
 interface AddFocusRecordModalProps {
     isOpen: boolean;
@@ -101,7 +101,7 @@ export const AddFocusRecordModal: React.FC<AddFocusRecordModalProps> = ({ isOpen
 
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center" onClick={onClose}>
-            <div className="bg-background-secondary rounded-lg shadow-xl p-8 w-full max-w-lg" onClick={e => e.stopPropagation()}>
+            <div className="bg-background-secondary rounded-lg shadow-xl p-8 w-full max-w-[448px]" onClick={e => e.stopPropagation()}>
                 <h2 className="text-2xl font-bold mb-6 text-content-primary">Add Focus Record</h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>

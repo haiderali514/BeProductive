@@ -1,5 +1,6 @@
 
-import { useState, Dispatch, SetStateAction } from 'react';
+
+import { useState, Dispatch, SetStateAction, useCallback } from 'react';
 
 function useLocalStorage<T,>(key: string, initialValue: T): [T, Dispatch<SetStateAction<T>>] {
   const [storedValue, setStoredValue] = useState<T>(() => {
@@ -12,7 +13,7 @@ function useLocalStorage<T,>(key: string, initialValue: T): [T, Dispatch<SetStat
     }
   });
 
-  const setValue: Dispatch<SetStateAction<T>> = (value) => {
+  const setValue: Dispatch<SetStateAction<T>> = useCallback((value) => {
     try {
       // Use the updater form of the state setter to avoid stale state.
       setStoredValue(prevStoredValue => {
@@ -23,7 +24,7 @@ function useLocalStorage<T,>(key: string, initialValue: T): [T, Dispatch<SetStat
     } catch (error) {
       console.error(error);
     }
-  };
+  }, [key]);
 
   return [storedValue, setValue];
 }

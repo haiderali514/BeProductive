@@ -1,19 +1,21 @@
 import React, { useState } from 'react';
 import { generateTaskPlan, AITaskSuggestion } from '../services/geminiService';
 import { List } from '../types';
+import { ApiFeature } from '../hooks/useApiUsage';
 
 interface PlanWithAIModalProps {
     isOpen: boolean;
     onClose: () => void;
     lists: List[];
     onAddPlan: (plan: AITaskSuggestion[]) => void;
+    logApiCall: (feature: ApiFeature, tokens: number) => void;
 }
 
 interface PlanItem extends AITaskSuggestion {
     selected: boolean;
 }
 
-export const PlanWithAIModal: React.FC<PlanWithAIModalProps> = ({ isOpen, onClose, lists, onAddPlan }) => {
+export const PlanWithAIModal: React.FC<PlanWithAIModalProps> = ({ isOpen, onClose, lists, onAddPlan, logApiCall }) => {
     const [goal, setGoal] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -31,7 +33,8 @@ export const PlanWithAIModal: React.FC<PlanWithAIModalProps> = ({ isOpen, onClos
 
         try {
             const listNames = lists.map(l => l.name);
-            const generatedTasks = await generateTaskPlan(goal, listNames);
+            const { data: generatedTasks, tokensUsed } = await generateTaskPlan(goal, listNames);
+            logApiCall('planWithAI', tokensUsed);
             setPlan(generatedTasks.map(task => ({ ...task, selected: true })));
         } catch (e: any) {
             setError(e.message || "Failed to generate a plan.");
@@ -59,7 +62,7 @@ export const PlanWithAIModal: React.FC<PlanWithAIModalProps> = ({ isOpen, onClos
 
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center" onClick={onClose}>
-            <div className="bg-background-secondary rounded-lg shadow-xl p-8 w-full max-w-2xl flex flex-col" style={{height: '70vh'}} onClick={e => e.stopPropagation()}>
+            <div className="bg-background-secondary rounded-lg shadow-xl p-8 w-full max-w-[588px] flex flex-col max-h-[70vh]" onClick={e => e.stopPropagation()}>
                 <h2 className="text-2xl font-bold mb-2 text-content-primary">Plan with AI ✨</h2>
                 <p className="text-sm text-content-secondary mb-6">Enter a goal or a complex task, and Aura will break it down into actionable steps for you.</p>
                 

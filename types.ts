@@ -1,3 +1,6 @@
+import { Settings } from './hooks/useSettings';
+import { ApiFeature } from './hooks/useApiUsage';
+
 export enum Priority {
   NONE = 'None',
   LOW = 'Low',
@@ -21,17 +24,27 @@ export interface Subtask {
 export interface Task {
   id: string;
   title: string;
+  description?: string;
   listId: string;
   dueDate?: string | null;
   priority: Priority;
   completed: boolean;
   subtasks: Subtask[];
   recurrence?: Recurrence | null;
+  tags: string[];
+  pinned?: boolean;
+  wontDo?: boolean;
+  trashed?: boolean;
+  isSection?: boolean;
+  isCollapsed?: boolean;
 }
 
 export interface List {
   id:string;
   name: string;
+  color?: string;
+  isPinned?: boolean;
+  emoji?: string;
 }
 
 export interface Habit {
@@ -76,10 +89,20 @@ export interface ChatMessage {
   parts: { text: string }[];
 }
 
+export type ProjectMemory = 'default' | 'project-only';
+
+export interface Project {
+  id: string;
+  name: string;
+  instruction: string;
+  memory: ProjectMemory;
+}
+
 export interface Conversation {
   id: string;
   title: string;
   messages: ChatMessage[];
+  projectId?: string | null;
 }
 
 export interface Notification {
@@ -105,4 +128,45 @@ export interface Countdown {
   date: string; // ISO string format
 }
 
-export type ActiveView = 'tasks' | 'pomodoro' | 'habits' | 'analytics' | 'profile' | 'ai-assistant' | 'eisenhower-matrix' | 'countdown';
+export type ActiveView = 'tasks' | 'pomodoro' | 'habits' | 'analytics' | 'profile' | 'ai-assistant' | 'eisenhower-matrix' | 'countdown' | 'calendar';
+
+export interface Tag {
+  id: string;
+  name: string;
+  color: string;
+  parentId?: string | null;
+}
+
+export type FilterDateOption = 'any' | 'today' | 'tomorrow' | 'thisWeek' | 'thisMonth' | 'overdue';
+
+export interface Filter {
+  id: string;
+  name: string;
+  lists: string[]; // list IDs
+  tags: string[]; // tag IDs
+  date: FilterDateOption;
+  priority: Priority | 'All';
+  includeKeywords?: string;
+  type?: 'all' | 'task';
+}
+
+export interface AddTaskFormProps {
+    lists: List[];
+    onAddTask: (taskData: {
+        title: string;
+        listId: string;
+        priority: Priority;
+        dueDate: string | null;
+        recurrence: Recurrence | null;
+        tags: string[];
+        isSection?: boolean;
+        isCollapsed?: boolean;
+    }) => void;
+    aiEnabled: boolean;
+    activeListId: string;
+    logApiCall: (feature: ApiFeature, tokens: number) => void;
+    onSettingsChange: (newSettings: Partial<Settings>) => void;
+    settings: Settings;
+    onDeactivate: () => void;
+    autoFocus?: boolean;
+}

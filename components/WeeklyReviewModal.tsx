@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { MarkdownRenderer } from './MarkdownRenderer';
 
@@ -52,7 +53,7 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({ isOpen, on
 
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center" onClick={onClose}>
-            <div className="bg-background-secondary rounded-lg shadow-xl p-8 w-full max-w-3xl flex flex-col" style={{height: '80vh'}} onClick={e => e.stopPropagation()}>
+            <div className="bg-background-secondary rounded-lg shadow-xl p-8 w-full max-w-[672px] flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-center mb-4 flex-shrink-0">
                     <h2 className="text-2xl font-bold text-content-primary">Your Weekly Review ✨</h2>
                     <button onClick={onClose} className="p-2 rounded-full text-content-tertiary hover:bg-background-tertiary">

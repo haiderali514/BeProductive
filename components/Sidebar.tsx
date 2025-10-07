@@ -1,207 +1,131 @@
-import React, { useRef, useState } from 'react';
-import { Settings } from '../hooks/useSettings';
-import { AnalyticsIcon, TasksIcon, HabitIcon, PomodoroIcon, SettingsIcon, AIAssistantIcon, NotificationBellIcon, MatrixIcon, CountdownIcon } from './Icons';
-import { ActiveView, Notification, UserProfile } from '../types';
-import { NotificationCenter } from './NotificationCenter';
+
+
+import React, { useState, useMemo } from 'react';
+import { useSettings } from '../contexts/SettingsContext.tsx';
+import { AnalyticsIcon, TasksIcon, HabitIcon, PomodoroIcon, SettingsIcon, AIAssistantIcon, NotificationBellIcon, MatrixIcon, CountdownIcon, UserIcon, CalendarIcon } from './Icons.tsx';
+import { ActiveView } from '../types.ts';
+import { NotificationCenter } from './NotificationCenter.tsx';
+import { useNotifications } from '../contexts/NotificationContext.tsx';
+import { useData } from '../contexts/DataContext.tsx';
 
 interface SidebarProps {
   activeView: ActiveView;
   setActiveView: (view: ActiveView) => void;
   onOpenSettings: () => void;
-  settings: Settings;
-  viewOrder: ActiveView[];
-  onViewOrderChange: (newOrder: ActiveView[]) => void;
-  notifications: Notification[];
-  onMarkNotificationAsRead: (id: string) => void;
-  onClearAllNotifications: () => void;
-  userProfile: UserProfile;
 }
 
 const SidebarIcon: React.FC<{
+  icon: React.ReactNode;
   label: string;
   isActive: boolean;
   onClick: () => void;
-  children: React.ReactNode;
-}> = ({ label, isActive, onClick, children }) => (
-  <div className="relative group flex justify-center">
+  hasNotification?: boolean;
+}> = ({ icon, label, isActive, onClick, hasNotification }) => (
     <button
-      onClick={onClick}
-      aria-label={label}
-      className={`h-12 w-12 flex items-center justify-center rounded-lg transition-all duration-200 ${
-        isActive ? 'bg-primary text-white' : 'text-content-secondary hover:bg-background-tertiary hover:text-primary'
-      }`}
+        onClick={onClick}
+        aria-label={label}
+        className={`relative w-[48px] h-[48px] flex items-center justify-center rounded-lg transition-colors duration-200 group ${isActive ? 'bg-primary text-white' : 'text-content-secondary hover:bg-background-tertiary hover:text-content-primary'}`}
     >
-      {children}
+        {icon}
+        {hasNotification && <div className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-background-secondary"></div>}
+        <span className="absolute left-full ml-3 w-max px-2 py-1 bg-background-tertiary text-content-primary text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+            {label}
+        </span>
     </button>
-    <span className="absolute left-16 p-2 px-3 text-sm text-primary-content bg-background-tertiary rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap">
-      {label}
-    </span>
-  </div>
 );
 
-export const Sidebar: React.FC<SidebarProps> = (props) => {
-    const { 
-        activeView, setActiveView, onOpenSettings, settings, 
-        viewOrder, onViewOrderChange, notifications,
-        onMarkNotificationAsRead, onClearAllNotifications,
-        userProfile
-    } = props;
 
-    const draggedViewRef = useRef<ActiveView | null>(null);
-    const [draggingView, setDraggingView] = useState<ActiveView | null>(null);
-    const dragHappened = useRef(false);
+export const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, onOpenSettings }) => {
+    const [settings] = useSettings();
+    const { notifications, markNotificationAsRead, clearAllNotifications } = useNotifications();
+    const { userProfile } = useData();
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+
     const unreadCount = notifications.filter(n => !n.read).length;
 
-    const handleDragStart = (e: React.DragEvent, view: ActiveView) => {
-        dragHappened.current = false;
-        draggedViewRef.current = view;
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', view);
-        setTimeout(() => {
-            setDraggingView(view);
-        }, 0);
+    const viewIcons: Record<Exclude<ActiveView, 'profile'>, { icon: React.ReactNode; label: string }> = {
+        tasks: { icon: <TasksIcon />, label: 'Tasks' },
+        calendar: { icon: <CalendarIcon />, label: 'Calendar' },
+        'ai-assistant': { icon: <AIAssistantIcon />, label: 'AI Assistant' },
+        'eisenhower-matrix': { icon: <MatrixIcon />, label: 'Eisenhower Matrix' },
+        analytics: { icon: <AnalyticsIcon />, label: 'Analytics' },
+        habits: { icon: <HabitIcon />, label: 'Habits' },
+        pomodoro: { icon: <PomodoroIcon />, label: 'Pomodoro' },
+        countdown: { icon: <CountdownIcon />, label: 'Countdown' },
     };
 
-    const handleDragEnter = (e: React.DragEvent, targetView: ActiveView) => {
-        e.preventDefault();
-        dragHappened.current = true;
-        const draggedView = draggedViewRef.current;
-        if (!draggedView || targetView === draggedView) {
-            return;
-        }
+    const visibleViews = useMemo(() => {
+        const order: Exclude<ActiveView, 'profile'>[] = ['tasks', 'calendar', 'ai-assistant', 'eisenhower-matrix', 'analytics', 'habits', 'pomodoro', 'countdown'];
+        
+        return order.filter(view => {
+            switch(view) {
+                case 'calendar': return settings.showCalendar;
+                case 'eisenhower-matrix': return settings.showEisenhowerMatrix;
+                case 'habits': return settings.showHabitTracker;
+                case 'pomodoro': return settings.showPomodoro;
+                case 'countdown': return settings.showCountdown;
+                // others are always visible for now. Analytics is not in settings.
+                default: return true;
+            }
+        });
+    }, [settings]);
 
-        const fromIndex = viewOrder.indexOf(draggedView);
-        const toIndex = viewOrder.indexOf(targetView);
 
-        if (fromIndex !== -1 && toIndex !== -1) {
-            const newOrder = [...viewOrder];
-            const [movedItem] = newOrder.splice(fromIndex, 1);
-            newOrder.splice(toIndex, 0, movedItem);
-            onViewOrderChange(newOrder);
-        }
-    };
-    
-    const handleDragEnd = () => {
-        draggedViewRef.current = null;
-        setDraggingView(null);
-        setTimeout(() => {
-            dragHappened.current = false;
-        }, 0);
-    };
-    
-    const handleIconClick = (view: ActiveView) => {
-        if (dragHappened.current) {
-            return;
-        }
-        setActiveView(view);
-        setIsNotificationsOpen(false);
-    };
-    
-    const toggleNotifications = () => {
-        setIsNotificationsOpen(prev => !prev);
-    };
-
-    const iconConfig: Record<ActiveView, { label: string; icon: React.ReactNode; isVisible: boolean }> = {
-        tasks: { label: 'Tasks', icon: <TasksIcon />, isVisible: true },
-        'ai-assistant': { label: 'AI Assistant', icon: <AIAssistantIcon />, isVisible: true },
-        analytics: { label: 'Analytics', icon: <AnalyticsIcon />, isVisible: true },
-        habits: { label: 'Habits', icon: <HabitIcon />, isVisible: settings.showHabitTracker },
-        pomodoro: { label: 'Pomodoro', icon: <PomodoroIcon />, isVisible: settings.showPomodoro },
-        'eisenhower-matrix': { label: 'Matrix', icon: <MatrixIcon />, isVisible: settings.showEisenhowerMatrix },
-        countdown: { label: 'Countdown', icon: <CountdownIcon />, isVisible: settings.showCountdown },
-        profile: { label: 'Profile', icon: <></>, isVisible: true } // Not rendered in draggable list
-    };
-    
-    const visibleViews = viewOrder.filter(view => iconConfig[view] && iconConfig[view].isVisible);
-  
     return (
-        <aside className="w-20 bg-background-secondary flex flex-col items-center py-4 space-y-4 border-r border-border-primary">
-          <div className="relative group flex justify-center">
-            <button
-                onClick={() => handleIconClick('profile')}
-                aria-label="Profile"
-                className={`w-12 h-12 rounded-full transition-all duration-200 ring-2 ring-offset-2 ring-offset-background-secondary ${
-                activeView === 'profile' ? 'ring-primary' : 'ring-transparent hover:ring-primary/50'
-                }`}
-            >
-                <img src={userProfile.avatarUrl} alt={userProfile.name} className="w-full h-full rounded-full object-cover" />
-            </button>
-             <span className="absolute left-16 p-2 px-3 text-sm text-primary-content bg-background-tertiary rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap">
-                Profile
-            </span>
-          </div>
-          
-          <div className="flex flex-col items-center flex-grow w-full">
-            <div className="w-full space-y-2">
-                {visibleViews.map(view => {
-                    const config = iconConfig[view];
-                    if (!config) return null;
-                    const isDragging = draggingView === view;
-                    return (
-                        <div
-                            key={view}
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, view)}
-                            onDragEnter={(e) => handleDragEnter(e, view)}
-                            onDragEnd={handleDragEnd}
-                            onDragOver={(e) => e.preventDefault()}
-                            className={`w-full cursor-grab transition-all duration-300 ease-in-out ${isDragging ? 'opacity-30 scale-110' : 'opacity-100'}`}
-                        >
-                            <SidebarIcon label={config.label} isActive={activeView === view} onClick={() => handleIconClick(view)}>
-                                {config.icon}
-                            </SidebarIcon>
-                        </div>
-                    );
-                })}
+        <aside className="w-[80px] bg-background-secondary flex flex-col items-center py-[16px] border-r border-border-primary">
+            {/* Top section: Avatar */}
+            <div className="group relative">
+                <button 
+                    onClick={() => setActiveView('profile')} 
+                    aria-label="Open Profile"
+                    className={`w-[48px] h-[48px] rounded-full transition-all ring-2 ring-offset-2 ring-offset-background-secondary ${activeView === 'profile' ? 'ring-primary' : 'ring-transparent'}`}
+                >
+                    <img src={userProfile.avatarUrl} alt={userProfile.name} className="w-full h-full rounded-full object-cover" />
+                </button>
+                <span className="absolute left-full ml-3 w-max px-2 py-1 bg-background-tertiary text-content-primary text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                    {userProfile.name}
+                </span>
             </div>
 
-            <div 
-                className="flex-grow w-full"
-                onDragOver={(e) => e.preventDefault()}
-                onDragEnter={(e) => {
-                    e.preventDefault();
-                    dragHappened.current = true;
-                    const draggedView = draggedViewRef.current;
-                    if (!draggedView) return;
-
-                    const lastItemInOrder = viewOrder[viewOrder.length - 1];
-                    if (draggedView !== lastItemInOrder) {
-                        const fromIndex = viewOrder.indexOf(draggedView);
-                        if (fromIndex === -1) return;
-                        
-                        const newOrder = [...viewOrder];
-                        const [item] = newOrder.splice(fromIndex, 1);
-                        newOrder.push(item);
-                        
-                        onViewOrderChange(newOrder);
-                    }
-                }}
-            />
-          </div>
-    
-          <div className="flex flex-col space-y-2 items-center">
-             <div className="relative">
-                <SidebarIcon label="Notifications" isActive={isNotificationsOpen} onClick={toggleNotifications}>
-                    <NotificationBellIcon />
-                     {unreadCount > 0 && (
-                        <span className="absolute top-2 right-2 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-background-secondary"></span>
-                    )}
-                </SidebarIcon>
-                {isNotificationsOpen && (
-                    <NotificationCenter
-                        notifications={notifications}
-                        onClose={() => setIsNotificationsOpen(false)}
-                        onMarkAsRead={onMarkNotificationAsRead}
-                        onClearAll={onClearAllNotifications}
+            {/* Main navigation icons */}
+            <nav className="flex flex-col items-center space-y-[16px] my-[32px]">
+                {visibleViews.map(view => (
+                    <SidebarIcon
+                        key={view}
+                        icon={viewIcons[view].icon}
+                        label={viewIcons[view].label}
+                        isActive={activeView === view}
+                        onClick={() => setActiveView(view)}
                     />
-                )}
-            </div>
+                ))}
+            </nav>
 
-            <SidebarIcon label="Settings" isActive={false} onClick={onOpenSettings}>
-                <SettingsIcon />
-            </SidebarIcon>
-          </div>
+            {/* Bottom section: Notifications & Settings */}
+            <div className="mt-auto flex flex-col items-center space-y-[16px]">
+                <div className="relative">
+                    <SidebarIcon
+                        icon={<NotificationBellIcon />}
+                        label="Notifications"
+                        isActive={isNotificationsOpen}
+                        onClick={() => setIsNotificationsOpen(o => !o)}
+                        hasNotification={unreadCount > 0}
+                    />
+                    {isNotificationsOpen && (
+                        <NotificationCenter 
+                            notifications={notifications}
+                            onClose={() => setIsNotificationsOpen(false)}
+                            onMarkAsRead={markNotificationAsRead}
+                            onClearAll={clearAllNotifications}
+                        />
+                    )}
+                </div>
+                <SidebarIcon
+                    icon={<SettingsIcon className="h-[24px] w-[24px]" />}
+                    label="Settings"
+                    isActive={false}
+                    onClick={onOpenSettings}
+                />
+            </div>
         </aside>
     );
 };

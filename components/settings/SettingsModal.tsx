@@ -1,33 +1,38 @@
 
+
 import React, { useState } from 'react';
-import { Settings } from '../../hooks/useSettings';
-import { SettingsSidebar } from './SettingsSidebar';
-import { AccountSettings } from './AccountSettings';
-import { FeaturesSettings } from './FeaturesSettings';
-import { NotificationsSettings } from './NotificationsSettings';
-import { DateTimeSettings } from './DateTimeSettings';
-import { AppearanceSettings } from './AppearanceSettings';
-import { ShortcutsSettings } from './ShortcutsSettings';
+import { useSettings } from '../../contexts/SettingsContext.tsx';
+import { useApiUsage } from '../../contexts/ApiUsageContext.tsx';
+import { useAuth } from '../../contexts/AuthContext.tsx';
+import { SettingsSidebar } from './SettingsSidebar.tsx';
+import { AccountSettings } from './AccountSettings.tsx';
+import { FeaturesSettings } from './FeaturesSettings.tsx';
+import { NotificationsSettings } from './NotificationsSettings.tsx';
+import { DateTimeSettings } from './DateTimeSettings.tsx';
+import { AppearanceSettings } from './AppearanceSettings.tsx';
+import { ShortcutsSettings } from './ShortcutsSettings.tsx';
+import { SmartListSettings } from './SmartListSettings.tsx';
 
 interface SettingsModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onLogout: () => void;
-    settings: Settings;
-    onSettingsChange: (newSettings: Partial<Settings>) => void;
 }
 
-type SettingsPanel = 'account' | 'features' | 'notifications' | 'dateTime' | 'appearance' | 'shortcuts';
+type SettingsPanel = 'account' | 'features' | 'smartList' | 'notifications' | 'dateTime' | 'appearance' | 'shortcuts';
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onLogout, settings, onSettingsChange }) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
+    const [settings, onSettingsChange] = useSettings();
+    const [apiUsage] = useApiUsage();
+    const { handleLogout } = useAuth();
     const [activePanel, setActivePanel] = useState<SettingsPanel>('account');
     
     if (!isOpen) return null;
 
     const renderPanel = () => {
         switch(activePanel) {
-            case 'account': return <AccountSettings onLogout={onLogout} />;
+            case 'account': return <AccountSettings onLogout={handleLogout} apiUsage={apiUsage} />;
             case 'features': return <FeaturesSettings settings={settings} onSettingsChange={onSettingsChange} />;
+            case 'smartList': return <SmartListSettings settings={settings} onSettingsChange={onSettingsChange} />;
             case 'notifications': return <NotificationsSettings settings={settings} onSettingsChange={onSettingsChange} />;
             case 'dateTime': return <DateTimeSettings settings={settings} onSettingsChange={onSettingsChange} />;
             case 'appearance': return <AppearanceSettings settings={settings} onSettingsChange={onSettingsChange} />;
@@ -39,7 +44,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
     return (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center" onClick={onClose}>
             <div 
-                className="bg-background-secondary w-full max-w-5xl h-[80vh] max-h-[700px] rounded-2xl shadow-2xl flex overflow-hidden" 
+                className="bg-background-secondary w-full max-w-[896px] h-[80vh] max-h-[700px] rounded-2xl shadow-2xl flex overflow-hidden" 
                 onClick={e => e.stopPropagation()}
             >
                 <SettingsSidebar activePanel={activePanel} setActivePanel={setActivePanel} />

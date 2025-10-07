@@ -1,9 +1,9 @@
-
 import React, { useState, useMemo } from 'react';
-import { Habit } from '../types';
-import { HabitStatsPanel } from './HabitStatsPanel';
-import { CreateHabitModal } from './CreateHabitModal';
-import { Settings } from '../hooks/useSettings';
+import { Habit } from '../types.ts';
+import { HabitStatsPanel } from './HabitStatsPanel.tsx';
+import { CreateHabitModal } from './CreateHabitModal.tsx';
+import { Settings } from '../hooks/useSettings.ts';
+import { ResizablePanel } from './ResizablePanel.tsx';
 
 interface HabitPageProps {
   habits: Habit[];
@@ -144,52 +144,54 @@ export const HabitPage: React.FC<HabitPageProps> = ({ habits, onToggleHabit, onA
   }, {} as Record<string, Habit[]>);
 
   return (
-    <div className="flex flex-1 h-full">
-      <div className="p-8 flex-1 overflow-y-auto">
-        <div className="flex justify-between items-center mb-4">
-            <h1 className="text-3xl font-bold text-content-primary">Habit</h1>
-            <button 
-                onClick={() => setCreateModalOpen(true)}
-                className="px-4 py-2 bg-primary text-white rounded-lg font-semibold hover:bg-primary-focus transition-colors flex items-center space-x-2"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                <span>Create Habit</span>
-            </button>
-        </div>
-        <WeeklyCalendarHeader startWeekOn={settings.startWeekOn} />
+    <>
+      <ResizablePanel storageKey="habit-stats-width" panelSide="right" initialWidth={400} minWidth={320} maxWidth={600}>
+        <HabitStatsPanel habits={habits} selectedHabit={selectedHabit} />
+        <div className="p-8 overflow-y-auto h-full">
+            <div className="flex justify-between items-center mb-4">
+                <h1 className="text-3xl font-bold text-content-primary">Habit</h1>
+                <button 
+                    onClick={() => setCreateModalOpen(true)}
+                    className="px-4 py-2 bg-primary text-white rounded-lg font-semibold hover:bg-primary-focus transition-colors flex items-center space-x-2"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                    <span>Create Habit</span>
+                </button>
+            </div>
+            <WeeklyCalendarHeader startWeekOn={settings.startWeekOn} />
 
-        <div className="space-y-8">
-            {(['Morning', 'Afternoon', 'Night'] as const).map((period) => {
-                const periodHabits = groupedHabits[period];
-                if (!periodHabits || periodHabits.length === 0) return null;
-                const isCollapsed = collapsedPeriods[period];
-                return (
-                    <div key={period}>
-                        <button onClick={() => handleTogglePeriod(period)} className="w-full flex items-center text-lg font-semibold text-content-secondary mb-3 hover:text-content-primary transition-colors">
-                           <ChevronIcon isCollapsed={!!isCollapsed} />
-                           <span className="ml-2">{period}</span>
-                           <span className="ml-2 text-sm font-normal text-content-tertiary">{periodHabits.length}</span>
-                        </button>
-                        {!isCollapsed && (
-                            <div className="space-y-3 pl-7">
-                                {periodHabits.map(habit => (
-                                    <HabitItem
-                                        key={habit.id}
-                                        habit={habit}
-                                        onToggleHabit={onToggleHabit}
-                                        onSelect={handleSelectHabit}
-                                        isSelected={selectedHabitId === habit.id}
-                                        startWeekOn={settings.startWeekOn}
-                                    />
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                );
-            })}
+            <div className="space-y-8">
+                {(['Morning', 'Afternoon', 'Night'] as const).map((period) => {
+                    const periodHabits = groupedHabits[period];
+                    if (!periodHabits || periodHabits.length === 0) return null;
+                    const isCollapsed = collapsedPeriods[period];
+                    return (
+                        <div key={period}>
+                            <button onClick={() => handleTogglePeriod(period)} className="w-full flex items-center text-lg font-semibold text-content-secondary mb-3 hover:text-content-primary transition-colors">
+                               <ChevronIcon isCollapsed={!!isCollapsed} />
+                               <span className="ml-2">{period}</span>
+                               <span className="ml-2 text-sm font-normal text-content-tertiary">{periodHabits.length}</span>
+                            </button>
+                            {!isCollapsed && (
+                                <div className="space-y-3 pl-7">
+                                    {periodHabits.map(habit => (
+                                        <HabitItem
+                                            key={habit.id}
+                                            habit={habit}
+                                            onToggleHabit={onToggleHabit}
+                                            onSelect={handleSelectHabit}
+                                            isSelected={selectedHabitId === habit.id}
+                                            startWeekOn={settings.startWeekOn}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
         </div>
-      </div>
-      <HabitStatsPanel habits={habits} selectedHabit={selectedHabit} />
+      </ResizablePanel>
       {isCreateModalOpen && (
         <CreateHabitModal
             isOpen={isCreateModalOpen}
@@ -197,6 +199,6 @@ export const HabitPage: React.FC<HabitPageProps> = ({ habits, onToggleHabit, onA
             onAddHabit={onAddHabit}
         />
       )}
-    </div>
+    </>
   );
 };

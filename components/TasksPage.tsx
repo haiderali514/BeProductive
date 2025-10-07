@@ -1,164 +1,561 @@
-import React, { useState, useMemo } from 'react';
-import { List, Task, Priority, Recurrence } from '../types';
-import { TaskItem } from './TaskItem';
-import { SmartAddTaskForm } from './SmartAddTaskForm';
-import { PlanWithAIModal } from './PlanWithAIModal';
-import { AITaskSuggestion } from '../services/geminiService';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { Priority, Task, List, AddTaskFormProps } from '../types.ts';
+import { TaskItem } from './TaskItem.tsx';
+import { SmartAddTaskForm } from './SmartAddTaskForm.tsx';
+import { SimpleAddTaskForm } from './SimpleAddTaskForm.tsx';
+import { PlanWithAIModal } from './PlanWithAIModal.tsx';
+import { AITaskSuggestion } from '../services/geminiService.ts';
+import { useSettings } from '../contexts/SettingsContext.tsx';
+import { useData } from '../contexts/DataContext.tsx';
+import { useApiUsage } from '../contexts/ApiUsageContext.tsx';
+import { ResizablePanel } from './ResizablePanel.tsx';
+import { TaskDetailPanel } from './TaskDetailPanel.tsx';
+import { TasksSidebar } from './TasksSidebar.tsx';
+import { MoreIcon, PlusIcon, ChevronDownIcon, LibraryIcon, MatrixIcon, FiltersIcon, CheckItemIcon, HamburgerMenuIcon, SettingsIcon, ShareIcon, AnalyticsIcon, PrintIcon, ChevronRightIcon } from './Icons.tsx';
+import { Popover } from './Popover.tsx';
 
-interface TasksPageProps {
-  lists: List[];
-  tasks: Task[];
-  onAddList: (listName: string) => void;
-  onAddTask: (taskData: { title: string; listId: string; priority: Priority; dueDate: string | null; recurrence: Recurrence | null; }) => void;
-  onToggleComplete: (taskId: string) => void;
-  onToggleSubtaskComplete: (taskId: string, subtaskId: string) => void;
-  onDeleteTask: (taskId: string) => void;
-  onGenerateSubtasks: (taskId: string, taskTitle: string) => Promise<void>;
-  onSetRecurrence: (taskId: string, recurrence: Recurrence | null) => void;
-}
 
-export const TasksPage: React.FC<TasksPageProps> = (props) => {
-    const { lists, tasks, onAddList, onAddTask, onToggleComplete, onToggleSubtaskComplete, onDeleteTask, onGenerateSubtasks, onSetRecurrence } = props;
-    const [activeListId, setActiveListId] = useState('inbox');
-    const [newListName, setNewListName] = useState('');
-    const [isAddingList, setIsAddingList] = useState(false);
-    const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
+const DormantInput: React.FC<{ onClick: () => void }> = ({ onClick }) => (
+    <div className="px-4 pt-4 bg-background-primary">
+        <div 
+            onClick={onClick}
+            className="w-full flex items-center px-4 py-2.5 bg-background-secondary rounded-lg cursor-text border border-transparent"
+        >
+            <div className="flex items-center text-content-secondary">
+                <PlusIcon />
+                <span className="ml-2">Add task</span>
+            </div>
+        </div>
+    </div>
+);
 
-    const filteredTasks = useMemo(() => {
-        let tasksToShow;
+// ====================================================================
+// New Section Components
+// ====================================================================
 
-        if (activeListId === 'today') {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            
-            tasksToShow = tasks.filter(task => {
-                if (!task.dueDate) return false;
-                // Robustly parse date and normalize to the start of the day for comparison
-                const taskDate = new Date(task.dueDate.replace(' ', 'T'));
-                if (isNaN(taskDate.getTime())) return false;
-                taskDate.setHours(0, 0, 0, 0);
-                
-                return taskDate.getTime() === today.getTime();
-            });
-        } else {
-            tasksToShow = tasks.filter(task => task.listId === activeListId);
+const SectionHeader: React.FC<{
+    title: string;
+    isCollapsed: boolean;
+    onToggleCollapse: () => void;
+}> = ({ title, isCollapsed, onToggleCollapse }) => {
+    return (
+        <div className="flex items-center group px-3 py-1 cursor-pointer" onClick={onToggleCollapse}>
+            <ChevronDownIcon className={`h-4 w-4 text-content-tertiary transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
+            <h2 className="text-sm font-bold uppercase text-content-tertiary ml-2">{title}</h2>
+        </div>
+    );
+};
+
+const AddSectionInput: React.FC<{
+    onAddSection: (name: string) => void;
+    onCancel: () => void;
+}> = ({ onAddSection, onCancel }) => {
+    const [name, setName] = useState('New section');
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        inputRef.current?.focus();
+        inputRef.current?.select();
+    }, []);
+
+    const handleFinalize = () => {
+        onAddSection(name.trim() || 'Untitled Section');
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            handleFinalize();
         }
-
-        return [...tasksToShow].sort((a, b) => {
-            // Sort by completion status first (incomplete tasks first)
-            if (a.completed !== b.completed) {
-                return a.completed ? 1 : -1;
-            }
-
-            // Then sort by full due date and time (earlier first)
-            const aDate = a.dueDate ? new Date(a.dueDate.replace(' ', 'T')) : null;
-            const bDate = b.dueDate ? new Date(b.dueDate.replace(' ', 'T')) : null;
-
-            const aTime = aDate && !isNaN(aDate.getTime()) ? aDate.getTime() : Infinity;
-            const bTime = bDate && !isNaN(bDate.getTime()) ? bDate.getTime() : Infinity;
-
-            return aTime - bTime;
-        });
-    }, [tasks, activeListId]);
-
-    const activeListName = useMemo(() => {
-        if (activeListId === 'today') return 'Today';
-        return lists.find(l => l.id === activeListId)?.name || 'Inbox';
-    }, [lists, activeListId]);
-    
-    const handleAddList = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (newListName.trim()) {
-            onAddList(newListName.trim());
-            setNewListName('');
-            setIsAddingList(false);
+        if (e.key === 'Escape') {
+            onCancel();
         }
     };
 
-    const handleAddTaskPlan = (plan: AITaskSuggestion[]) => {
+    return (
+        <div className="px-3 py-1 mt-3 flex items-center border-b-2 border-primary">
+             <ChevronDownIcon className={`h-4 w-4 text-content-tertiary`} />
+            <input
+                ref={inputRef}
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onBlur={handleFinalize}
+                className="ml-2 w-full bg-transparent text-sm font-bold uppercase text-content-primary focus:outline-none"
+            />
+        </div>
+    );
+};
+
+const MenuItem: React.FC<{
+    icon: React.ReactNode;
+    label: string;
+    onClick?: () => void;
+    hasSubmenu?: boolean;
+}> = ({ icon, label, onClick, hasSubmenu }) => (
+    <button onClick={onClick} className="w-full text-left flex items-center justify-between p-2 rounded hover:bg-[#2f2f2f]">
+        <div className="flex items-center space-x-3">
+            {icon}
+            <span>{label}</span>
+        </div>
+        {hasSubmenu && <ChevronRightIcon className="w-4 h-4 text-content-tertiary" />}
+    </button>
+);
+
+
+// ====================================================================
+// TasksPage Component
+// ====================================================================
+export const TasksPage: React.FC = () => {
+    const { 
+        lists, 
+        tasks,
+        pomodoroSessions,
+        tags,
+        filters,
+        handleAddList, 
+        handleAddTask, 
+        handleUpdateTask,
+        handleToggleComplete, 
+        handleToggleSubtaskComplete, 
+        handleAddSubtask,
+        handleDeleteTask, 
+        handleGenerateSubtasks, 
+        handleSetRecurrence,
+        handleWontDoTask,
+        handleRestoreTask,
+        handlePermanentDeleteTask,
+        handleEmptyTrash,
+        handleAddTag,
+        handleAddFilter,
+    } = useData();
+    const [settings, onSettingsChange] = useSettings();
+    const [, logApiCall] = useApiUsage();
+    
+    const [activeView, setActiveView] = useState('inbox');
+    const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+    const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
+    const [isInputActive, setIsInputActive] = useState(false);
+    
+    // New state for sections and menus
+    const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+    const moreMenuTriggerRef = useRef<HTMLButtonElement>(null);
+    const [isAddingSection, setIsAddingSection] = useState(false);
+    const [isPinnedCollapsed, setIsPinnedCollapsed] = useState(false);
+
+    const handleDeactivateInput = useCallback(() => {
+        setIsInputActive(false);
+    }, []);
+
+    const handleAddSection = (name: string) => {
+        const listId = lists.some(l => l.id === activeView) ? activeView : 'inbox';
+        handleAddTask({
+            title: name,
+            listId: listId,
+            priority: Priority.NONE,
+            dueDate: null,
+            recurrence: null,
+            tags: [],
+            isSection: true, 
+            isCollapsed: false,
+        });
+        setIsAddingSection(false);
+    };
+
+    const handleToggleSectionCollapse = (taskId: string) => {
+        const task = tasks.find(t => t.id === taskId);
+        if (task && task.isSection) {
+            handleUpdateTask(taskId, { isCollapsed: !task.isCollapsed });
+        }
+    };
+
+    const isSpecialView = ['completed', 'wontdo', 'trash'].includes(activeView);
+
+    const filteredTasks = useMemo(() => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (activeView === 'completed') {
+            return tasks.filter(t => t.completed && !t.trashed);
+        }
+        if (activeView === 'wontdo') {
+            return tasks.filter(t => t.wontDo && !t.trashed);
+        }
+        if (activeView === 'trash') {
+            return tasks.filter(t => t.trashed);
+        }
+        
+        const activeTasks = tasks.filter(t => !t.trashed);
+
+        const activeFilter = filters.find(f => f.id === activeView);
+        if (activeFilter) {
+            return activeTasks.filter(task => {
+                if (task.completed || task.wontDo) return false;
+
+                const listMatch = activeFilter.lists.length === 0 || activeFilter.lists.includes(task.listId);
+                const tagMatch = activeFilter.tags.length === 0 || activeFilter.tags.every(tagId => task.tags.includes(tagId));
+                
+                const priorityMatch = activeFilter.priority === 'All' || !activeFilter.priority || task.priority === activeFilter.priority;
+
+                const dateMatch = (() => {
+                    if (!activeFilter.date || activeFilter.date === 'any') return true;
+                    if (!task.dueDate) return false;
+                    const taskDate = new Date(task.dueDate.split(' ')[0]);
+                    taskDate.setHours(0,0,0,0);
+                    
+                    switch (activeFilter.date) {
+                        case 'today': return taskDate.getTime() === today.getTime();
+                        case 'tomorrow': 
+                            const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+                            return taskDate.getTime() === tomorrow.getTime();
+                        case 'thisWeek':
+                            const weekStart = new Date(today); weekStart.setDate(today.getDate() - today.getDay());
+                            const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
+                            return taskDate >= weekStart && taskDate <= weekEnd;
+                        case 'thisMonth':
+                            return taskDate.getFullYear() === today.getFullYear() && taskDate.getMonth() === today.getMonth();
+                        case 'overdue':
+                            return taskDate < today && !task.completed;
+                        default: return true;
+                    }
+                })();
+
+                return listMatch && tagMatch && dateMatch && priorityMatch;
+            });
+        }
+        
+        const nonCompletedActiveTasks = activeTasks.filter(t => !t.completed && !t.wontDo);
+
+        switch (activeView) {
+            case 'all':
+                return nonCompletedActiveTasks;
+            case 'today':
+                const todayStr = today.toISOString().split('T')[0];
+                return nonCompletedActiveTasks.filter(t => t.dueDate && t.dueDate.startsWith(todayStr));
+            case 'tomorrow':
+                const tomorrow = new Date(today);
+                tomorrow.setDate(today.getDate() + 1);
+                const tomorrowStr = tomorrow.toISOString().split('T')[0];
+                return nonCompletedActiveTasks.filter(t => t.dueDate && t.dueDate.startsWith(tomorrowStr));
+            case 'next7days':
+                const sevenDaysLater = new Date(today);
+                sevenDaysLater.setDate(today.getDate() + 6); // end of the 7th day
+                return nonCompletedActiveTasks.filter(t => {
+                    if (!t.dueDate) return false;
+                    try {
+                        const taskDate = new Date(t.dueDate.split(' ')[0] + 'T00:00:00Z'); // Use UTC to avoid timezone shifts
+                        return taskDate >= today && taskDate <= sevenDaysLater;
+                    } catch { return false; }
+                });
+            default: 
+                if (tags.some(t => t.id === activeView)) {
+                    return nonCompletedActiveTasks.filter(task => task.tags.includes(activeView));
+                }
+                return nonCompletedActiveTasks.filter(task => task.listId === activeView);
+        }
+    }, [tasks, activeView, filters, tags]);
+
+    const { pinnedTasks, unpinnedTasks } = useMemo(() => {
+        const sorted = [...filteredTasks].sort((a,b) => a.title.localeCompare(b.title));
+        if (isSpecialView) {
+            return { pinnedTasks: [], unpinnedTasks: sorted };
+        }
+        const pinned = sorted.filter(task => task.pinned && !task.isSection);
+        const unpinned = sorted.filter(task => !task.pinned);
+        return { pinnedTasks: pinned, unpinnedTasks: unpinned };
+    }, [filteredTasks, isSpecialView]);
+
+    const SMART_LIST_NAMES: Record<string, string> = {
+        all: 'All Tasks',
+        today: 'Today',
+        tomorrow: 'Tomorrow',
+        next7days: 'Next 7 Days',
+        assignedToMe: 'Assigned to Me',
+        inbox: 'Inbox',
+        summary: 'Summary',
+        completed: 'Completed',
+        wontdo: "Won't Do",
+        trash: 'Trash',
+    };
+
+    const activeListName = useMemo(() => {
+        return SMART_LIST_NAMES[activeView] 
+            || lists.find(l => l.id === activeView)?.name 
+            || tags.find(t => t.id === activeView)?.name
+            || filters.find(f => f.id === activeView)?.name
+            || 'Tasks';
+    }, [lists, tags, filters, activeView]);
+
+    const selectedTask = useMemo(() => {
+        return tasks.find(task => task.id === selectedTaskId) || null;
+    }, [tasks, selectedTaskId]);
+
+    useEffect(() => {
+        if (selectedTaskId && !tasks.some(t => t.id === selectedTaskId)) {
+            setSelectedTaskId(null);
+        }
+    }, [tasks, selectedTaskId]);
+    
+    const handleAddPlan = (plan: AITaskSuggestion[]) => {
         plan.forEach(suggestedTask => {
             const list = lists.find(l => l.name.toLowerCase() === suggestedTask.listName.toLowerCase()) || lists.find(l => l.id === 'inbox');
-            onAddTask({
+            handleAddTask({
                 title: suggestedTask.title,
                 listId: list!.id,
                 priority: Priority.NONE,
                 dueDate: null,
-                recurrence: null
+                recurrence: null,
+                tags: []
             });
         });
         setIsPlanModalOpen(false);
     };
 
-    return (
-        <>
-            <div className="flex h-full">
-                <div className="w-72 bg-background-secondary border-r border-border-primary flex flex-col p-4">
-                     <h2 className="text-xl font-bold text-content-primary mb-4">Tasks</h2>
-                     <nav className="flex flex-col space-y-1">
-                         <a href="#" onClick={() => setActiveListId('inbox')} className={`px-3 py-2 rounded-md text-sm ${activeListId === 'inbox' ? 'bg-primary/20 text-primary' : 'hover:bg-background-tertiary'}`}>Inbox</a>
-                         <a href="#" onClick={() => setActiveListId('today')} className={`px-3 py-2 rounded-md text-sm ${activeListId === 'today' ? 'bg-primary/20 text-primary' : 'hover:bg-background-tertiary'}`}>Today</a>
-                         <div className="pt-4 mt-2 border-t border-border-primary">
-                             <div className="flex justify-between items-center mb-2 px-3">
-                                 <h3 className="text-xs font-semibold uppercase text-content-secondary">Lists</h3>
-                                 <button onClick={() => setIsAddingList(!isAddingList)} className="text-content-secondary hover:text-primary p-1 rounded-full">
-                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                                 </button>
-                             </div>
-                             {lists.filter(l => l.id !== 'inbox').map(list => (
-                                <a key={list.id} href="#" onClick={() => setActiveListId(list.id)} className={`px-3 py-2 rounded-md text-sm truncate ${activeListId === list.id ? 'bg-primary/20 text-primary' : 'hover:bg-background-tertiary'}`}>{list.name}</a>
-                             ))}
-                             {isAddingList && (
-                                 <form onSubmit={handleAddList} className="px-3 mt-2">
-                                    <input
-                                        type="text"
-                                        value={newListName}
-                                        onChange={(e) => setNewListName(e.target.value)}
-                                        placeholder="New list name"
-                                        className="w-full bg-background-primary border border-border-primary rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                                        autoFocus
-                                    />
-                                 </form>
-                             )}
-                         </div>
-                     </nav>
-                </div>
-                <div className="flex-1 flex flex-col">
-                    <header className="p-6 border-b border-border-primary flex justify-between items-center">
-                        <h2 className="text-2xl font-bold">{activeListName}</h2>
+    const handleSelectTask = (taskId: string) => {
+        setSelectedTaskId(prevId => (prevId === taskId ? null : taskId));
+    };
+
+    const handleDeleteTaskAndClosePanel = (taskId: string) => {
+        handleDeleteTask(taskId);
+        setSelectedTaskId(null);
+    };
+    
+    const renderTaskList = (taskList: Task[]) => {
+        const elements: React.ReactNode[] = [];
+        let isCurrentSectionCollapsed = false;
+
+        for (const task of taskList) {
+            if (task.isSection) {
+                isCurrentSectionCollapsed = task.isCollapsed ?? false;
+                elements.push(
+                    <SectionHeader
+                        key={task.id}
+                        title={task.title}
+                        isCollapsed={isCurrentSectionCollapsed}
+                        onToggleCollapse={() => handleToggleSectionCollapse(task.id)}
+                    />
+                );
+            } else {
+                if (!isCurrentSectionCollapsed) {
+                    elements.push(
+                         <TaskItem 
+                            key={task.id}
+                            task={task}
+                            onToggleComplete={handleToggleComplete}
+                            onToggleSubtaskComplete={handleToggleSubtaskComplete}
+                            onDelete={handleDeleteTask}
+                            onGenerateSubtasks={handleGenerateSubtasks}
+                            onSetRecurrence={handleSetRecurrence}
+                            onWontDo={handleWontDoTask}
+                            onRestore={handleRestoreTask}
+                            onPermanentDelete={handlePermanentDeleteTask}
+                            aiEnabled={settings.enableAIFeatures}
+                            onSelect={handleSelectTask}
+                            isSelected={task.id === selectedTaskId}
+                            settings={settings}
+                        />
+                    );
+                }
+            }
+        }
+        return elements;
+    }
+
+    const TaskList = () => (
+        <div className="flex-1 flex flex-col h-full bg-background-primary">
+            <header className="p-6 flex justify-between items-center flex-shrink-0">
+                <h1 className="text-2xl font-bold">{activeListName}</h1>
+                <div className="flex items-center space-x-2">
+                    {!isSpecialView && (
                         <button 
-                            onClick={() => setIsPlanModalOpen(true)}
-                            className="px-4 py-2 bg-primary/20 text-primary rounded-lg font-semibold hover:bg-primary/30 transition-colors flex items-center space-x-2"
+                            onClick={() => setIsPlanModalOpen(true)} 
+                            disabled={!settings.enableAIFeatures}
+                            title={!settings.enableAIFeatures ? "AI features are disabled" : "Plan with AI"}
+                            className="px-4 py-2 bg-primary/20 text-primary rounded-lg font-semibold hover:bg-primary/30 transition-colors flex items-center space-x-2 disabled:bg-background-tertiary disabled:text-content-tertiary disabled:cursor-not-allowed"
                         >
                             <span>Plan with AI ✨</span>
                         </button>
-                    </header>
-                    <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                        {filteredTasks.map(task => (
-                            <TaskItem
+                    )}
+                    <button ref={moreMenuTriggerRef} onClick={() => setIsMoreMenuOpen(true)} className="p-2 text-content-secondary rounded-lg hover:bg-background-tertiary hover:text-content-primary">
+                        <MoreIcon className="h-5 w-5" />
+                    </button>
+                     <Popover isOpen={isMoreMenuOpen} onClose={() => setIsMoreMenuOpen(false)} triggerRef={moreMenuTriggerRef} position="bottom-end">
+                        <div className="w-64 bg-[#242424] rounded-lg shadow-xl border border-border-primary text-white text-sm">
+                            <div className="p-2">
+                                <p className="px-2 py-1 text-xs text-content-tertiary">View</p>
+                                <div className="flex justify-around items-center py-2">
+                                    <button className="p-2 rounded-md text-primary bg-primary/20"><LibraryIcon className="w-5 h-5" /></button>
+                                    <button className="p-2 rounded-md hover:bg-[#2f2f2f]"><MatrixIcon className="w-5 h-5"/></button>
+                                    <button className="p-2 rounded-md hover:bg-[#2f2f2f]"><FiltersIcon className="w-5 h-5"/></button>
+                                </div>
+                            </div>
+                            <div className="my-1 border-t border-border-primary mx-2"></div>
+                            <div className="p-2">
+                                <MenuItem icon={<CheckItemIcon className="w-5 h-5" />} label="Hide Completed" />
+                                <MenuItem icon={<HamburgerMenuIcon className="w-5 h-5" />} label="Hide Details" />
+                                <MenuItem icon={<SettingsIcon className="w-5 h-5" />} label="View Options" />
+                            </div>
+                            {!isSpecialView && (
+                                <>
+                                    <div className="my-1 border-t border-border-primary mx-2"></div>
+                                    <div className="p-2">
+                                        <MenuItem icon={<PlusIcon />} label="Add Section" onClick={() => { setIsAddingSection(true); setIsMoreMenuOpen(false); }} />
+                                        <MenuItem icon={<ShareIcon className="w-5 h-5" />} label="Share" />
+                                        <MenuItem icon={<AnalyticsIcon className="w-5 h-5" />} label="List Activities" />
+                                        <MenuItem icon={<PrintIcon className="w-5 h-5" />} label="Print" hasSubmenu />
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </Popover>
+                    {activeView === 'trash' && filteredTasks.length > 0 && (
+                        <button 
+                            onClick={handleEmptyTrash}
+                            className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg font-semibold hover:bg-red-500/30 transition-colors"
+                        >
+                            Empty Trash
+                        </button>
+                    )}
+                </div>
+            </header>
+            
+            {!isSpecialView && (
+                settings.taskInputStyle === 'detailed' ? (
+                    isInputActive ? (
+                        <SmartAddTaskForm
+                            lists={lists}
+                            onAddTask={handleAddTask}
+                            aiEnabled={settings.enableAIFeatures}
+                            activeListId={lists.some(l => l.id === activeView) ? activeView : 'inbox'}
+                            logApiCall={logApiCall}
+                            onSettingsChange={onSettingsChange}
+                            settings={settings}
+                            onDeactivate={handleDeactivateInput}
+                            autoFocus
+                        />
+                    ) : (
+                        <DormantInput onClick={() => setIsInputActive(true)} />
+                    )
+                ) : (
+                    <SimpleAddTaskForm
+                        lists={lists}
+                        onAddTask={handleAddTask}
+                        aiEnabled={settings.enableAIFeatures}
+                        activeListId={lists.some(l => l.id === activeView) ? activeView : 'inbox'}
+                        logApiCall={logApiCall}
+                        onSettingsChange={onSettingsChange}
+                        settings={settings}
+                        onDeactivate={handleDeactivateInput}
+                        autoFocus={isInputActive}
+                    />
+                )
+            )}
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {pinnedTasks.length > 0 && (
+                    <>
+                        <SectionHeader 
+                            title="Pinned" 
+                            isCollapsed={isPinnedCollapsed} 
+                            onToggleCollapse={() => setIsPinnedCollapsed(p => !p)} 
+                        />
+                        {!isPinnedCollapsed && pinnedTasks.map(task => (
+                            <TaskItem 
                                 key={task.id}
                                 task={task}
-                                onToggleComplete={onToggleComplete}
-                                onToggleSubtaskComplete={onToggleSubtaskComplete}
-                                onDelete={onDeleteTask}
-                                onGenerateSubtasks={onGenerateSubtasks}
-                                onSetRecurrence={onSetRecurrence}
+                                onToggleComplete={handleToggleComplete}
+                                onToggleSubtaskComplete={handleToggleSubtaskComplete}
+                                onDelete={handleDeleteTask}
+                                onGenerateSubtasks={handleGenerateSubtasks}
+                                onSetRecurrence={handleSetRecurrence}
+                                onWontDo={handleWontDoTask}
+                                onRestore={handleRestoreTask}
+                                onPermanentDelete={handlePermanentDeleteTask}
+                                aiEnabled={settings.enableAIFeatures}
+                                onSelect={handleSelectTask}
+                                isSelected={task.id === selectedTaskId}
+                                settings={settings}
                             />
                         ))}
-                        {filteredTasks.length === 0 && (
-                            <div className="text-center py-10">
-                                <p className="text-content-secondary">No tasks here. Add one below!</p>
-                            </div>
-                        )}
+                    </>
+                )}
+
+                {isAddingSection && (
+                    <AddSectionInput 
+                        onAddSection={handleAddSection}
+                        onCancel={() => setIsAddingSection(false)}
+                    />
+                )}
+                
+                {unpinnedTasks.length > 0 && (
+                    <>
+                         {pinnedTasks.length > 0 && <div className="pt-2"></div>}
+                        {renderTaskList(unpinnedTasks)}
+                    </>
+                )}
+                {pinnedTasks.length === 0 && unpinnedTasks.length === 0 && !isAddingSection && (
+                    <div className="text-center py-16 text-content-tertiary">
+                        <p className="font-semibold">All clear!</p>
+                        <p className="text-sm mt-1">{isSpecialView ? `No tasks in this view.` : `Add a task to get started.`}</p>
                     </div>
-                    <SmartAddTaskForm lists={lists} onAddTask={onAddTask} />
-                </div>
+                )}
             </div>
-            {isPlanModalOpen && (
+        </div>
+    );
+
+
+    return (
+        <>
+            <ResizablePanel storageKey="tasks-sidebar-width" initialWidth={240} minWidth={200} maxWidth={320}>
+                <TasksSidebar
+                    lists={lists}
+                    tasks={tasks}
+                    tags={tags}
+                    filters={filters}
+                    activeView={activeView}
+                    onSelectView={setActiveView}
+                    onAddList={handleAddList}
+                    onAddTag={handleAddTag}
+                    onAddFilter={handleAddFilter}
+                    settings={settings}
+                    onSettingsChange={onSettingsChange}
+                />
+                
+                {/* Main Content Area */}
+                <div className="flex-1 flex h-full">
+                    {selectedTask ? (
+                        <ResizablePanel 
+                            storageKey="tasks-detail-width" 
+                            initialWidth={window.innerWidth / 2.5}
+                            panelSide="right"
+                            minWidth={400} 
+                            maxWidth={800}
+                        >
+                            <TaskDetailPanel
+                                key={selectedTask.id}
+                                task={selectedTask}
+                                lists={lists}
+                                pomodoroSessions={pomodoroSessions}
+                                onUpdateTask={handleUpdateTask}
+                                onDeleteTask={handleDeleteTaskAndClosePanel}
+                                onAddSubtask={handleAddSubtask}
+                                onToggleSubtaskComplete={handleToggleSubtaskComplete}
+                            />
+                            <TaskList />
+                        </ResizablePanel>
+                    ) : (
+                        <TaskList />
+                    )}
+                </div>
+            </ResizablePanel>
+            
+            {settings.enableAIFeatures && isPlanModalOpen && (
                 <PlanWithAIModal
                     isOpen={isPlanModalOpen}
                     onClose={() => setIsPlanModalOpen(false)}
+                    onAddPlan={handleAddPlan}
                     lists={lists}
-                    onAddPlan={handleAddTaskPlan}
+                    logApiCall={logApiCall}
                 />
             )}
         </>

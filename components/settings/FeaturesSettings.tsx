@@ -1,6 +1,7 @@
 
+
 import React from 'react';
-import { Settings } from '../../hooks/useSettings';
+import { Settings } from '../../hooks/useSettings.ts';
 
 interface FeaturesSettingsProps {
     settings: Settings;
@@ -34,39 +35,58 @@ export const FeaturesSettings: React.FC<FeaturesSettingsProps> = ({ settings, on
     return (
         <div>
             <h2 className="text-2xl font-bold mb-6">Features</h2>
+
+            <div className="bg-background-primary p-4 rounded-lg mb-6">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h3 className="font-semibold text-content-primary flex items-center space-x-2">
+                            <span>Enable AI Features</span>
+                            <span className="text-xs bg-primary/20 text-primary font-bold px-2 py-0.5 rounded-full">BETA</span>
+                        </h3>
+                        <p className="text-xs text-content-secondary max-w-md">
+                            Powers smart task parsing, subtask generation, AI assistant, and more.
+                        </p>
+                    </div>
+                    <ToggleSwitch 
+                        checked={settings.enableAIFeatures} 
+                        onChange={(val) => onSettingsChange({ enableAIFeatures: val })} 
+                    />
+                </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FeatureCard 
                     title="Calendar" 
                     description="Manage your task with six calendar views." 
-                    imageUrl="https://i.imgur.com/8Q1Xz5Z.png"
+                    imageUrl="https://picsum.photos/seed/calendar/400/200"
                     isEnabled={settings.showCalendar}
                     onToggle={(val) => onSettingsChange({ showCalendar: val })}
                 />
                  <FeatureCard 
                     title="Eisenhower Matrix" 
                     description="Focus on what's important and urgent." 
-                    imageUrl="https://i.imgur.com/s6v4b3h.png"
+                    imageUrl="https://picsum.photos/seed/matrix/400/200"
                     isEnabled={settings.showEisenhowerMatrix}
                     onToggle={(val) => onSettingsChange({ showEisenhowerMatrix: val })}
                 />
                  <FeatureCard 
                     title="Habit Tracker" 
                     description="Develop a habit and keep track of it." 
-                    imageUrl="https://i.imgur.com/K3Z4r1L.png"
+                    imageUrl="https://picsum.photos/seed/habit/400/200"
                     isEnabled={settings.showHabitTracker}
                     onToggle={(val) => onSettingsChange({ showHabitTracker: val })}
                 />
                  <FeatureCard 
                     title="Pomodoro" 
                     description="Use the Pomo timer or stopwatch to keep focus." 
-                    imageUrl="https://i.imgur.com/x0c2A8F.png"
+                    imageUrl="https://picsum.photos/seed/pomodoro/400/200"
                     isEnabled={settings.showPomodoro}
                     onToggle={(val) => onSettingsChange({ showPomodoro: val })}
                 />
                  <FeatureCard 
                     title="Countdown" 
                     description="Remember every special day." 
-                    imageUrl="https://i.imgur.com/lZJ9w1u.png"
+                    imageUrl="https://picsum.photos/seed/countdown/400/200"
                     isEnabled={settings.showCountdown}
                     onToggle={(val) => onSettingsChange({ showCountdown: val })}
                 />

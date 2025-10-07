@@ -1,8 +1,8 @@
 
 import React from 'react';
-import { AccountIcon, PremiumIcon, FeaturesIcon, SmartListIcon, NotificationsIcon, DateTimeIcon, AppearanceIcon, MoreIcon, IntegrationsIcon, CollaborateIcon, StickyNoteIcon, DesktopWidgetsIcon, ShortcutsIcon, AboutIcon } from '../Icons';
+import { AccountIcon, PremiumIcon, FeaturesIcon, SmartListIcon, NotificationsIcon, DateTimeIcon, AppearanceIcon, MoreIcon, IntegrationsIcon, CollaborateIcon, StickyNoteIcon, DesktopWidgetsIcon, ShortcutsIcon, AboutIcon } from '../Icons.tsx';
 
-type SettingsPanel = 'account' | 'features' | 'notifications' | 'dateTime' | 'appearance' | 'shortcuts';
+type SettingsPanel = 'account' | 'features' | 'smartList' | 'notifications' | 'dateTime' | 'appearance' | 'shortcuts';
 
 interface SettingsSidebarProps {
     activePanel: SettingsPanel;
@@ -31,7 +31,7 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ activePanel, s
         { id: 'account', label: 'Account', icon: <AccountIcon /> },
         { id: 'premium', label: 'Premium', icon: <PremiumIcon />, disabled: true },
         { id: 'features', label: 'Features', icon: <FeaturesIcon /> },
-        { id: 'smartList', label: 'Smart List', icon: <SmartListIcon />, disabled: true },
+        { id: 'smartList', label: 'Smart List', icon: <SmartListIcon /> },
         { id: 'notifications', label: 'Notifications', icon: <NotificationsIcon /> },
         { id: 'dateTime', label: 'Date & Time', icon: <DateTimeIcon /> },
         { id: 'appearance', label: 'Appearance', icon: <AppearanceIcon /> },

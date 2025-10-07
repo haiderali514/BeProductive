@@ -1,6 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { UserProfile, UserTrait, TraitType, GoalSubtype, Task, GoalProgressReport } from '../types';
 import { generateGoalProgressReport } from '../services/geminiService';
+import { Settings } from '../hooks/useSettings';
+import { ApiFeature } from '../hooks/useApiUsage';
+import { ResizablePanel } from './ResizablePanel';
 
 const DataInput: React.FC<{ onAdd: (text: string) => void, placeholder: string }> = ({ onAdd, placeholder }) => {
     const [text, setText] = useState('');
@@ -64,18 +67,31 @@ const TraitSection: React.FC<{
     </div>
 );
 
-const GoalProgressCard: React.FC<{ goal: UserTrait; allTasks: Task[] }> = ({ goal, allTasks }) => {
+const GoalProgressCard: React.FC<{ 
+    goal: UserTrait; 
+    allTasks: Task[]; 
+    aiEnabled: boolean;
+    logApiCall: (feature: ApiFeature, tokens: number) => void;
+}> = ({ goal, allTasks, aiEnabled, logApiCall }) => {
     const [report, setReport] = useState<Omit<GoalProgressReport, 'goalId'> | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    const relevantTasks = useMemo(() => allTasks.filter(t => !t.trashed && !t.wontDo), [allTasks]);
+
     useEffect(() => {
+        if (!aiEnabled) {
+            setIsLoading(false);
+            return;
+        }
+
         const fetchReport = async () => {
             setIsLoading(true);
             setError(null);
             try {
-                const result = await generateGoalProgressReport(goal, allTasks);
-                setReport(result);
+                const { data, tokensUsed } = await generateGoalProgressReport(goal, relevantTasks);
+                logApiCall('goalProgress', tokensUsed);
+                setReport(data);
             } catch (e: any) {
                 setError(e.message);
             } finally {
@@ -84,7 +100,26 @@ const GoalProgressCard: React.FC<{ goal: UserTrait; allTasks: Task[] }> = ({ goa
         };
 
         fetchReport();
-    }, [goal, allTasks]);
+    }, [goal, relevantTasks, aiEnabled, logApiCall]);
+    
+    if (!aiEnabled) {
+        const relatedTasks = relevantTasks.filter(t => goal.text.toLowerCase().split(" ").some(keyword => t.title.toLowerCase().includes(keyword) && keyword.length > 3));
+        const completedTasks = relatedTasks.filter(t => t.completed);
+        const progress = relatedTasks.length > 0 ? Math.round((completedTasks.length / relatedTasks.length) * 100) : 0;
+
+        return (
+            <div className="bg-background-tertiary p-4 rounded-lg">
+                <h4 className="font-semibold text-content-primary mb-2">{goal.text}</h4>
+                <div className="flex items-center space-x-3 mb-3">
+                    <div className="w-full bg-background-primary rounded-full h-2.5">
+                        <div className="bg-primary h-2.5 rounded-full" style={{ width: `${progress}%`, transition: 'width 0.5s ease-in-out' }}></div>
+                    </div>
+                    <span className="text-sm font-semibold text-primary">{progress}%</span>
+                </div>
+                <p className="text-xs text-content-tertiary italic">Enable AI features in settings for a detailed summary and next step suggestions.</p>
+            </div>
+        );
+    }
 
     if (isLoading) {
         return (
@@ -131,11 +166,13 @@ interface ProfilePageProps {
     profile: UserProfile;
     onUpdateProfile: (newProfileData: Partial<UserProfile>) => void;
     tasks: Task[];
+    settings: Settings;
+    logApiCall: (feature: ApiFeature, tokens: number) => void;
 }
 
 type ProfileSection = 'profile' | 'traits' | 'personalization' | 'data';
 
-export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onUpdateProfile, tasks }) => {
+export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onUpdateProfile, tasks, settings, logApiCall }) => {
     const [activeSection, setActiveSection] = useState<ProfileSection>('profile');
     
     const handleAddTrait = (text: string, type: TraitType, subtype?: GoalSubtype) => {
@@ -206,7 +243,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onUpdateProfi
                                 <p className="text-xs text-content-tertiary mb-3">Your big picture ambitions. Aura can help you break them down.</p>
                                 <div className="space-y-3 mb-4">
                                     {((groupedTraits.goal || []).filter(g => g.subtype === 'long-term')).map(goal => (
-                                        <GoalProgressCard key={goal.id} goal={goal} allTasks={tasks} />
+                                        <GoalProgressCard key={goal.id} goal={goal} allTasks={tasks} aiEnabled={settings.enableAIFeatures} logApiCall={logApiCall} />
                                     ))}
                                     {((groupedTraits.goal || []).filter(g => g.subtype === 'long-term')).length === 0 && <p className="text-sm text-content-tertiary text-center p-4 bg-background-tertiary rounded-lg">No long-term goals added yet.</p>}
                                 </div>
@@ -242,7 +279,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onUpdateProfi
                                 />
                                  <TraitSection 
                                     title="Routines"
-                                    description="Your daily or weekly habits. Aura can help you stick to them."
+                                    description="Your daily or weekly habits. Aura will help you stick to them."
                                     traits={groupedTraits.routine || []}
                                     onDelete={handleDeleteTrait}
                                     onAdd={(text) => handleAddTrait(text, 'routine')}
@@ -280,8 +317,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onUpdateProfi
     };
 
     return (
-        <div className="flex h-full">
-            <aside className="w-72 bg-background-secondary border-r border-border-primary flex flex-col p-4">
+        <ResizablePanel storageKey="profile-sidebar-width" initialWidth={288} minWidth={220} maxWidth={400}>
+            <aside className="bg-background-secondary flex flex-col p-4 h-full">
                 <h2 className="text-xl font-bold text-content-primary mb-4 px-3">Profile</h2>
                 <nav className="flex flex-col space-y-1">
                     {sidebarItems.map(item => (
@@ -296,7 +333,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onUpdateProfi
                     ))}
                 </nav>
             </aside>
-            <main className="flex-1 flex flex-col">
+            <main className="flex-1 flex flex-col h-full">
                 <header className="p-6 border-b border-border-primary">
                     <h2 className="text-2xl font-bold">{sectionTitles[activeSection]}</h2>
                 </header>
@@ -304,6 +341,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onUpdateProfi
                     {renderSection()}
                 </div>
             </main>
-        </div>
+        </ResizablePanel>
     );
 };

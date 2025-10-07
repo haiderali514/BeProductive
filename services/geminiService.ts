@@ -1,5 +1,9 @@
-import { GoogleGenAI, Type, FunctionDeclaration, GenerateContentResponse, Content } from "@google/genai";
-import { Priority, Recurrence, Task, List, Habit, UserProfile, UserTrait, TraitType, GoalSubtype, GoalProgressReport } from '../types';
+
+
+
+
+import { GoogleGenAI, Type, FunctionDeclaration, GenerateContentResponse, Content as GeminiContent } from "@google/genai";
+import { Priority, Recurrence, Task, List, Habit, UserProfile, UserTrait, TraitType, GoalSubtype, GoalProgressReport } from '../types.ts';
 
 if (!process.env.API_KEY) {
   // In a real app, you'd want to handle this more gracefully.
@@ -8,6 +12,21 @@ if (!process.env.API_KEY) {
 }
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+
+// --- Token Estimation ---
+const estimateTokens = (text: string | object | null | undefined): number => {
+    if (!text) return 0;
+    const jsonString = typeof text === 'string' ? text : JSON.stringify(text);
+    // Very rough estimate: 1 token ~= 4 chars in English
+    return Math.ceil(jsonString.length / 4);
+};
+
+// --- Service Response Type ---
+export interface AIServiceResponse<T> {
+    data: T;
+    tokensUsed: number;
+}
+
 
 const smartAddTaskSchema = {
     type: Type.OBJECT,
@@ -52,36 +71,47 @@ const generateSubtasksSchema = {
     required: ["subtasks"],
 };
 
-export const parseTaskFromString = async (prompt: string, listNames: string[]) => {
+export type ParsedTaskData = {
+    title: string;
+    priority: Priority;
+    listName: string;
+    dueDate: string | null;
+    recurrence: Recurrence | null;
+};
+
+export const parseTaskFromString = async (prompt: string, listNames: string[]): Promise<AIServiceResponse<ParsedTaskData>> => {
   if (!process.env.API_KEY) {
     throw new Error("Gemini API key is not configured.");
   }
   try {
+    const fullPrompt = `Parse the following user input into a structured task object. Prioritize based on Eisenhower Matrix principles (Urgent/Important). High/Medium priority is 'Important'. Due dates of today/tomorrow are 'Urgent'. Today's date is ${new Date().toDateString()}. Available lists are: ${listNames.join(', ')}. Default list is 'Inbox'. Recurrence can be Daily, Weekly, Monthly, or Yearly. Input: "${prompt}"`;
     const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
-        contents: `Parse the following user input into a structured task object. Prioritize based on Eisenhower Matrix principles (Urgent/Important). High/Medium priority is 'Important'. Due dates of today/tomorrow are 'Urgent'. Today's date is ${new Date().toDateString()}. Available lists are: ${listNames.join(', ')}. Default list is 'Inbox'. Recurrence can be Daily, Weekly, Monthly, or Yearly. Input: "${prompt}"`,
+        contents: fullPrompt,
         config: {
             responseMimeType: "application/json",
             responseSchema: smartAddTaskSchema,
         },
     });
     
-    const jsonText = response.text?.trim();
+    const jsonText = response.text.trim();
     if (!jsonText) {
       console.error("Gemini returned an empty response for parsing task.", { response });
       throw new Error("The AI assistant gave an empty response. Please rephrase your request.");
     }
     
     const parsedJson = JSON.parse(jsonText);
-
-    // Basic validation and default assignment
-    return {
+    const data: ParsedTaskData = {
         title: parsedJson.title || 'Untitled Task',
         priority: Object.values(Priority).includes(parsedJson.priority) ? parsedJson.priority : Priority.NONE,
         listName: listNames.includes(parsedJson.listName) ? parsedJson.listName : 'Inbox',
         dueDate: parsedJson.dueDate || null,
         recurrence: Object.values(Recurrence).includes(parsedJson.recurrence) ? parsedJson.recurrence : null,
     };
+
+    const tokensUsed = estimateTokens(fullPrompt) + estimateTokens(jsonText);
+
+    return { data, tokensUsed };
 
   } catch (error) {
     console.error("Error parsing task with Gemini:", error);
@@ -92,28 +122,33 @@ export const parseTaskFromString = async (prompt: string, listNames: string[]) =
   }
 };
 
-export const generateSubtasks = async (taskTitle: string): Promise<string[]> => {
+export const generateSubtasks = async (taskTitle: string): Promise<AIServiceResponse<string[]>> => {
     if (!process.env.API_KEY) {
       throw new Error("Gemini API key is not configured.");
     }
     try {
+        const prompt = `Break down the following complex task into a list of small, actionable subtasks. Task: "${taskTitle}"`;
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
-            contents: `Break down the following complex task into a list of small, actionable subtasks. Task: "${taskTitle}"`,
+            contents: prompt,
             config: {
                 responseMimeType: "application/json",
                 responseSchema: generateSubtasksSchema,
             },
         });
         
-        const jsonText = response.text?.trim();
+        const jsonText = response.text.trim();
         if (!jsonText) {
             console.error("Gemini returned an empty response for generating subtasks.", { response });
             throw new Error("The AI assistant couldn't generate subtasks for this task. Please try again.");
         }
 
         const parsedJson = JSON.parse(jsonText);
-        return parsedJson.subtasks || [];
+        const data = parsedJson.subtasks || [];
+        const tokensUsed = estimateTokens(prompt) + estimateTokens(jsonText);
+
+        return { data, tokensUsed };
+
     } catch (error) {
         console.error("Error generating subtasks with Gemini:", error);
         if (error instanceof SyntaxError) {
@@ -148,28 +183,33 @@ const generateTaskPlanSchema = {
     required: ["tasks"],
 };
 
-export const generateTaskPlan = async (goal: string, listNames: string[]): Promise<AITaskSuggestion[]> => {
+export const generateTaskPlan = async (goal: string, listNames: string[]): Promise<AIServiceResponse<AITaskSuggestion[]>> => {
     if (!process.env.API_KEY) {
       throw new Error("Gemini API key is not configured.");
     }
     try {
+        const prompt = `You are an expert project planner. Break down the following user goal into a list of small, actionable tasks. For each task, suggest the most appropriate list it should belong to from the provided list names. Your suggestions should be logical. Goal: "${goal}". Available lists: ${listNames.join(', ')}.`;
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
-            contents: `You are an expert project planner. Break down the following user goal into a list of small, actionable tasks. For each task, suggest the most appropriate list it should belong to from the provided list names. Your suggestions should be logical. Goal: "${goal}". Available lists: ${listNames.join(', ')}.`,
+            contents: prompt,
             config: {
                 responseMimeType: "application/json",
                 responseSchema: generateTaskPlanSchema,
             },
         });
 
-        const jsonText = response.text?.trim();
+        const jsonText = response.text.trim();
         if (!jsonText) {
             console.error("Gemini returned an empty response for generating a task plan.", { response });
             throw new Error("The AI assistant couldn't generate a plan for this goal. Please try again.");
         }
 
         const parsedJson = JSON.parse(jsonText);
-        return parsedJson.tasks || [];
+        const data = parsedJson.tasks || [];
+        const tokensUsed = estimateTokens(prompt) + estimateTokens(jsonText);
+
+        return { data, tokensUsed };
+        
     } catch (error) {
         console.error("Error generating task plan with Gemini:", error);
         if (error instanceof SyntaxError) {
@@ -304,9 +344,23 @@ Remember, you've got this! Let me know what you want to tackle first."
 Today's date is ${new Date().toLocaleDateString()}.`;
 
 
-export const chatWithAssistant = async (history: Content[], context: AIContext): Promise<GenerateContentResponse> => {
+// FIX: Aliased `Content` to `GeminiContent` to avoid potential global type conflicts.
+export const chatWithAssistant = async (history: GeminiContent[], context: AIContext, projectInstruction?: string): Promise<AIServiceResponse<GenerateContentResponse>> => {
     if (!process.env.API_KEY) {
       throw new Error("Gemini API key is not configured.");
+    }
+
+    let finalSystemInstruction = systemInstruction;
+    if (projectInstruction?.trim()) {
+        finalSystemInstruction = `You have been given a project-specific instruction to follow for this conversation. Adhere to it closely.
+---
+PROJECT INSTRUCTION:
+${projectInstruction}
+---
+
+Your general persona and capabilities are described below. The project instruction above takes precedence if there is a conflict.
+
+${systemInstruction}`;
     }
 
     const fullContext = `
@@ -333,28 +387,33 @@ export const chatWithAssistant = async (history: Content[], context: AIContext):
         model: "gemini-2.5-flash",
         contents: historyWithContext,
         config: {
-            systemInstruction: systemInstruction,
+            systemInstruction: finalSystemInstruction,
             tools: [{functionDeclarations: [addTaskDeclaration, getTasksDeclaration, saveUserTraitDeclaration, getFreeSlotsDeclaration]}],
         },
     });
     
-    return response;
+    let tokensUsed = estimateTokens(finalSystemInstruction) + estimateTokens(historyWithContext) + estimateTokens(response.text);
+    return { data: response, tokensUsed };
 };
 
-export const generateChatTitle = async (prompt: string): Promise<string> => {
+export const generateChatTitle = async (prompt: string): Promise<AIServiceResponse<string>> => {
     if (!process.env.API_KEY) {
-      return "Chat"; // Fallback title
+      return { data: "Chat", tokensUsed: 0 }; // Fallback title
     }
     try {
+        const fullPrompt = `Generate a very short, concise title (3-5 words max) for a conversation that starts with this user prompt: "${prompt}". Just return the title text, nothing else.`;
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
-            contents: `Generate a very short, concise title (3-5 words max) for a conversation that starts with this user prompt: "${prompt}". Just return the title text, nothing else.`,
+            contents: fullPrompt,
         });
         const title = response.text.trim().replace(/"/g, ''); // Clean up quotes
-        return title || "Untitled Chat";
+        const data = title || "Untitled Chat";
+        const tokensUsed = estimateTokens(fullPrompt) + estimateTokens(response.text);
+        return { data, tokensUsed };
+
     } catch (error) {
         console.error("Error generating chat title:", error);
-        return "Chat"; // Fallback title
+        return { data: "Chat", tokensUsed: 0 }; // Fallback title
     }
 };
 
@@ -378,16 +437,18 @@ Your main goal is to find an opportunity for proactive habit coaching. Follow th
 
 Today's date is ${new Date().toLocaleDateString()}.`;
 
-export const getProactiveSuggestion = async (context: AIContext): Promise<string | null> => {
+export const getProactiveSuggestion = async (context: AIContext): Promise<AIServiceResponse<string | null>> => {
     if (!process.env.API_KEY) {
       console.warn("API_KEY not set. Skipping proactive AI suggestion.");
-      return null;
+      return { data: null, tokensUsed: 0 };
     }
 
     try {
-        const userPrompt: Content = {
+        const promptText = `Generate a proactive suggestion based on this user context:\n${JSON.stringify(context)}`;
+        // FIX: Aliased `Content` to `GeminiContent` to avoid potential global type conflicts.
+        const userPrompt: GeminiContent = {
             role: 'user',
-            parts: [{ text: `Generate a proactive suggestion based on this user context:\n${JSON.stringify(context)}` }]
+            parts: [{ text: promptText }]
         };
 
         const response = await ai.models.generateContent({
@@ -399,13 +460,16 @@ export const getProactiveSuggestion = async (context: AIContext): Promise<string
         });
 
         const suggestion = response.text.trim();
+        const tokensUsed = estimateTokens(proactiveSuggestionSystemInstruction) + estimateTokens(promptText) + estimateTokens(suggestion);
+
         if (suggestion === 'NO_SUGGESTION' || suggestion === '') {
-            return null;
+            return { data: null, tokensUsed };
         }
-        return suggestion;
+        return { data: suggestion, tokensUsed };
+
     } catch (error) {
         console.error("Error getting proactive suggestion:", error);
-        return null;
+        return { data: null, tokensUsed: 0 };
     }
 };
 
@@ -434,7 +498,7 @@ Your task is to generate a "Weekly Review & Plan" for the user based on their da
 
 Today's date is ${new Date().toLocaleDateString()}.`;
 
-export const generateWeeklyReview = async (context: AIContext): Promise<string> => {
+export const generateWeeklyReview = async (context: AIContext): Promise<AIServiceResponse<string>> => {
     if (!process.env.API_KEY) {
       throw new Error("Gemini API key is not configured.");
     }
@@ -457,18 +521,22 @@ export const generateWeeklyReview = async (context: AIContext): Promise<string> 
     };
     
     try {
+        const systemInstruction = weeklyReviewSystemInstruction(context.profile.name);
+        const prompt = `Here is the user's data for the weekly review:\n${JSON.stringify(relevantContext)}`;
+
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
-            contents: `Here is the user's data for the weekly review:\n${JSON.stringify(relevantContext)}`,
-            config: {
-                systemInstruction: weeklyReviewSystemInstruction(context.profile.name),
-            },
+            contents: prompt,
+            config: { systemInstruction },
         });
-        const reviewText = response.text?.trim();
+        const reviewText = response.text.trim();
         if (!reviewText) {
             throw new Error("The AI assistant returned an empty review.");
         }
-        return reviewText;
+        
+        const tokensUsed = estimateTokens(systemInstruction) + estimateTokens(prompt) + estimateTokens(reviewText);
+        return { data: reviewText, tokensUsed };
+
     } catch (error) {
         console.error("Error generating weekly review:", error);
         throw new Error("Could not generate your weekly review. Please try again later.");
@@ -501,7 +569,7 @@ const goalProgressReportSchema = {
     required: ["relatedTaskIds", "progressPercentage", "summaryText", "nextStepSuggestion"],
 };
 
-export const generateGoalProgressReport = async (goal: UserTrait, allTasks: Task[]): Promise<Omit<GoalProgressReport, 'goalId'>> => {
+export const generateGoalProgressReport = async (goal: UserTrait, allTasks: Task[]): Promise<AIServiceResponse<Omit<GoalProgressReport, 'goalId'>>> => {
     if (!process.env.API_KEY) {
       throw new Error("Gemini API key is not configured.");
     }
@@ -533,18 +601,21 @@ Follow these steps precisely:
             },
         });
         
-        const jsonText = response.text?.trim();
+        const jsonText = response.text.trim();
         if (!jsonText) {
             throw new Error("The AI assistant returned an empty progress report.");
         }
         
         const parsedJson = JSON.parse(jsonText);
-        return {
+        const data: Omit<GoalProgressReport, 'goalId'> = {
             relatedTaskIds: parsedJson.relatedTaskIds || [],
             progressPercentage: parsedJson.progressPercentage || 0,
             summaryText: parsedJson.summaryText || "Couldn't generate a summary.",
             nextStepSuggestion: parsedJson.nextStepSuggestion || "Think about the next step!"
         };
+
+        const tokensUsed = estimateTokens(systemInstruction) + estimateTokens(prompt) + estimateTokens(jsonText);
+        return { data, tokensUsed };
 
     } catch (error) {
         console.error("Error generating goal progress report:", error);
