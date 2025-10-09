@@ -1,7 +1,7 @@
 
 
 import React from 'react';
-import { Settings } from '../../hooks/useSettings.ts';
+import { Settings } from '../../hooks/useSettings';
 
 interface DateTimeSettingsProps {
     settings: Settings;
@@ -64,7 +64,11 @@ export const DateTimeSettings: React.FC<DateTimeSettingsProps> = ({ settings, on
             </div>
              <div className="bg-background-primary rounded-lg p-4 mt-8 divide-y divide-border-primary">
                 <SettingRow label="Additional Calendar">
-                    <Dropdown value="None" options={[{value: 'none', label: 'None'}, {value: 'hijri', label: 'Hijri (Civil)'}, {value: 'persian', label: 'Persian'}]} onChange={() => {}} />
+                    <Dropdown
+                        value={settings.additionalCalendar}
+                        options={[{value: 'none', label: 'None'}, {value: 'hijri', label: 'Hijri (Civil)'}, {value: 'persian', label: 'Persian'}]}
+                        onChange={(val) => onSettingsChange({ additionalCalendar: val as any })}
+                    />
                 </SettingRow>
                 <SettingRow label="Show Week Numbers(W)">
                      <ToggleSwitch checked={settings.showWeekNumbers} onChange={(val) => onSettingsChange({ showWeekNumbers: val })} />
@@ -72,7 +76,7 @@ export const DateTimeSettings: React.FC<DateTimeSettingsProps> = ({ settings, on
             </div>
              <div className="bg-background-primary rounded-lg p-4 mt-8">
                  <SettingRow label="Time Zone" description="If enabled, you can select the time zone when setting time for tasks.">
-                     <ToggleSwitch checked={false} onChange={() => {}} />
+                     <ToggleSwitch checked={settings.enableTimezone} onChange={(val) => onSettingsChange({ enableTimezone: val })} />
                 </SettingRow>
             </div>
         </div>

@@ -1,5 +1,6 @@
 import { Settings } from './hooks/useSettings';
 import { ApiFeature } from './hooks/useApiUsage';
+import React from 'react';
 
 export enum Priority {
   NONE = 'None',
@@ -29,6 +30,7 @@ export interface Task {
   dueDate?: string | null;
   priority: Priority;
   completed: boolean;
+  completionDate?: string;
   subtasks: Subtask[];
   recurrence?: Recurrence | null;
   tags: string[];
@@ -128,7 +130,7 @@ export interface Countdown {
   date: string; // ISO string format
 }
 
-export type ActiveView = 'tasks' | 'pomodoro' | 'habits' | 'analytics' | 'profile' | 'ai-assistant' | 'eisenhower-matrix' | 'countdown' | 'calendar';
+export type ActiveView = 'tasks' | 'pomodoro' | 'habits' | 'analytics' | 'profile' | 'ai-assistant' | 'eisenhower-matrix' | 'countdown' | 'calendar' | 'achievements';
 
 export interface Tag {
   id: string;
@@ -169,4 +171,39 @@ export interface AddTaskFormProps {
     settings: Settings;
     onDeactivate: () => void;
     autoFocus?: boolean;
+}
+
+export interface AIContext {
+    tasks: Task[];
+    lists: List[];
+    habits: Habit[];
+    profile: UserProfile;
+    pomodoroSessions: PomodoroSession[];
+}
+
+export interface AppData {
+    tasks: Task[];
+    habits: Habit[];
+    sessions: PomodoroSession[];
+    setActiveView?: (view: ActiveView) => void;
+}
+
+export type AchievementCategory = 'task' | 'focus' | 'habit' | 'consistency' | 'milestone' | 'special';
+
+export interface Achievement {
+  id: string;
+  category: AchievementCategory;
+  title: string;
+  description: (progress: number, goal: number) => string;
+  icon: React.ComponentType<{ className?: string }>;
+  iconColor?: string;
+  xpBonus?: number;
+  getProgress: (data: AppData) => { current: number; goal: number };
+}
+
+export interface Level {
+    level: number;
+    xpRange: [number, number | null];
+    title: string;
+    icon: string;
 }

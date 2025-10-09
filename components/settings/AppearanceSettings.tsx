@@ -1,10 +1,8 @@
 
 
-
-
 import React, { useState } from 'react';
-import { Settings } from '../../hooks/useSettings.ts';
-import { PremiumIcon } from '../Icons.tsx';
+import { Settings } from '../../hooks/useSettings';
+import { CalendarIcon, FlagIcon, MoreIcon, MoveToListIcon, TagIcon, TrophyIcon } from '../Icons';
 
 interface AppearanceSettingsProps {
     settings: Settings;
@@ -123,6 +121,36 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({ settings
         </div>
     );
 
+    const SimpleInputPreview = () => (
+        <div className="w-full h-full bg-background-secondary p-2 rounded flex items-center justify-center">
+            <div className="w-4/5 bg-background-primary p-2 rounded-lg border border-border-primary flex items-center">
+                <span className="text-content-secondary text-xs flex-1">+ Add Task</span>
+                <div className="flex items-center space-x-1">
+                    <CalendarIcon className="h-4 w-4 text-content-tertiary" />
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-content-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                </div>
+            </div>
+        </div>
+    );
+
+    const DetailedInputPreview = () => (
+        <div className="w-full h-full bg-background-secondary p-2 rounded flex items-center justify-center">
+            <div className="w-full mx-2 bg-background-primary p-2 rounded-lg border border-border-primary text-xs space-y-2">
+                <p className="text-content-secondary">What would you like to do?</p>
+                <div className="flex justify-between items-center">
+                    <div className="flex items-center space-x-1">
+                        <div className="flex items-center text-primary bg-primary/20 px-1 py-0.5 rounded"><CalendarIcon className="w-3 h-3 mr-1"/>Today</div>
+                        <FlagIcon className="w-4 h-4 text-content-tertiary" />
+                        <TagIcon className="w-4 h-4 text-content-tertiary" />
+                        <MoveToListIcon className="w-4 h-4 text-content-tertiary" />
+                        <MoreIcon className="w-4 h-4 text-content-tertiary" />
+                    </div>
+                    <div className="px-2 py-0.5 bg-primary text-white rounded text-xs">Add</div>
+                </div>
+            </div>
+        </div>
+    );
+
     const renderDisplaySettings = () => (
         <div className="space-y-8">
             <Section title="Font">
@@ -152,6 +180,25 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({ settings
                         </span>
                     </OptionCard>
                 ))}
+            </Section>
+            
+            <Section title="Task Input Style" cols={2}>
+                 <OptionCard
+                    key="simple"
+                    label="Simple"
+                    isSelected={settings.taskInputStyle === 'simple'}
+                    onClick={() => onSettingsChange({ taskInputStyle: 'simple' })}
+                >
+                    <SimpleInputPreview />
+                </OptionCard>
+                 <OptionCard
+                    key="detailed"
+                    label="Detailed"
+                    isSelected={settings.taskInputStyle === 'detailed'}
+                    onClick={() => onSettingsChange({ taskInputStyle: 'detailed' })}
+                >
+                    <DetailedInputPreview />
+                </OptionCard>
             </Section>
 
             <Section title="Sidebar Count">
@@ -192,38 +239,58 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({ settings
             <div>
                 <h3 className="font-semibold mb-3">Color Series</h3>
                 <div className="grid grid-cols-6 gap-4">
-                    {colors.map(color => (
-                        <div key={color.name} className="flex flex-col items-center space-y-2">
-                            <button className="w-12 h-12 rounded-full ring-2 ring-offset-2 ring-offset-background-primary" style={{ backgroundColor: color.bg, borderColor: settings.theme === color.name.toLowerCase() ? '#4A90E2' : 'transparent'}}>
-                                {settings.theme === color.name.toLowerCase() && <div className="flex items-center justify-center w-full h-full"><svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 ${color.isDark ? 'text-white' : 'text-black'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg></div>}
-                            </button>
-                            <p className="text-xs text-content-secondary">{color.name}</p>
-                        </div>
-                    ))}
+                    {colors.map(color => {
+                        const themeId = color.name.toLowerCase();
+                        const isSelected = settings.theme === themeId;
+                        return (
+                            <div key={color.name} className="flex flex-col items-center space-y-2">
+                                <button
+                                    onClick={() => onSettingsChange({ theme: themeId })}
+                                    className={`w-12 h-12 rounded-full ring-2 ring-offset-2 ring-offset-background-primary transition-all ${isSelected ? 'ring-primary' : 'ring-transparent'}`}
+                                    style={{ backgroundColor: color.bg }}
+                                >
+                                    {isSelected && <div className="flex items-center justify-center w-full h-full"><svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 ${color.isDark ? 'text-white' : 'text-black'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg></div>}
+                                </button>
+                                <p className="text-xs text-content-secondary">{color.name}</p>
+                            </div>
+                        )
+                    })}
                 </div>
             </div>
             <div>
                 <h3 className="font-semibold mb-3">Season Series</h3>
                  <div className="grid grid-cols-4 gap-4">
-                    {themes.map(theme => (
-                        <div key={theme.name} className="relative">
-                            <img src={theme.img} alt={theme.name} className="rounded-lg aspect-video object-cover"/>
-                            {theme.premium && <div className="absolute top-2 right-2 bg-yellow-500 text-black p-1 rounded-full"><PremiumIcon className="w-3 h-3"/></div>}
-                             <div className="absolute bottom-0 left-0 right-0 p-2 bg-black/30 rounded-b-lg"><p className="text-white text-sm text-center">{theme.name}</p></div>
-                        </div>
-                    ))}
+                    {themes.map(theme => {
+                         const themeId = theme.name.toLowerCase();
+                         const isSelected = settings.theme === themeId;
+                         return (
+                            <div key={theme.name} onClick={() => onSettingsChange({ theme: themeId })} className="relative cursor-pointer group">
+                                <img src={theme.img} alt={theme.name} className={`rounded-lg aspect-video object-cover transition-all ${isSelected ? 'ring-2 ring-primary' : ''}`}/>
+                                {theme.premium && <div className="absolute top-2 right-2 bg-yellow-500 text-black p-1 rounded-full"><TrophyIcon className="w-3 h-3"/></div>}
+                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors"></div>
+                                <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/50 to-transparent rounded-b-lg"><p className="text-white text-sm text-center font-semibold">{theme.name}</p></div>
+                                {isSelected && <div className="absolute inset-0 flex items-center justify-center bg-primary/40"><CheckmarkCircleIcon /></div>}
+                            </div>
+                        )
+                    })}
                 </div>
             </div>
              <div>
                 <h3 className="font-semibold mb-3">City Series</h3>
                  <div className="grid grid-cols-4 gap-4">
-                    {cityThemes.map(theme => (
-                        <div key={theme.name} className="relative">
-                            <img src={theme.img} alt={theme.name} className="rounded-lg aspect-video object-cover"/>
-                            {theme.premium && <div className="absolute top-2 right-2 bg-yellow-500 text-black p-1 rounded-full"><PremiumIcon className="w-3 h-3"/></div>}
-                             <div className="absolute bottom-0 left-0 right-0 p-2 bg-black/30 rounded-b-lg"><p className="text-white text-sm text-center">{theme.name}</p></div>
-                        </div>
-                    ))}
+                    {cityThemes.map(theme => {
+                        const themeId = theme.name.toLowerCase();
+                        const isSelected = settings.theme === themeId;
+                        return (
+                            <div key={theme.name} onClick={() => onSettingsChange({ theme: themeId })} className="relative cursor-pointer group">
+                                <img src={theme.img} alt={theme.name} className={`rounded-lg aspect-video object-cover transition-all ${isSelected ? 'ring-2 ring-primary' : ''}`}/>
+                                {theme.premium && <div className="absolute top-2 right-2 bg-yellow-500 text-black p-1 rounded-full"><TrophyIcon className="w-3 h-3"/></div>}
+                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors"></div>
+                                <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/50 to-transparent rounded-b-lg"><p className="text-white text-sm text-center font-semibold">{theme.name}</p></div>
+                                {isSelected && <div className="absolute inset-0 flex items-center justify-center bg-primary/40"><CheckmarkCircleIcon /></div>}
+                            </div>
+                        )
+                    })}
                 </div>
             </div>
             <div className="flex justify-between items-center pt-4 border-t border-border-primary">

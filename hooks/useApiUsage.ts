@@ -1,5 +1,4 @@
 import useLocalStorage from './useLocalStorage';
-import { useEffect, useCallback } from 'react';
 
 export interface ApiUsageBreakdown {
   smartAddTask: { count: number; tokens: number };
@@ -10,16 +9,10 @@ export interface ApiUsageBreakdown {
   goalProgress: { count: number; tokens: number };
   proactiveSuggestions: { count: number; tokens: number };
   chatTitleGeneration: { count: number; tokens: number };
+  analyticsInsights: { count: number; tokens: number };
 }
 
 export type ApiFeature = keyof ApiUsageBreakdown;
-
-// FIX: Defined and exported the ApiUsage interface to make it available for import in other modules.
-export interface ApiUsage {
-  totalTokens: number;
-  resetsOn: string;
-  breakdown: ApiUsageBreakdown;
-}
 
 export const FEATURE_NAMES: Record<ApiFeature, string> = {
     smartAddTask: 'Smart Task Add',
@@ -30,7 +23,14 @@ export const FEATURE_NAMES: Record<ApiFeature, string> = {
     goalProgress: 'Goal Progress Reports',
     proactiveSuggestions: 'Proactive Suggestions',
     chatTitleGeneration: 'Chat Title Generation',
+    analyticsInsights: 'Analytics Insights',
 };
+
+export interface ApiUsage {
+  totalTokens: number;
+  resetsOn: string;
+  breakdown: ApiUsageBreakdown;
+}
 
 const getNextResetDate = () => {
     const date = new Date();
@@ -52,20 +52,14 @@ const defaultApiUsage: ApiUsage = {
     goalProgress: { count: 0, tokens: 0 },
     proactiveSuggestions: { count: 0, tokens: 0 },
     chatTitleGeneration: { count: 0, tokens: 0 },
+    analyticsInsights: { count: 0, tokens: 0 },
   },
 };
 
 export const useApiUsage = (): [ApiUsage, (feature: ApiFeature, tokens: number) => void] => {
     const [usage, setUsage] = useLocalStorage<ApiUsage>('api_usage', defaultApiUsage);
 
-    useEffect(() => {
-        // Check for reset on hook initialization as well
-        if (new Date() > new Date(usage.resetsOn)) {
-            setUsage({ ...defaultApiUsage, resetsOn: getNextResetDate() });
-        }
-    }, [usage.resetsOn, setUsage]);
-
-    const logApiCall = useCallback((feature: ApiFeature, tokens: number) => {
+    const logApiCall = (feature: ApiFeature, tokens: number) => {
         setUsage(prevUsage => {
             // Check if reset date has passed
             if (new Date() > new Date(prevUsage.resetsOn)) {
@@ -88,7 +82,12 @@ export const useApiUsage = (): [ApiUsage, (feature: ApiFeature, tokens: number) 
                 breakdown: newBreakdown,
             };
         });
-    }, [setUsage]);
+    };
     
+    // Check for reset on hook initialization as well
+    if (new Date() > new Date(usage.resetsOn)) {
+        setUsage({ ...defaultApiUsage, resetsOn: getNextResetDate() });
+    }
+
     return [usage, logApiCall];
 };

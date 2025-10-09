@@ -1,4 +1,7 @@
-import React, { createContext, useContext, useCallback } from 'react';
+
+
+
+import React, { createContext, useContext } from 'react';
 import { useSettings as useSettingsHook, Settings } from '../hooks/useSettings';
 
 // FIX: Export the Settings type so it can be imported from this module.
@@ -11,9 +14,9 @@ const SettingsContext = createContext<SettingsContextType | undefined>(undefined
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [settings, setSettings] = useSettingsHook();
     
-    const handleSettingsChange = useCallback((newSettings: Partial<Settings>) => {
+    const handleSettingsChange = (newSettings: Partial<Settings>) => {
         setSettings(prev => ({ ...prev, ...newSettings }));
-    }, [setSettings]);
+    };
 
     return (
         <SettingsContext.Provider value={[settings, handleSettingsChange]}>

@@ -1,7 +1,7 @@
 
 
 import React from 'react';
-import { Settings } from '../../hooks/useSettings.ts';
+import { Settings } from '../../hooks/useSettings';
 
 interface NotificationsSettingsProps {
     settings: Settings;
@@ -18,9 +18,17 @@ const SettingRow: React.FC<{ label: string, description?: string, children: Reac
     </div>
 );
 
-const Dropdown: React.FC<{ value: string; options: string[] }> = ({ value, options }) => (
-     <select defaultValue={value} className="bg-background-tertiary border border-border-primary rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary">
-        {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+const Dropdown: React.FC<{
+    value: string;
+    options: { value: string; label: string }[];
+    onChange: (value: string) => void;
+}> = ({ value, options, onChange }) => (
+     <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="bg-background-tertiary border border-border-primary rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+    >
+        {options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
     </select>
 );
 
@@ -37,16 +45,47 @@ export const NotificationsSettings: React.FC<NotificationsSettingsProps> = ({ se
             <h2 className="text-2xl font-bold mb-2">Notifications</h2>
             <div className="bg-background-primary rounded-lg p-4 divide-y divide-border-primary">
                 <SettingRow label="Reminder">
-                    <Dropdown value="In-app reminder" options={["In-app reminder", "Push notification"]} />
+                    <Dropdown
+                        value={settings.reminderType}
+                        onChange={(val) => onSettingsChange({ reminderType: val as any })}
+                        options={[
+                            { value: 'in-app', label: 'In-app reminder' },
+                            { value: 'push', label: 'Push notification' }
+                        ]}
+                    />
                 </SettingRow>
                 <SettingRow label="Show Notification Details" description="Display notification title and content on screen when receiving a notification.">
-                    <Dropdown value="When unlocked" options={["When unlocked", "Always", "Never"]} />
+                    <Dropdown
+                        value={settings.showNotificationDetails}
+                        onChange={(val) => onSettingsChange({ showNotificationDetails: val as any })}
+                        options={[
+                            { value: 'when-unlocked', label: 'When unlocked' },
+                            { value: 'always', label: 'Always' },
+                            { value: 'never', label: 'Never' }
+                        ]}
+                    />
                 </SettingRow>
                 <SettingRow label="Ringtone">
-                    <Dropdown value="Default" options={["Default", "Chime", "Alert"]} />
+                    <Dropdown
+                        value={settings.ringtone}
+                        onChange={(val) => onSettingsChange({ ringtone: val })}
+                        options={[
+                            { value: 'default', label: 'Default' },
+                            { value: 'chime', label: 'Chime' },
+                            { value: 'alert', label: 'Alert' }
+                        ]}
+                    />
                 </SettingRow>
                 <SettingRow label="Completion Sound">
-                     <Dropdown value="Drip" options={["Drip", "Success", "None"]} />
+                     <Dropdown
+                        value={settings.completionSound}
+                        onChange={(val) => onSettingsChange({ completionSound: val })}
+                        options={[
+                            { value: 'drip', label: 'Drip' },
+                            { value: 'success', label: 'Success' },
+                            { value: 'none', label: 'None' }
+                        ]}
+                     />
                 </SettingRow>
                  <SettingRow label="Reminder Volume">
                     <input 

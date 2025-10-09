@@ -1,6 +1,6 @@
 
 
-import useLocalStorage from './useLocalStorage.ts';
+import useLocalStorage from './useLocalStorage';
 
 export type SmartListVisibility = 'show' | 'show-if-not-empty' | 'hide';
 
@@ -17,7 +17,7 @@ export interface Settings {
     
     // Notifications
     reminderType: 'in-app' | 'push';
-    showNotificationDetails: 'always' | 'when-unlocked';
+    showNotificationDetails: 'always' | 'when-unlocked' | 'never';
     ringtone: string;
     completionSound: string;
     reminderVolume: number;
@@ -27,6 +27,8 @@ export interface Settings {
     timeFormat: '12h' | '24h';
     startWeekOn: 'saturday' | 'sunday' | 'monday';
     showWeekNumbers: boolean;
+    additionalCalendar: 'none' | 'hijri' | 'persian';
+    enableTimezone: boolean;
 
     // Appearance
     theme: string;
@@ -70,6 +72,8 @@ const defaultSettings: Settings = {
     timeFormat: '24h',
     startWeekOn: 'monday',
     showWeekNumbers: true,
+    additionalCalendar: 'none',
+    enableTimezone: false,
     theme: 'dark',
     autoSwitchTheme: false,
     font: 'default',

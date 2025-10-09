@@ -1,7 +1,6 @@
 
-
 import React from 'react';
-import { Settings } from '../../hooks/useSettings.ts';
+import { Settings } from '../../hooks/useSettings';
 
 interface FeaturesSettingsProps {
     settings: Settings;

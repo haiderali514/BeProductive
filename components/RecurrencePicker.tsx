@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Recurrence } from '../types.ts';
+import { Recurrence } from '../types';
 
 interface RecurrencePickerProps {
     onSetRecurrence: (recurrence: Recurrence | null) => void;

@@ -1,26 +1,26 @@
 import React, { useState, useMemo } from 'react';
-import { Habit } from '../types.ts';
+import { Habit } from '../types';
+import { ArrowsRightLeftIcon, CheckCircleSolidIcon, BoltSolidIcon, FireSolidIcon, ChartPieSolidIcon } from './Icons';
 
 interface HabitStatsPanelProps {
     habits: Habit[];
     selectedHabit: Habit | null;
+    onToggleHabit: (habitId: string, date: string) => void;
 }
 
-const SwitchIcon: React.FC = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5M5 12a7 7 0 117 7" />
-    </svg>
-);
-
 const SwitchableStatCard: React.FC<{
+  icon: React.ReactNode;
   title1: string; value1: string | number; description1?: string;
   title2: string; value2: string | number; description2?: string;
-}> = ({ title1, value1, description1, title2, value2, description2 }) => {
+}> = ({ icon, title1, value1, description1, title2, value2, description2 }) => {
   const [showFirst, setShowFirst] = useState(true);
 
   const StatContent: React.FC<{title: string, value: string|number, description?: string}> = ({title, value, description}) => (
     <>
-      <p className="text-sm text-content-secondary pr-4 h-8">{title}</p>
+      <div className="flex items-center space-x-2 h-8">
+          <div className="w-4 h-4">{icon}</div>
+          <p className="text-sm text-content-secondary pr-4 truncate">{title}</p>
+      </div>
       <p className="text-2xl font-bold text-content-primary truncate">{value}</p>
       <div className="h-4">
         {description && <p className="text-xs text-content-tertiary">{description}</p>}
@@ -29,9 +29,9 @@ const SwitchableStatCard: React.FC<{
   );
 
   return (
-    <div onClick={() => setShowFirst(!showFirst)} className="bg-background-tertiary p-4 rounded-lg cursor-pointer relative group transition-transform hover:scale-105 min-h-[110px]">
+    <div onClick={() => setShowFirst(!showFirst)} className="bg-background-secondary p-4 rounded-lg cursor-pointer relative group min-h-[110px]">
       <div className="absolute top-3 right-3 text-content-tertiary opacity-0 group-hover:opacity-100 transition-opacity">
-        <SwitchIcon />
+        <ArrowsRightLeftIcon className="w-4 h-4" />
       </div>
       {showFirst ? (
         <StatContent title={title1} value={value1} description={description1} />
@@ -41,6 +41,24 @@ const SwitchableStatCard: React.FC<{
     </div>
   );
 };
+
+const StatCard: React.FC<{
+    icon: React.ReactNode;
+    title: string;
+    value: React.ReactNode;
+    description?: string;
+}> = ({ icon, title, value, description }) => (
+    <div className="bg-background-secondary p-4 rounded-lg min-h-[110px]">
+         <div className="flex items-center space-x-2 h-8">
+          <div className="w-4 h-4">{icon}</div>
+          <p className="text-sm text-content-secondary pr-4 truncate">{title}</p>
+      </div>
+      <div className="text-2xl font-bold text-content-primary truncate">{value}</div>
+      <div className="h-4">
+        {description && <p className="text-xs text-content-tertiary">{description}</p>}
+      </div>
+    </div>
+);
 
 
 const toYYYYMMDD = (date: Date): string => {
@@ -106,7 +124,10 @@ const calculateLongestStreak = (checkIns: string[]): number => {
 };
 
 
-const SpecificHabitCalendar: React.FC<{ habit: Habit }> = ({ habit }) => {
+const SpecificHabitCalendar: React.FC<{
+    habit: Habit;
+    onToggleHabit: (habitId: string, date: string) => void;
+}> = ({ habit, onToggleHabit }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
 
     const monthName = currentDate.toLocaleString('default', { month: 'long' });
@@ -128,7 +149,7 @@ const SpecificHabitCalendar: React.FC<{ habit: Habit }> = ({ habit }) => {
     return (
         <div className="mt-8">
             <h3 className="text-lg font-semibold text-content-primary mb-4">Check-in Calendar</h3>
-            <div className="bg-background-tertiary p-4 rounded-lg">
+            <div className="bg-background-secondary p-4 rounded-lg">
                 <div className="flex justify-between items-center mb-4">
                     <button onClick={() => changeMonth(-1)} className="p-1 rounded-full hover:bg-border-primary">&lt;</button>
                     <h4 className="font-bold">{monthName} {year}</h4>
@@ -140,13 +161,24 @@ const SpecificHabitCalendar: React.FC<{ habit: Habit }> = ({ habit }) => {
                 <div className="grid grid-cols-7 gap-2 mt-2">
                     {Array.from({ length: firstDayOfMonth }).map((_, i) => <div key={`empty-${i}`}></div>)}
                     {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
-                        const dateStr = toYYYYMMDD(new Date(year, currentDate.getMonth(), day));
+                        const dayDate = new Date(year, currentDate.getMonth(), day);
+                        dayDate.setHours(0, 0, 0, 0);
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+
+                        const dateStr = toYYYYMMDD(dayDate);
                         const isChecked = checkInsSet.has(dateStr);
-                        const isToday = dateStr === toYYYYMMDD(new Date());
+                        const isToday = dayDate.getTime() === today.getTime();
+                        const isFuture = dayDate > today;
                         return (
-                             <div key={day} className={`w-8 h-8 flex items-center justify-center rounded-full text-sm ${isToday ? 'border-2 border-primary' : ''} ${isChecked ? 'bg-primary text-white' : ''}`}>
+                             <button 
+                                key={day} 
+                                disabled={isFuture}
+                                onClick={() => !isFuture && onToggleHabit(habit.id, dateStr)}
+                                className={`w-8 h-8 flex items-center justify-center rounded-full text-sm transition-colors ${isToday ? 'border-2 border-primary' : ''} ${isChecked ? 'bg-primary text-white' : 'hover:bg-background-primary'} ${isFuture ? 'text-content-tertiary cursor-not-allowed' : 'text-content-primary'}`}
+                            >
                                 {day}
-                            </div>
+                            </button>
                         );
                     })}
                 </div>
@@ -193,7 +225,7 @@ const OverallActivityCalendar: React.FC<{ habits: Habit[] }> = ({ habits }) => {
     return (
         <div className="mt-8">
             <h3 className="text-lg font-semibold text-content-primary mb-4">Overall Activity</h3>
-            <div className="bg-background-tertiary p-4 rounded-lg">
+            <div className="bg-background-secondary p-4 rounded-lg">
                 <div className="flex justify-between items-center mb-4">
                     <button onClick={() => changeMonth(-1)} className="p-1 rounded-full hover:bg-border-primary">&lt;</button>
                     <h4 className="font-bold">{monthName} {year}</h4>
@@ -214,7 +246,7 @@ const OverallActivityCalendar: React.FC<{ habits: Habit[] }> = ({ habits }) => {
                              <div 
                                 key={day} 
                                 title={checkInCount > 0 ? `${checkInCount} habit${checkInCount > 1 ? 's' : ''} completed` : undefined}
-                                className={`w-8 h-8 flex items-center justify-center rounded-full text-sm transition-colors ${isToday ? 'border-2 border-primary' : ''} ${bgColor}`}
+                                className={`w-8 h-8 flex items-center justify-center rounded-full text-sm transition-colors ${isToday ? 'border-2 border-primary' : ''} ${bgColor} hover:bg-background-primary`}
                              >
                                 {day}
                             </div>
@@ -266,20 +298,24 @@ const OverallStats: React.FC<{ habits: Habit[] }> = ({ habits }) => {
             <h2 className="text-xl font-bold mb-6 text-content-primary">Overall Stats</h2>
             <div className="grid grid-cols-2 gap-4">
                 <SwitchableStatCard 
-                    title1="Today's Check-ins" value1={todaysCheckins}
-                    title2="Total Check-ins" value2={totalCheckins} description2="All time"
+                    icon={<CheckCircleSolidIcon className="text-green-500" />}
+                    title1="Monthly check-ins" value1={`${monthlyCheckins} Days`}
+                    title2="Today's Check-ins" value2={todaysCheckins}
                 />
                 <SwitchableStatCard 
-                    title1="Today's Completion Rate" value1={`${completionRate}%`}
-                    title2="Overall Completion Rate" value2={`${totalCompletionRate}%`} description2="All time"
+                    icon={<BoltSolidIcon className="text-blue-500" />}
+                    title1="Total Check-Ins" value1={`${totalCheckins} Days`}
+                    title2="Overall Rate" value2={`${totalCompletionRate}%`} description2="All time"
+                />
+                 <SwitchableStatCard
+                    icon={<ChartPieSolidIcon className="text-orange-400" />}
+                    title1="Monthly check-in rate" value1={`${monthlyRate}%`}
+                    title2="Today's Rate" value2={`${completionRate}%`}
                 />
                 <SwitchableStatCard
-                    title1="Highest Current Streak" value1={highestCurrentStreak} description1="Across all habits"
-                    title2="Longest Streak Ever" value2={longestStreakEver} description2="Across all habits"
-                />
-                <SwitchableStatCard
-                    title1="Monthly Check-ins" value1={monthlyCheckins}
-                    title2="Monthly Completion Rate" value2={`${monthlyRate}%`}
+                    icon={<FireSolidIcon className="text-red-500" />}
+                    title1="Current Streak" value1={`${highestCurrentStreak} Days`} description1="Across all habits"
+                    title2="Longest Streak" value2={`${longestStreakEver} Days`} description2="All time"
                 />
             </div>
             <OverallActivityCalendar habits={habits} />
@@ -287,15 +323,18 @@ const OverallStats: React.FC<{ habits: Habit[] }> = ({ habits }) => {
     );
 };
 
-const SpecificHabitStats: React.FC<{ habit: Habit }> = ({ habit }) => {
+const SpecificHabitStats: React.FC<{
+    habit: Habit;
+    onToggleHabit: (habitId: string, date: string) => void;
+}> = ({ habit, onToggleHabit }) => {
     const {
         totalCheckins,
         currentStreak,
         monthlyCheckins,
         monthlyRate,
-        todaysCheckin,
         overallCompletionRate,
-        longestStreak
+        longestStreak,
+        nextMilestone,
     } = useMemo(() => {
         const now = new Date();
         const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -304,21 +343,22 @@ const SpecificHabitStats: React.FC<{ habit: Habit }> = ({ habit }) => {
         const daysInMonthSoFar = now.getDate();
         const monthlyRate = daysInMonthSoFar > 0 ? Math.round((monthlyCheckins / daysInMonthSoFar) * 100) : 0;
         
-        const todayStr = toYYYYMMDD(now);
-        const todaysCheckin = habit.checkIns.includes(todayStr);
-
         const overallCompletionRate = habit.totalDays > 0 ? Math.round((habit.checkIns.length / habit.totalDays) * 100) : 0;
 
         const longestStreak = calculateLongestStreak(habit.checkIns);
+        const currentStreak = calculateStreak(habit.checkIns);
+
+        const milestones = [21, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 365];
+        const nextMilestone = milestones.find(day => day > currentStreak) || 365;
         
         return {
             totalCheckins: habit.checkIns.length,
-            currentStreak: calculateStreak(habit.checkIns),
+            currentStreak,
             monthlyCheckins,
             monthlyRate,
-            todaysCheckin,
             overallCompletionRate,
-            longestStreak
+            longestStreak,
+            nextMilestone,
         };
     }, [habit]);
 
@@ -330,31 +370,39 @@ const SpecificHabitStats: React.FC<{ habit: Habit }> = ({ habit }) => {
             </div>
             <div className="grid grid-cols-2 gap-4">
                 <SwitchableStatCard
-                    title1="Today's Check-in" value1={todaysCheckin ? '✅ Completed' : '❌ Pending'}
-                    title2="Total Check-ins" value2={totalCheckins} description2="All time"
+                    icon={<BoltSolidIcon className="text-blue-500" />}
+                    title1="Total Check-ins" value1={`${totalCheckins} Days`}
+                    title2="Monthly check-ins" value2={`${monthlyCheckins} Days`}
                 />
                  <SwitchableStatCard
-                    title1="Monthly Check-ins" value1={monthlyCheckins}
-                    title2="Monthly Completion Rate" value2={`${monthlyRate}%`}
+                    icon={<ChartPieSolidIcon className="text-orange-400" />}
+                    title1="Monthly check-in rate" value1={`${monthlyRate}%`}
+                    title2="Overall Rate" value2={`${overallCompletionRate}%`} description2="All time"
                 />
                 <SwitchableStatCard
-                    title1="Current Streak" value1={`${currentStreak} Day${currentStreak !== 1 ? 's' : ''}`}
-                    title2="Longest Streak Ever" value2={`${longestStreak} Day${longestStreak !== 1 ? 's' : ''}`}
+                    icon={<FireSolidIcon className="text-red-500" />}
+                    title1="Current Streak" value1={`${currentStreak} Days`}
+                    title2="Best Streak" value2={`${longestStreak} Days`}
                 />
-                <SwitchableStatCard
-                    title1="Today's Completion Rate" value1={todaysCheckin ? '100%' : '0%'}
-                    title2="Overall Completion Rate" value2={`${overallCompletionRate}%`} description2="All time"
+                <StatCard
+                    icon={<CheckCircleSolidIcon className="text-green-500" />}
+                    title="Next Milestone"
+                    value={
+                        <span>
+                            {currentStreak} / <span className="text-content-secondary">{nextMilestone} Days</span>
+                        </span>
+                    }
                 />
             </div>
-            <SpecificHabitCalendar habit={habit} />
+            <SpecificHabitCalendar habit={habit} onToggleHabit={onToggleHabit} />
         </div>
     );
 };
 
-export const HabitStatsPanel: React.FC<HabitStatsPanelProps> = ({ habits, selectedHabit }) => {
+export const HabitStatsPanel: React.FC<HabitStatsPanelProps> = ({ habits, selectedHabit, onToggleHabit }) => {
     return (
-        <aside className="h-full bg-background-secondary p-6 overflow-y-auto hidden md:block w-full">
-            {selectedHabit ? <SpecificHabitStats habit={selectedHabit} /> : <OverallStats habits={habits} />}
+        <aside className="h-full bg-background-primary p-6 overflow-y-auto hidden md:block w-full">
+            {selectedHabit ? <SpecificHabitStats habit={selectedHabit} onToggleHabit={onToggleHabit} /> : <OverallStats habits={habits} />}
         </aside>
     );
 };

@@ -50,6 +50,9 @@ interface DataContextType {
     handleRestoreTask: (taskId: string) => void;
     handlePermanentDeleteTask: (taskId: string) => void;
     handleEmptyTrash: () => void;
+    handleReorderTask: (draggedTaskId: string, targetTaskId: string) => void;
+    handleReorderList: (draggedListId: string, targetListId: string) => void;
+    handleReorderHabit: (draggedHabitId: string, targetHabitId: string) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -142,7 +145,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
             setTasks(prev => prev.map(t => t.id === taskId ? { ...t, dueDate: nextDueDate.toISOString().split('T')[0], subtasks: t.subtasks.map(st => ({...st, completed: false})) } : t));
         } else {
-            setTasks(prev => prev.map(t => t.id === taskId ? { ...t, completed: !t.completed, wontDo: false } : t));
+            setTasks(prev => prev.map(t => t.id === taskId ? { ...t, completed: !t.completed, completionDate: !t.completed ? new Date().toISOString() : undefined, wontDo: false } : t));
         }
     }, [tasks, setTasks]);
 
@@ -303,6 +306,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setFilters(prev => [...prev, newFilter]);
     }, [setFilters]);
 
+    const reorderArray = <T extends { id: string }>(items: T[], draggedId: string, targetId: string): T[] => {
+        const draggedItem = items.find(item => item.id === draggedId);
+        if (!draggedItem) return items;
+
+        const remainingItems = items.filter(item => item.id !== draggedId);
+        
+        const targetIndex = remainingItems.findIndex(item => item.id === targetId);
+        if (targetIndex === -1) return items; // Should not happen
+
+        remainingItems.splice(targetIndex, 0, draggedItem);
+        return remainingItems;
+    };
+
+    const handleReorderTask = useCallback((draggedTaskId: string, targetTaskId: string) => {
+        setTasks(prev => reorderArray(prev, draggedTaskId, targetTaskId));
+    }, [setTasks]);
+
+    const handleReorderList = useCallback((draggedListId: string, targetListId: string) => {
+        setLists(prev => reorderArray(prev, draggedListId, targetListId));
+    }, [setLists]);
+
+    const handleReorderHabit = useCallback((draggedHabitId: string, targetHabitId: string) => {
+        setHabits(prev => reorderArray(prev, draggedHabitId, targetHabitId));
+    }, [setHabits]);
+
     const value = {
         lists, tasks, habits, pomodoroSessions, userProfile, countdowns, tags, filters,
         handleAddList, handleUpdateList, handleDeleteList,
@@ -311,7 +339,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         handleToggleHabit, handleAddHabit, handleUpdateProfile, getTasksForPeriod, findFreeSlots,
         handleAddCountdown, handleDeleteCountdown, setUserProfile,
         handleAddTag, handleAddFilter,
-        handleWontDoTask, handleRestoreTask, handlePermanentDeleteTask, handleEmptyTrash
+        handleWontDoTask, handleRestoreTask, handlePermanentDeleteTask, handleEmptyTrash,
+        handleReorderTask, handleReorderList, handleReorderHabit,
     };
 
     return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

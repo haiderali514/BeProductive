@@ -1,9 +1,7 @@
-
-
-
-
 import { GoogleGenAI, Type, FunctionDeclaration, GenerateContentResponse, Content as GeminiContent } from "@google/genai";
-import { Priority, Recurrence, Task, List, Habit, UserProfile, UserTrait, TraitType, GoalSubtype, GoalProgressReport } from '../types.ts';
+import { Priority, Recurrence, Task, List, Habit, UserProfile, UserTrait, TraitType, GoalSubtype, GoalProgressReport, AIContext } from '../types';
+
+export type { AIContext };
 
 if (!process.env.API_KEY) {
   // In a real app, you'd want to handle this more gracefully.
@@ -221,13 +219,6 @@ export const generateTaskPlan = async (goal: string, listNames: string[]): Promi
 
 // --- AI Assistant Service ---
 
-export interface AIContext {
-    tasks: Task[];
-    lists: List[];
-    habits: Habit[];
-    profile: UserProfile;
-}
-
 const addTaskDeclaration: FunctionDeclaration = {
   name: 'addTask',
   parameters: {
@@ -344,7 +335,6 @@ Remember, you've got this! Let me know what you want to tackle first."
 Today's date is ${new Date().toLocaleDateString()}.`;
 
 
-// FIX: Aliased `Content` to `GeminiContent` to avoid potential global type conflicts.
 export const chatWithAssistant = async (history: GeminiContent[], context: AIContext, projectInstruction?: string): Promise<AIServiceResponse<GenerateContentResponse>> => {
     if (!process.env.API_KEY) {
       throw new Error("Gemini API key is not configured.");
@@ -369,6 +359,7 @@ ${systemInstruction}`;
       - Lists: ${JSON.stringify(context.lists)}
       - Tasks: ${JSON.stringify(context.tasks)}
       - Habits: ${JSON.stringify(context.habits)}
+      - Pomodoro Sessions: ${JSON.stringify(context.pomodoroSessions)}
     `;
     
     // Create a deep copy of the history to avoid mutating the original state object.
@@ -445,7 +436,6 @@ export const getProactiveSuggestion = async (context: AIContext): Promise<AIServ
 
     try {
         const promptText = `Generate a proactive suggestion based on this user context:\n${JSON.stringify(context)}`;
-        // FIX: Aliased `Content` to `GeminiContent` to avoid potential global type conflicts.
         const userPrompt: GeminiContent = {
             role: 'user',
             parts: [{ text: promptText }]
@@ -620,5 +610,76 @@ Follow these steps precisely:
     } catch (error) {
         console.error("Error generating goal progress report:", error);
         throw new Error("Could not generate a progress report for this goal.");
+    }
+};
+
+// --- Analytics Insights Service ---
+
+const analyticsInsightsSystemInstruction = (userName: string) => `You are Aura, an expert productivity coach. Your language is encouraging Hinglish.
+
+Your task is to analyze the user's productivity data and provide 2-3 short, actionable, and personalized insights.
+
+**Your Response Format:**
+- **ALWAYS** respond in structured markdown: headings (##), bold (**text**), lists (* item), and emojis (💡, 🎯, 👍).
+- Keep insights concise and directly related to the user's data.
+- The user's name is ${userName}.
+
+**Analysis Areas:**
+1.  **Task Management:** Look at the 'tasks created vs completed' trend. Are they keeping up? Are there many overdue tasks?
+2.  **Focus Habits:** Look at the 'focus by list' data. Are they spending time on important lists/projects? Look at 'productivity by time of day'. When are they most productive?
+3.  **Habit Consistency:** Look at the habit completion rates. Is there a habit they are struggling with that is linked to a goal?
+4.  **Connect the Dots:** Find connections between different data points. For example, "Aap 'Work' list pe kaafi focus kar rahe ho, which is great! But aapka 'Learn new skill' habit miss ho raha hai. Maybe schedule a 30-min focus session for learning this week?"
+
+**Example Insight:**
+"## 💡 Aapke liye kuch Insights!
+
+*   **Morning Productivity:** Great job! Aap subah ke time sabse zyada productive ho. Apne most important tasks ko subah ke liye schedule karna try karein. 👍
+*   **Work-Life Balance:** Maine notice kiya ki 'Work' tasks pe kaafi focus hai, lekin 'Personal' list mein tasks overdue ho rahe hain. Thoda time personal goals ke liye bhi nikaalein. Balance zaroori hai!
+*   **Habit Reminder:** Aapka 'Gym' habit pichle hafte thoda miss hua. Chota start karein, maybe just a 15-minute workout? You can do it! 💪"
+
+Today's date is ${new Date().toLocaleDateString()}.`;
+
+export const generateAnalyticsInsights = async (context: AIContext): Promise<AIServiceResponse<string>> => {
+    if (!process.env.API_KEY) {
+      throw new Error("Gemini API key is not configured.");
+    }
+    
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+
+    const summarizedContext = {
+        userName: context.profile.name,
+        goals: context.profile.traits.filter(t => t.type === 'goal').map(g => g.text),
+        recentCompletedTasks: context.tasks.filter(t => t.completed && t.dueDate && t.dueDate >= sevenDaysAgoStr).length,
+        overdueTasks: context.tasks.filter(t => !t.completed && !t.wontDo && !t.trashed && t.dueDate && t.dueDate < new Date().toISOString().split('T')[0]).length,
+        recentHabits: context.habits.map(h => ({
+            name: h.name,
+            recentCheckins: h.checkIns.filter(ci => ci >= sevenDaysAgoStr).length,
+        })),
+        recentFocusSessions: context.pomodoroSessions.slice(0, 5).map(s => ({ taskName: s.taskName, durationMins: Math.round((s.endTime - s.startTime) / 60000) })),
+    };
+
+    try {
+        const systemInstruction = analyticsInsightsSystemInstruction(context.profile.name);
+        const prompt = `Here is a summary of the user's recent activity:\n${JSON.stringify(summarizedContext)}\n\nGenerate personalized insights based on this data.`;
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: { systemInstruction },
+        });
+
+        const insightsText = response.text.trim();
+        if (!insightsText) {
+            throw new Error("The AI assistant couldn't generate any insights right now.");
+        }
+        
+        const tokensUsed = estimateTokens(systemInstruction) + estimateTokens(prompt) + estimateTokens(insightsText);
+        return { data: insightsText, tokensUsed };
+
+    } catch (error) {
+        console.error("Error generating analytics insights:", error);
+        throw new Error("Could not generate insights. Please try again later.");
     }
 };

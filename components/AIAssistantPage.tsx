@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Conversation, ChatMessage, Project, ProjectMemory } from '../types.ts';
-import { AIAssistantIcon, UserIcon, PlusIcon, TrashIcon, EditIcon, FolderIcon, FolderPlusIcon, ChevronDownIcon, MoveToListIcon, SettingsIcon, SearchIcon, LibraryIcon, CloseIcon, PlusCircleIcon, MicrophoneIcon, MoreIcon, ArchiveIcon, ReportIcon, ShareIcon } from './Icons.tsx';
-import { MarkdownRenderer } from './MarkdownRenderer.tsx';
-import { useChat } from '../contexts/ChatContext.tsx';
-import { useSettings } from '../contexts/SettingsContext.tsx';
-import useLocalStorage from '../hooks/useLocalStorage.ts';
-import { useData } from '../contexts/DataContext.tsx';
-import { ResizablePanel } from './ResizablePanel.tsx';
+import { Conversation, ChatMessage, Project, ProjectMemory } from '../types';
+// FIX: Added missing import for FolderPlusIcon.
+import { AIAssistantIcon, UserIcon, PlusIcon, TrashIcon, EditIcon, FolderIcon, FolderPlusIcon, ChevronDownIcon, MoveToListIcon, SettingsIcon, SearchIcon, LibraryIcon, CloseIcon, PlusCircleIcon, MicrophoneIcon, MoreIcon, ArchiveIcon, ReportIcon, ShareIcon } from './Icons';
+import { MarkdownRenderer } from './MarkdownRenderer';
+import { useChat } from '../contexts/ChatContext';
+import { useSettings } from '../contexts/SettingsContext';
+import useLocalStorage from '../hooks/useLocalStorage';
+import { useData } from '../contexts/DataContext';
+import { ResizablePanel } from './ResizablePanel';
 
 
 // --- Chat Bubble Component ---
@@ -199,8 +200,8 @@ export const AIAssistantPage: React.FC = () => {
         }
     };
 
-    const toggleSection = (sectionId: string) => {
-        setCollapsedSections(prev => ({ ...prev, [sectionId]: !prev[sectionId] }));
+    const toggleSection = (section: 'projects' | 'chats') => {
+        setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }));
     };
 
     const sortedConversations = useMemo(() => {
@@ -208,6 +209,7 @@ export const AIAssistantPage: React.FC = () => {
     }, [conversations]);
 
 
+    // FIX: Refactored to correctly access `name` or `title` property and avoid type errors.
     const renderSidebarItem = (item: Conversation | Project, type: 'chat' | 'project') => {
         const isProject = type === 'project';
         const isActive = isProject ? false : activeConversationId === item.id;
@@ -283,101 +285,88 @@ export const AIAssistantPage: React.FC = () => {
 
                     <div className="flex-1 overflow-y-auto mt-4 -mr-2 pr-2 space-y-3">
                         {/* Projects Section */}
-                        <div className="flex justify-between items-center px-2 py-1 group">
+                        <div className="flex justify-between items-center px-2 py-1">
                             <button onClick={() => toggleSection('projects')} className="flex items-center text-xs font-bold uppercase text-content-tertiary hover:text-content-primary">
                                 <ChevronDownIcon className={`h-4 w-4 mr-1 transition-transform ${collapsedSections['projects'] ? '-rotate-90' : ''}`} />
-                                <span>Projects</span>
+                                Projects
                             </button>
-                            <button onClick={() => setProjectModalOpen(true)} className="p-1 rounded text-content-tertiary hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => setProjectModalOpen(true)} className="p-1 rounded text-content-tertiary hover:text-primary">
                                 <FolderPlusIcon />
                             </button>
                         </div>
                         {!collapsedSections['projects'] && (
                             <div className="space-y-1">
-                                {projects.map(p => renderSidebarItem(p, 'project'))}
+                                {projects.map(p => (
+                                    <div key={p.id}>
+                                        {renderSidebarItem(p, 'project')}
+                                    </div>
+                                ))}
                             </div>
                         )}
-
+                        
                         {/* Chats Section */}
                         <div className="flex justify-between items-center px-2 py-1">
                             <button onClick={() => toggleSection('chats')} className="flex items-center text-xs font-bold uppercase text-content-tertiary hover:text-content-primary">
                                 <ChevronDownIcon className={`h-4 w-4 mr-1 transition-transform ${collapsedSections['chats'] ? '-rotate-90' : ''}`} />
-                                <span>Chats</span>
+                                Chats
                             </button>
                         </div>
                         {!collapsedSections['chats'] && (
                             <div className="space-y-1">
-                                {sortedConversations.filter(c => !c.projectId).map(c => renderSidebarItem(c, 'chat'))}
+                                {sortedConversations.map(c => renderSidebarItem(c, 'chat'))}
                             </div>
                         )}
-
-                        {/* Project-specific chats */}
-                        {projects.map(project => {
-                            const projectSectionId = `project-${project.id}`;
-                            return (
-                                <React.Fragment key={project.id}>
-                                    <div className="flex justify-between items-center px-2 py-1 group">
-                                        <button onClick={() => toggleSection(projectSectionId)} className="flex items-center text-xs font-bold uppercase text-content-tertiary hover:text-content-primary">
-                                            <ChevronDownIcon className={`h-4 w-4 mr-1 transition-transform ${collapsedSections[projectSectionId] ? '-rotate-90' : ''}`} />
-                                            <span>{project.name}</span>
-                                        </button>
-                                    </div>
-                                    {!collapsedSections[projectSectionId] && (
-                                        <div className="space-y-1 pl-2 border-l-2 border-border-primary ml-2">
-                                            {sortedConversations.filter(c => c.projectId === project.id).map(c => renderSidebarItem(c, 'chat'))}
-                                        </div>
-                                    )}
-                                </React.Fragment>
-                            );
-                        })}
                     </div>
                 </aside>
-
+                
                 {/* Main Chat Area */}
-                <main className="flex-1 flex flex-col h-full bg-background-primary">
+                <main className="flex-1 flex flex-col bg-background-primary h-full">
                     {activeConversation ? (
-                        <>
-                            <header className="p-4 flex justify-between items-center border-b border-border-primary flex-shrink-0">
-                                <h2 className="text-xl font-bold truncate">{activeConversation.title}</h2>
-                                {/* Header buttons can go here */}
+                         <>
+                            <header className="flex-shrink-0 p-4 border-b border-border-primary flex justify-between items-center">
+                                <div>
+                                    <h1 className="text-xl font-bold">{activeConversation.title}</h1>
+                                    {activeProject && <p className="text-xs text-content-secondary">{activeProject.name}</p>}
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <button className="p-2 text-content-secondary hover:text-primary rounded-full hover:bg-background-secondary"><ShareIcon/></button>
+                                    <button className="p-2 text-content-secondary hover:text-primary rounded-full hover:bg-background-secondary"><ArchiveIcon/></button>
+                                    <button className="p-2 text-content-secondary hover:text-primary rounded-full hover:bg-background-secondary"><ReportIcon/></button>
+                                </div>
                             </header>
-                            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                                {activeConversation.messages.map((msg) => (
-                                    <ChatBubble key={msg.id} message={msg} />
-                                ))}
-                                {isAILoading && <LoadingBubble />}
+                            <div className="flex-1 overflow-y-auto p-6">
+                                <div className="max-w-4xl mx-auto space-y-6">
+                                    {activeConversation.messages.map(message => (
+                                        <ChatBubble key={message.id} message={message} />
+                                    ))}
+                                    {isAILoading && <LoadingBubble />}
+                                </div>
                                 <div ref={messagesEndRef} />
                             </div>
-                            <footer className="p-4 flex-shrink-0">
-                                <form onSubmit={handleSubmit} className="relative">
-                                    <textarea
-                                        ref={textareaRef}
-                                        value={promptInput}
-                                        onChange={(e) => setPromptInput(e.target.value)}
-                                        onKeyDown={handleKeyDown}
-                                        placeholder={settings.enableAIFeatures ? "Message Aura..." : "AI features are disabled in settings"}
-                                        disabled={!settings.enableAIFeatures || isAILoading}
-                                        rows={1}
-                                        className="w-full bg-background-secondary border border-border-primary rounded-lg pl-12 pr-28 py-3 resize-none focus:outline-none focus:ring-2 focus:ring-primary text-content-primary"
-                                        style={{ maxHeight: '200px' }}
-                                    />
-                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center space-x-2">
-                                        <PlusCircleIcon className="h-6 w-6 text-content-secondary hover:text-primary cursor-pointer" />
-                                    </div>
-                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center space-x-2">
-                                         <MicrophoneIcon className="h-6 w-6 text-content-secondary hover:text-primary cursor-pointer" />
-                                        <button type="submit" disabled={!promptInput.trim() || isAILoading} className="p-2 bg-primary rounded-full text-white disabled:bg-background-tertiary disabled:text-content-tertiary">
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>
-                                        </button>
-                                    </div>
-                                </form>
+                            <footer className="flex-shrink-0 p-4">
+                                <div className="max-w-4xl mx-auto">
+                                    <form onSubmit={handleSubmit} className="relative bg-background-secondary rounded-xl p-2 flex items-end border border-transparent focus-within:border-primary">
+                                        <button type="button" className="p-3 text-content-secondary hover:text-primary"><PlusCircleIcon className="h-6 w-6" /></button>
+                                        <textarea
+                                            ref={textareaRef}
+                                            value={promptInput}
+                                            onChange={e => setPromptInput(e.target.value)}
+                                            onKeyDown={handleKeyDown}
+                                            placeholder={settings.enableAIFeatures ? "Ask Aura anything..." : "AI features are disabled in settings"}
+                                            disabled={!settings.enableAIFeatures || isAILoading}
+                                            className="flex-1 bg-transparent resize-none focus:outline-none max-h-48 text-content-primary p-2"
+                                            rows={1}
+                                        />
+                                        <button type="button" className="p-3 text-content-secondary hover:text-primary"><MicrophoneIcon className="h-6 w-6" /></button>
+                                    </form>
+                                </div>
                             </footer>
                         </>
                     ) : (
-                        <div className="flex flex-col items-center justify-center h-full text-center">
-                            <AIAssistantIcon className="h-16 w-16 text-content-tertiary mb-4" />
-                            <h2 className="text-2xl font-bold">Aura Assistant</h2>
-                            <p className="text-content-secondary">Select a conversation or start a new one.</p>
+                        <div className="flex flex-col items-center justify-center h-full text-center text-content-tertiary">
+                             <AIAssistantIcon className="h-16 w-16 text-primary mb-4" />
+                            <h2 className="text-2xl font-bold text-content-primary">AI Assistant</h2>
+                            <p>Select a chat or start a new one to begin.</p>
                         </div>
                     )}
                 </main>

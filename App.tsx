@@ -1,27 +1,26 @@
-
-
 import React, { useState, useEffect } from 'react';
-import { ActiveView } from './types.ts';
-import { Sidebar } from './components/Sidebar.tsx';
-import { TasksPage } from './components/TasksPage.tsx';
-import { HabitPage } from './components/HabitPage.tsx';
-import { PomodoroPage } from './components/PomodoroPage.tsx';
-import { AnalyticsPage } from './components/AnalyticsPage.tsx';
-import { ProfilePage } from './components/ProfilePage.tsx';
-import { AIAssistantPage } from './components/AIAssistantPage.tsx';
-import { EisenhowerMatrixPage } from './components/EisenhowerMatrixPage.tsx';
-import { CountdownPage } from './components/CountdownPage.tsx';
-import { CalendarPage } from './components/CalendarPage.tsx';
-import { LandingPage } from './components/auth/LandingPage.tsx';
-import { LoginPage } from './components/auth/LoginPage.tsx';
-import { SignupPage } from './components/auth/SignupPage.tsx';
-import { SettingsModal } from './components/settings/SettingsModal.tsx';
-import { useAuth } from './contexts/AuthContext.tsx';
-import { AppProviders } from './contexts/AppProviders.tsx';
+import { ActiveView } from './types';
+import { Sidebar } from './components/Sidebar';
+import { TasksPage } from './components/TasksPage';
+import { HabitPage } from './components/HabitPage';
+import { PomodoroPage } from './components/PomodoroPage';
+import { AnalyticsPage } from './components/AnalyticsPage';
+import { AchievementsPage } from './components/AchievementsPage';
+import { ProfilePage } from './components/ProfilePage';
+import { AIAssistantPage } from './components/AIAssistantPage';
+import { EisenhowerMatrixPage } from './components/EisenhowerMatrixPage';
+import { CountdownPage } from './components/CountdownPage';
+import { CalendarPage } from './components/CalendarPage';
+import { LandingPage } from './components/auth/LandingPage';
+import { LoginPage } from './components/auth/LoginPage';
+import { SignupPage } from './components/auth/SignupPage';
+import { SettingsModal } from './components/settings/SettingsModal';
+import { useAuth } from './contexts/AuthContext';
+import { AppProviders } from './contexts/AppProviders';
 // FIX: Import hooks to get data and pass it down to page components as props.
-import { useData } from './contexts/DataContext.tsx';
-import { useSettings } from './contexts/SettingsContext.tsx';
-import { useApiUsage } from './contexts/ApiUsageContext.tsx';
+import { useData } from './contexts/DataContext';
+import { useSettings } from './contexts/SettingsContext';
+import { useApiUsage } from './contexts/ApiUsageContext';
 
 const MainApp: React.FC = () => {
     const { isAuthenticated, authView, setAuthView, handleLogin, handleSignup } = useAuth();
@@ -42,6 +41,7 @@ const MainApp: React.FC = () => {
         handleAddCountdown,
         handleDeleteCountdown,
         handleUpdateTask,
+        handleReorderHabit,
     } = useData();
     const [settings] = useSettings();
     // FIX: `useApiUsage` returns a tuple. Use array destructuring to get `logApiCall`.
@@ -79,10 +79,11 @@ const MainApp: React.FC = () => {
         switch (activeView) {
             // FIX: Pass required props to page components.
             case 'tasks': return <TasksPage />;
-            case 'calendar': return <CalendarPage tasks={tasks} sessions={pomodoroSessions} lists={lists} />;
+            case 'calendar': return <CalendarPage tasks={tasks} sessions={pomodoroSessions} lists={lists} onUpdateTask={handleUpdateTask} />;
             case 'pomodoro': return <PomodoroPage sessions={pomodoroSessions} onAddSession={handleAddPomodoroSession} tasks={tasks} habits={habits} />;
-            case 'habits': return <HabitPage habits={habits} onToggleHabit={handleToggleHabit} onAddHabit={handleAddHabit} settings={settings} />;
-            case 'analytics': return <AnalyticsPage tasks={tasks} habits={habits} sessions={pomodoroSessions} lists={lists} profile={userProfile} settings={settings} apiUsage={apiUsage} logApiCall={logApiCall} />;
+            case 'habits': return <HabitPage habits={habits} onToggleHabit={handleToggleHabit} onAddHabit={handleAddHabit} settings={settings} onReorderHabit={handleReorderHabit} />;
+            case 'analytics': return <AnalyticsPage tasks={tasks} habits={habits} sessions={pomodoroSessions} lists={lists} profile={userProfile} settings={settings} apiUsage={apiUsage} logApiCall={logApiCall} setActiveView={setActiveView} />;
+            case 'achievements': return <AchievementsPage tasks={tasks} habits={habits} sessions={pomodoroSessions} />;
             case 'profile': return <ProfilePage profile={userProfile} onUpdateProfile={handleUpdateProfile} tasks={tasks} settings={settings} logApiCall={logApiCall} />;
             case 'ai-assistant': return <AIAssistantPage />;
             case 'eisenhower-matrix': return <EisenhowerMatrixPage tasks={tasks} />;

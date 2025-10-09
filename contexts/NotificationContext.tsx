@@ -1,5 +1,3 @@
-
-
 import React, { createContext, useContext, useCallback, useEffect } from 'react';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { Notification } from '../types';
@@ -18,7 +16,7 @@ interface NotificationContextType {
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { tasks, lists, habits, userProfile } = useData();
+    const { tasks, lists, habits, userProfile, pomodoroSessions } = useData();
     const [settings] = useSettings();
     const [, logApiCall] = useApiUsage();
 
@@ -74,7 +72,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             setLastAISuggestion(Date.now());
 
             try {
-                const context = { tasks, lists, habits, profile: userProfile };
+                const context = { tasks, lists, habits, profile: userProfile, pomodoroSessions };
                 const { data: suggestion, tokensUsed } = await getProactiveSuggestion(context);
                 logApiCall('proactiveSuggestions', tokensUsed);
 
@@ -90,7 +88,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         checkProactiveSuggestion();
         const intervalId = setInterval(checkProactiveSuggestion, 60 * 60 * 1000);
         return () => clearInterval(intervalId);
-    }, [tasks, lists, habits, userProfile, addNotification, lastAISuggestion, setLastAISuggestion, settings.enableAIFeatures, logApiCall]);
+    }, [tasks, lists, habits, userProfile, pomodoroSessions, addNotification, lastAISuggestion, setLastAISuggestion, settings.enableAIFeatures, logApiCall]);
 
 
     const value = { notifications, addNotification, markNotificationAsRead, clearAllNotifications };

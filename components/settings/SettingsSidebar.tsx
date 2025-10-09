@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { AccountIcon, PremiumIcon, FeaturesIcon, SmartListIcon, NotificationsIcon, DateTimeIcon, AppearanceIcon, MoreIcon, IntegrationsIcon, CollaborateIcon, StickyNoteIcon, DesktopWidgetsIcon, ShortcutsIcon, AboutIcon } from '../Icons.tsx';
+import { AccountIcon, TrophyIcon, FeaturesIcon, SmartListIcon, NotificationsIcon, DateTimeIcon, AppearanceIcon, MoreIcon, IntegrationsIcon, CollaborateIcon, StickyNoteIcon, DesktopWidgetsIcon, ShortcutsIcon, AboutIcon } from '../Icons';
 
 type SettingsPanel = 'account' | 'features' | 'smartList' | 'notifications' | 'dateTime' | 'appearance' | 'shortcuts';
 
@@ -29,7 +29,7 @@ const SidebarItem: React.FC<{
 export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ activePanel, setActivePanel }) => {
     const panels = [
         { id: 'account', label: 'Account', icon: <AccountIcon /> },
-        { id: 'premium', label: 'Premium', icon: <PremiumIcon />, disabled: true },
+        { id: 'premium', label: 'Premium', icon: <TrophyIcon />, disabled: true },
         { id: 'features', label: 'Features', icon: <FeaturesIcon /> },
         { id: 'smartList', label: 'Smart List', icon: <SmartListIcon /> },
         { id: 'notifications', label: 'Notifications', icon: <NotificationsIcon /> },

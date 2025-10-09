@@ -1,18 +1,20 @@
+
+
 import React, { useState, useMemo } from 'react';
-import { Habit } from '../types.ts';
-import { HabitStatsPanel } from './HabitStatsPanel.tsx';
-import { CreateHabitModal } from './CreateHabitModal.tsx';
-import { Settings } from '../hooks/useSettings.ts';
-import { ResizablePanel } from './ResizablePanel.tsx';
+import { Habit } from '../types';
+import { HabitStatsPanel } from './HabitStatsPanel';
+import { CreateHabitModal } from './CreateHabitModal';
+import { Settings } from '../hooks/useSettings';
+import { ResizablePanel } from './ResizablePanel';
+import { CircularProgress } from './CircularProgress';
 
 interface HabitPageProps {
   habits: Habit[];
   onToggleHabit: (habitId: string, date: string) => void;
   onAddHabit: (habitData: { name: string; icon: string; period: 'Morning' | 'Afternoon' | 'Night' }) => void;
   settings: Settings;
+  onReorderHabit: (draggedId: string, targetId: string) => void;
 }
-
-const dayShortNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 // Helper to get a timezone-safe YYYY-MM-DD string from a Date object
 const toYYYYMMDD = (date: Date): string => {
@@ -22,61 +24,106 @@ const toYYYYMMDD = (date: Date): string => {
     return `${year}-${month}-${day}`;
 };
 
-const WeeklyCalendarHeader: React.FC<{ startWeekOn: Settings['startWeekOn'] }> = ({ startWeekOn }) => {
-    const today = new Date();
-    const startDayIndex = startWeekOn === 'monday' ? 1 : 0; // 0 for Sunday, 1 for Monday
-
-    const dayHeaders = useMemo(() => {
-        const headers = [...dayShortNames];
-        if (startWeekOn === 'monday') {
-            headers.push(headers.shift()!); // Move Sunday to the end
-        }
-        return headers;
-    }, [startWeekOn]);
+const DailyProgressHeader: React.FC<{
+    habits: Habit[];
+    selectedDate: string | null;
+    onDateSelect: (date: string) => void;
+}> = ({ habits, selectedDate, onDateSelect }) => {
+    const today = useMemo(() => new Date(), []);
     
-    // Calculate the day of the week, adjusted for the start day
-    const currentDayOfWeek = today.getDay(); // 0 for Sunday
-    const adjustedDayOfWeek = (currentDayOfWeek - startDayIndex + 7) % 7;
-
-    const dates = Array.from({ length: 7 }).map((_, i) => {
-        const d = new Date();
-        d.setDate(today.getDate() - adjustedDayOfWeek + i);
-        return d;
-    });
+    const dayCardsData = useMemo(() => {
+        return Array.from({ length: 7 }).map((_, i) => {
+            const d = new Date(today);
+            d.setDate(today.getDate() - (6 - i));
+            const dateStr = toYYYYMMDD(d);
+            
+            const checkInsOnThisDay = habits.filter(h => h.checkIns.includes(dateStr)).length;
+            const progress = habits.length > 0 ? Math.round((checkInsOnThisDay / habits.length) * 100) : 0;
+            
+            return { date: d, dateStr, progress };
+        });
+    }, [today, habits]);
 
     return (
         <div className="flex justify-between items-center mb-6">
-            {dates.map((date, index) => (
-                <div key={index} className="text-center w-12">
-                    <p className="text-xs text-content-secondary">{dayHeaders[index]}</p>
-                    <div className={`mt-2 w-8 h-8 flex items-center justify-center rounded-full mx-auto ${date.toDateString() === today.toDateString() ? 'bg-primary text-white font-bold' : ''}`}>
-                        {date.getDate()}
+            {dayCardsData.map(({ date, dateStr, progress }) => {
+                const isSelected = selectedDate === dateStr;
+                const isToday = toYYYYMMDD(today) === dateStr;
+                const dayName = date.toLocaleDateString(undefined, { weekday: 'short' });
+
+                return (
+                    <div
+                        key={dateStr}
+                        onClick={() => onDateSelect(dateStr)}
+                        className={`text-center p-3 rounded-lg cursor-pointer transition-colors ${isSelected ? 'bg-primary/20' : 'hover:bg-background-tertiary'}`}
+                    >
+                        <p className={`text-sm mb-2 ${isSelected ? 'text-primary' : 'text-content-secondary'}`}>{dayName}</p>
+                        <p className={`font-semibold mb-3 ${isToday && !isSelected ? 'text-primary' : ''}`}>{date.getDate()}</p>
+                        <div className="relative w-10 h-10 mx-auto">
+                            {progress === 100 ? (
+                                <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                </div>
+                            ) : (
+                                <CircularProgress size={40} strokeWidth={4} progress={progress} />
+                            )}
+                        </div>
                     </div>
-                </div>
-            ))}
+                );
+            })}
         </div>
     );
 };
+
 
 const HabitItem: React.FC<{
     habit: Habit;
     onToggleHabit: (habitId: string, date: string) => void;
     onSelect: (habitId: string) => void;
     isSelected: boolean;
-    startWeekOn: Settings['startWeekOn'];
-}> = ({ habit, onToggleHabit, onSelect, isSelected, startWeekOn }) => {
-    // Display a rolling 7-day history ending today.
-    const dates = Array.from({ length: 7 }).map((_, i) => {
+    selectedDate: string | null;
+    onDragStart: () => void;
+    onDrop: () => void;
+    onDragEnter: () => void;
+    onDragEnd: () => void;
+    isDropTarget: boolean;
+}> = ({ habit, onToggleHabit, onSelect, isSelected, selectedDate, onDragStart, onDrop, onDragEnter, onDragEnd, isDropTarget }) => {
+    // Display a rolling 8-day history ending today.
+    const dates = useMemo(() => Array.from({ length: 8 }).map((_, i) => {
         const d = new Date();
-        d.setDate(d.getDate() - (6 - i)); // 6-i results in a sequence from 6 days ago to today
+        d.setDate(d.getDate() - (7 - i)); // 7-i results in a sequence from 7 days ago to today
         return toYYYYMMDD(d);
-    });
+    }), []);
+    
+    const CheckButton: React.FC<{ date: string }> = ({ date }) => {
+        const isChecked = habit.checkIns.includes(date);
+        return (
+             <button 
+                key={date}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleHabit(habit.id, date);
+                }}
+                className={`w-8 h-8 rounded-full transition-colors flex items-center justify-center font-bold ${isChecked ? 'bg-primary hover:bg-primary-focus' : 'bg-background-tertiary hover:bg-background-primary'}`}
+                aria-label={`Check in for ${habit.name} on ${date}`}
+            >
+                {isChecked && <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+            </button>
+        );
+    };
 
     return (
         <div
+            draggable
+            onDragStart={onDragStart}
+            onDrop={onDrop}
+            onDragEnter={onDragEnter}
+            onDragEnd={onDragEnd}
+            onDragOver={(e) => e.preventDefault()}
             onClick={() => onSelect(habit.id)}
-            className={`flex items-center p-4 bg-background-secondary rounded-lg cursor-pointer transition-all border-l-4 ${isSelected ? 'bg-background-tertiary border-primary' : 'border-transparent hover:bg-background-tertiary/80'}`}
+            className={`relative flex items-center p-4 bg-background-secondary rounded-lg cursor-pointer transition-all border-l-4 ${isSelected ? 'bg-primary/10 border-primary' : 'border-transparent'}`}
         >
+            {isDropTarget && <div className="absolute top-0 left-0 right-0 h-1 bg-primary rounded-full z-10" />}
             <div className="flex items-center w-2/5">
                 <span className="text-2xl mr-4">{habit.icon}</span>
                 <div>
@@ -84,23 +131,12 @@ const HabitItem: React.FC<{
                     <p className="text-xs text-content-secondary">{habit.totalDays} Days · 🔥 {habit.streak} Day</p>
                 </div>
             </div>
-            <div className="flex-1 flex justify-between items-center">
-                 {dates.map(date => {
-                    const isChecked = habit.checkIns.includes(date);
-                    return (
-                        <button 
-                            key={date}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onToggleHabit(habit.id, date);
-                            }}
-                            className={`w-8 h-8 rounded-full transition-colors ${isChecked ? 'bg-primary' : 'bg-background-tertiary hover:bg-primary/50'}`}
-                            aria-label={`Check in for ${habit.name} on ${date}`}
-                        >
-                            {isChecked && '✔'}
-                        </button>
-                    )
-                 })}
+            <div className={`flex-1 flex items-center ${selectedDate ? 'justify-end' : 'justify-between'}`}>
+                {selectedDate ? (
+                    <CheckButton date={selectedDate} />
+                ) : (
+                    dates.map(date => <CheckButton key={date} date={date} />)
+                )}
             </div>
         </div>
     );
@@ -113,10 +149,36 @@ const ChevronIcon: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) => (
 );
 
 
-export const HabitPage: React.FC<HabitPageProps> = ({ habits, onToggleHabit, onAddHabit, settings }) => {
+export const HabitPage: React.FC<Omit<HabitPageProps, 'onReorderHabit'> & {onReorderHabit: (draggedId: string, targetId: string) => void}> = ({ habits, onToggleHabit, onAddHabit, settings, onReorderHabit }) => {
   const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
   const [collapsedPeriods, setCollapsedPeriods] = useState<Record<string, boolean>>({});
+  
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  
+  const handleDateSelect = (dateStr: string) => {
+    setSelectedDate(prev => prev === dateStr ? null : dateStr);
+  };
+
+  const handleDragStart = (id: string) => setDraggedId(id);
+  const handleDragEnter = (id: string) => { if (id !== draggedId) setDropTargetId(id); };
+  const handleDrop = () => {
+    if (draggedId && dropTargetId) {
+        const draggedHabit = habits.find(h => h.id === draggedId);
+        const targetHabit = habits.find(h => h.id === dropTargetId);
+        if (draggedHabit && targetHabit && draggedHabit.period === targetHabit.period) {
+            onReorderHabit(draggedId, dropTargetId);
+        }
+    }
+    setDraggedId(null);
+    setDropTargetId(null);
+  };
+  const handleDragEnd = () => {
+    setDraggedId(null);
+    setDropTargetId(null);
+  };
 
   const handleSelectHabit = (habitId: string) => {
     setSelectedHabitId(prevId => (prevId === habitId ? null : habitId));
@@ -145,8 +207,8 @@ export const HabitPage: React.FC<HabitPageProps> = ({ habits, onToggleHabit, onA
 
   return (
     <>
-      <ResizablePanel storageKey="habit-stats-width" panelSide="right" initialWidth={400} minWidth={320} maxWidth={600}>
-        <HabitStatsPanel habits={habits} selectedHabit={selectedHabit} />
+      <ResizablePanel storageKey="habit-stats-width" panelSide="right" initialWidth={480} minWidth={320} maxWidth={600}>
+        <HabitStatsPanel habits={habits} selectedHabit={selectedHabit} onToggleHabit={onToggleHabit} />
         <div className="p-8 overflow-y-auto h-full">
             <div className="flex justify-between items-center mb-4">
                 <h1 className="text-3xl font-bold text-content-primary">Habit</h1>
@@ -158,7 +220,12 @@ export const HabitPage: React.FC<HabitPageProps> = ({ habits, onToggleHabit, onA
                     <span>Create Habit</span>
                 </button>
             </div>
-            <WeeklyCalendarHeader startWeekOn={settings.startWeekOn} />
+            
+            <DailyProgressHeader 
+                habits={habits}
+                selectedDate={selectedDate}
+                onDateSelect={handleDateSelect}
+            />
 
             <div className="space-y-8">
                 {(['Morning', 'Afternoon', 'Night'] as const).map((period) => {
@@ -181,7 +248,12 @@ export const HabitPage: React.FC<HabitPageProps> = ({ habits, onToggleHabit, onA
                                             onToggleHabit={onToggleHabit}
                                             onSelect={handleSelectHabit}
                                             isSelected={selectedHabitId === habit.id}
-                                            startWeekOn={settings.startWeekOn}
+                                            selectedDate={selectedDate}
+                                            onDragStart={() => handleDragStart(habit.id)}
+                                            onDrop={handleDrop}
+                                            onDragEnter={() => handleDragEnter(habit.id)}
+                                            onDragEnd={handleDragEnd}
+                                            isDropTarget={dropTargetId === habit.id}
                                         />
                                     ))}
                                 </div>

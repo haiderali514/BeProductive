@@ -1,10 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { Task, Priority, Subtask, Recurrence } from '../types.ts';
-import { PRIORITY_COLORS, PRIORITY_BG_COLORS } from '../constants.ts';
-import { RecurrencePicker } from './RecurrencePicker.tsx';
-import { MagicIcon, SubtaskIcon, WontDoIcon } from './Icons.tsx';
-import { Settings } from '../hooks/useSettings.ts';
-import { Checkbox } from './Checkbox.tsx';
+import { Task, Priority, Subtask, Recurrence } from '../types';
+import { PRIORITY_COLORS, PRIORITY_BG_COLORS } from '../constants';
+import { RecurrencePicker } from './RecurrencePicker';
+import { MagicIcon, SubtaskIcon, WontDoIcon } from './Icons';
+import { Settings } from '../hooks/useSettings';
+import { Checkbox } from './Checkbox';
 
 interface TaskItemProps {
   task: Task;
@@ -20,6 +20,11 @@ interface TaskItemProps {
   onSelect: (taskId: string) => void;
   isSelected: boolean;
   settings: Settings;
+  onDragStart: () => void;
+  onDrop: () => void;
+  onDragEnter: () => void;
+  onDragEnd: () => void;
+  isDropTarget: boolean;
 }
 
 const RepeatIcon: React.FC<{className?: string}> = ({ className }) => (
@@ -29,7 +34,7 @@ const RepeatIcon: React.FC<{className?: string}> = ({ className }) => (
 );
 
 
-export const TaskItem: React.FC<TaskItemProps> = ({ task, onToggleComplete, onToggleSubtaskComplete, onDelete, onGenerateSubtasks, onSetRecurrence, onWontDo, onRestore, onPermanentDelete, aiEnabled, onSelect, isSelected, settings }) => {
+export const TaskItem: React.FC<TaskItemProps> = ({ task, onToggleComplete, onToggleSubtaskComplete, onDelete, onGenerateSubtasks, onSetRecurrence, onWontDo, onRestore, onPermanentDelete, aiEnabled, onSelect, isSelected, settings, onDragStart, onDrop, onDragEnter, onDragEnd, isDropTarget }) => {
     const [isGenerating, setIsGenerating] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showRecurrencePicker, setShowRecurrencePicker] = useState(false);
@@ -77,8 +82,15 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, onToggleComplete, onTo
     
     return (
         <div 
+            draggable={!task.isSection && !task.trashed && !task.wontDo}
+            onDragStart={onDragStart}
+            onDrop={onDrop}
+            onDragEnter={onDragEnter}
+            onDragEnd={onDragEnd}
+            onDragOver={(e) => e.preventDefault()}
             onClick={() => onSelect(task.id)}
-            className={`group p-3 rounded-lg transition-colors duration-200 border-l-4 ${PRIORITY_COLORS[task.priority]} ${isSelected ? 'bg-primary/10' : 'bg-background-secondary hover:bg-background-tertiary cursor-pointer'}`}>
+            className={`relative group p-3 rounded-lg transition-colors duration-200 border-l-4 ${PRIORITY_COLORS[task.priority]} ${isSelected ? 'bg-primary/10' : 'bg-background-secondary hover:bg-background-tertiary cursor-pointer'}`}>
+            {isDropTarget && <div className="absolute top-0 left-0 right-0 h-1 bg-primary rounded-full z-10" />}
             <div className="flex items-start">
                 {task.wontDo ? (
                     <div className="w-5 h-5 flex items-center justify-center flex-shrink-0 text-content-tertiary">

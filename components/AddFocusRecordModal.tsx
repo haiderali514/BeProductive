@@ -1,8 +1,8 @@
 
 
 import React, { useState, useEffect } from 'react';
-import { Task, Habit, PomodoroSession } from '../types.ts';
-import { DateTimePicker } from './DateTimePicker.tsx';
+import { Task, Habit, PomodoroSession } from '../types';
+import { DateTimePicker } from './DateTimePicker';
 
 interface AddFocusRecordModalProps {
     isOpen: boolean;

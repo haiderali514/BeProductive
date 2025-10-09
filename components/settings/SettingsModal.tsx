@@ -1,17 +1,17 @@
 
 
 import React, { useState } from 'react';
-import { useSettings } from '../../contexts/SettingsContext.tsx';
-import { useApiUsage } from '../../contexts/ApiUsageContext.tsx';
-import { useAuth } from '../../contexts/AuthContext.tsx';
-import { SettingsSidebar } from './SettingsSidebar.tsx';
-import { AccountSettings } from './AccountSettings.tsx';
-import { FeaturesSettings } from './FeaturesSettings.tsx';
-import { NotificationsSettings } from './NotificationsSettings.tsx';
-import { DateTimeSettings } from './DateTimeSettings.tsx';
-import { AppearanceSettings } from './AppearanceSettings.tsx';
-import { ShortcutsSettings } from './ShortcutsSettings.tsx';
-import { SmartListSettings } from './SmartListSettings.tsx';
+import { useSettings } from '../../contexts/SettingsContext';
+import { useApiUsage } from '../../contexts/ApiUsageContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { SettingsSidebar } from './SettingsSidebar';
+import { AccountSettings } from './AccountSettings';
+import { FeaturesSettings } from './FeaturesSettings';
+import { NotificationsSettings } from './NotificationsSettings';
+import { DateTimeSettings } from './DateTimeSettings';
+import { AppearanceSettings } from './AppearanceSettings';
+import { ShortcutsSettings } from './ShortcutsSettings';
+import { SmartListSettings } from './SmartListSettings';
 
 interface SettingsModalProps {
     isOpen: boolean;

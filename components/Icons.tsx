@@ -7,8 +7,15 @@ const Icon: React.FC<{ children: React.ReactNode, className?: string }> = ({ chi
     </svg>
 );
 
+const SolidIcon: React.FC<{ children: React.ReactNode, className?: string }> = ({ children, className="h-5 w-5" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor">
+        {children}
+    </svg>
+);
+
+
 export const AccountIcon = () => <Icon><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></Icon>;
-export const PremiumIcon: React.FC<{className?: string}> = ({className}) => <Icon className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></Icon>;
+export const TrophyIcon: React.FC<{className?: string}> = ({className}) => <Icon className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></Icon>;
 export const FeaturesIcon = () => <Icon><path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></Icon>;
 export const SmartListIcon = () => <Icon><path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" /></Icon>;
 export const NotificationsIcon = () => <Icon><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></Icon>;
@@ -42,6 +49,8 @@ export const PlusCircleIcon: React.FC<{ className?: string }> = ({ className }) 
     </svg>
 );
 export const MoonIcon: React.FC<{className?: string}> = ({className}) => <Icon className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></Icon>;
+export const SunIcon: React.FC<{className?: string}> = ({className}) => <Icon className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M12 5a7 7 0 100 14 7 7 0 000-14z" /></Icon>;
+export const SparklesIcon: React.FC<{className?: string}> = ({className}) => <Icon className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></Icon>;
 
 
 // Icons moved from Sidebar
@@ -123,3 +132,18 @@ export const SummaryIcon = () => <Icon><path strokeLinecap="round" strokeLinejoi
 export const CompletedIcon = () => <Icon><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></Icon>;
 // FIX: Update FiltersIcon to accept a className prop to fix an error where it was being used with a className but didn't accept one.
 export const FiltersIcon: React.FC<{ className?: string }> = ({ className }) => <Icon className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" /></Icon>;
+
+
+// --- NEW ICONS FOR HABIT STATS ---
+export const ArrowsRightLeftIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={className || 'w-4 h-4'}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h18m-7.5-12L21 9m0 0L16.5 4.5M21 9H3" />
+    </svg>
+);
+
+export const BrainIcon: React.FC<{ className?: string }> = ({ className }) => <Icon className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M4.871 14.143c-1.358-1.358-1.358-3.56 0-4.918l.004-.004a3.48 3.48 0 014.918 0L12 11.5l2.207-2.279a3.48 3.48 0 014.918 0l.004.004c1.358 1.358 1.358 3.56 0 4.918l-7.293 7.293a1 1 0 01-1.414 0L4.87 14.143zM12 3a2.99 2.99 0 012.121.879l4 4A2.99 2.99 0 0119 10v4a2.99 2.99 0 01-.879 2.121l-4 4A2.99 2.99 0 0112 21a2.99 2.99 0 01-2.121-.879l-4-4A2.99 2.99 0 015 14v-4a2.99 2.99 0 01.879-2.121l4-4A2.99 2.99 0 0112 3z" /></Icon>;
+export const PuzzleIcon: React.FC<{ className?: string }> = ({ className }) => <Icon className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" /></Icon>;
+export const CheckCircleSolidIcon: React.FC<{className?: string}> = ({className}) => <SolidIcon className={className}><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></SolidIcon>;
+export const BoltSolidIcon: React.FC<{className?: string}> = ({className}) => <SolidIcon className={className}><path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5.293l6.293-6.293a1 1 0 111.414 1.414L13.414 8.5H18a1 1 0 01.894 1.447l-8 10A1 1 0 019 18v-5.293l-6.293 6.293a1 1 0 01-1.414-1.414L7.586 11.5H3a1 1 0 01-.894-1.447l8-10A1 1 0 0111.3 1.046z" clipRule="evenodd" /></SolidIcon>;
+export const FireSolidIcon: React.FC<{className?: string}> = ({className}) => <SolidIcon className={className}><path fillRule="evenodd" d="M12.965 2.522a.75.75 0 01.063.878A23.96 23.96 0 0110.5 16.5c-2.113 0-4.102-.6-5.835-1.656a.75.75 0 01-.708-1.22A25.433 25.433 0 0012.965 2.522zM10.5 18c-3.032 0-5.822-1.21-7.84-3.142a.75.75 0 01.927-1.171A21.53 21.53 0 0010.5 16.5c1.929 0 3.758-.42 5.437-1.156a.75.75 0 01.76 1.18A23.04 23.04 0 0110.5 18z" clipRule="evenodd" /></SolidIcon>;
+export const ChartPieSolidIcon: React.FC<{className?: string}> = ({className}) => <SolidIcon className={className}><path d="M10 3.5A1.5 1.5 0 0111.5 2h.098a1.5 1.5 0 011.085.46l4.43 4.43a1.5 1.5 0 01.46 1.085v.098A1.5 1.5 0 0116 9.5h-3.5a1.5 1.5 0 01-1.5-1.5V3.5z" /><path d="M9 3.5a1.5 1.5 0 00-1.5 1.5v9A1.5 1.5 0 009 15.5h3.879a1.5 1.5 0 011.06.44l3.122 3.12A1.5 1.5 0 0116 20.121V9.5A1.5 1.5 0 0014.5 8h-5A1.5 1.5 0 018 6.5v-3A1.5 1.5 0 006.5 2H3.879a1.5 1.5 0 01-1.06-.44L-.293-.56A1.5 1.5 0 010-1.621V6.5A1.5 1.5 0 001.5 8h5A1.5 1.5 0 018 9.5v5A1.5 1.5 0 009.5 16h.379a1.5 1.5 0 011.06.44l3.122 3.12A1.5 1.5 0 0015 20.121V16.5A1.5 1.5 0 0013.5 15H9.5A1.5 1.5 0 008 13.5v-3A1.5 1.5 0 019.5 9H16a1.5 1.5 0 001.5-1.5V3.879a1.5 1.5 0 01-.44-1.06L17.58.293a1.5 1.5 0 011.621 0l-5.656 5.657a1.5 1.5 0 01-1.061.44H9.5A1.5 1.5 0 018 5V3.5A1.5 1.5 0 019.5 2h.5z" transform="translate(1.5 -1)"/></SolidIcon>;

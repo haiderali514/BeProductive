@@ -1,10 +1,10 @@
 
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { PomodoroSession, Task, Habit } from '../types.ts';
-import { TaskSelectorPopover } from './TaskSelectorPopover.tsx';
-import { AddFocusRecordModal } from './AddFocusRecordModal.tsx';
-import { ResizablePanel } from './ResizablePanel.tsx';
+import { PomodoroSession, Task, Habit } from '../types';
+import { TaskSelectorPopover } from './TaskSelectorPopover';
+import { AddFocusRecordModal } from './AddFocusRecordModal';
+import { ResizablePanel } from './ResizablePanel';
 
 interface PomodoroPageProps {
     sessions: PomodoroSession[];
@@ -76,10 +76,34 @@ const FocusOverview: React.FC<{ sessions: PomodoroSession[]; onAddManual: () => 
         <div className="p-6 flex flex-col h-full">
             <h2 className="text-xl font-bold mb-4">Overview</h2>
             <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="bg-background-tertiary p-4 rounded-lg"><p className="text-sm text-content-secondary">Today's Pomos</p><p className="text-lg font-bold">{todayPomos}</p></div>
-                <div className="bg-background-tertiary p-4 rounded-lg"><p className="text-sm text-content-secondary">Today's Focus</p><p className="text-lg font-bold">{todayDuration}</p></div>
-                <div className="bg-background-tertiary p-4 rounded-lg"><p className="text-sm text-content-secondary">Total Pomos</p><p className="text-lg font-bold">{totalPomos}</p></div>
-                <div className="bg-background-tertiary p-4 rounded-lg"><p className="text-sm text-content-secondary">Total Focus</p><p className="text-lg font-bold">{totalDuration}</p></div>
+                <div className="bg-background-tertiary p-4 rounded-lg min-h-[110px]">
+                    <div className="h-8">
+                        <p className="text-sm text-content-secondary truncate">Today's Pomo</p>
+                    </div>
+                    <p className="text-2xl font-bold text-content-primary truncate">{todayPomos}</p>
+                    <div className="h-4"></div>
+                </div>
+                <div className="bg-background-tertiary p-4 rounded-lg min-h-[110px]">
+                    <div className="h-8">
+                        <p className="text-sm text-content-secondary truncate">Today's Focus</p>
+                    </div>
+                    <p className="text-2xl font-bold text-content-primary truncate">{todayDuration}</p>
+                    <div className="h-4"></div>
+                </div>
+                <div className="bg-background-tertiary p-4 rounded-lg min-h-[110px]">
+                    <div className="h-8">
+                        <p className="text-sm text-content-secondary truncate">Total Pomo</p>
+                    </div>
+                    <p className="text-2xl font-bold text-content-primary truncate">{totalPomos}</p>
+                    <div className="h-4"></div>
+                </div>
+                <div className="bg-background-tertiary p-4 rounded-lg min-h-[110px]">
+                    <div className="h-8">
+                        <p className="text-sm text-content-secondary truncate">Total Focus Duration</p>
+                    </div>
+                    <p className="text-2xl font-bold text-content-primary truncate">{totalDuration}</p>
+                    <div className="h-4"></div>
+                </div>
             </div>
             <div className="flex justify-between items-center mb-4">
                 <h3 className="font-bold">Focus Record</h3>
@@ -291,11 +315,12 @@ export const PomodoroPage: React.FC<PomodoroPageProps> = ({ sessions, onAddSessi
                              <div className="flex space-x-4">
                                 {isPaused ? (
                                     <>
-                                        <button onClick={handleContinue} className="px-10 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary-focus transition-colors">Continue</button>
-                                        <button onClick={() => handleEnd(false)} className="px-10 py-3 bg-background-tertiary text-content-primary rounded-lg font-semibold hover:bg-border-primary transition-colors">End</button>
+                                        <button onClick={handleContinue} className="px-10 py-3 bg-primary text-white rounded-full font-semibold hover:bg-primary-focus transition-colors">Continue</button>
+                                        {/* FIX: Wrap handleEnd in an arrow function to prevent passing the event object as the first argument, which caused a type error. */}
+                                        <button onClick={() => handleEnd(false)} className="px-10 py-3 bg-transparent border-2 border-primary text-primary rounded-full font-semibold hover:bg-primary/10 transition-colors">End</button>
                                     </>
                                 ) : (
-                                     <button onClick={handlePause} className="px-16 py-4 bg-primary text-white rounded-lg font-semibold text-lg hover:bg-primary-focus transition-colors">Pause</button>
+                                     <button onClick={handlePause} className="px-16 py-4 bg-transparent border-2 border-primary text-primary rounded-full font-semibold text-lg hover:bg-primary/10 transition-colors">Pause</button>
                                 )}
                              </div>
                         </>
@@ -324,7 +349,7 @@ export const PomodoroPage: React.FC<PomodoroPageProps> = ({ sessions, onAddSessi
                                 <h2 className="text-7xl font-mono text-content-primary">{formatTime(timeRemaining)}</h2>
                             </div>
                             
-                            <button onClick={handleStart} className="px-16 py-4 bg-primary text-white rounded-lg font-semibold text-lg hover:bg-primary-focus transition-colors">
+                            <button onClick={handleStart} className="px-16 py-4 bg-primary text-white rounded-full font-semibold text-lg hover:bg-primary-focus transition-colors">
                                 Start
                             </button>
                         </>

@@ -112,7 +112,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
             : undefined;
 
         try {
-            const context: AIContext = { tasks, lists, habits, profile: userProfile };
+            const context: AIContext = { tasks, lists, habits, profile: userProfile, pomodoroSessions };
             const { data: response, tokensUsed: firstCallTokens } = await chatWithAssistant(historyForAPI, context, projectInstruction);
             let totalTokens = firstCallTokens;
             let finalModelMessage: ChatMessage;
@@ -144,7 +144,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
                 
                 // ... logic to call chatWithAssistant again with function responses ...
-                const refreshedContext: AIContext = { ...context, profile: userProfile }; // re-fetch profile after potential update
+                const refreshedContext: AIContext = { ...context, profile: userProfile, pomodoroSessions }; // re-fetch profile after potential update
                 const finalResponse = await chatWithAssistant([...historyForAPI, response.candidates![0].content, {role: 'user', parts: [{functionResponse: {name: 'tool_response', response: {responses: functionResponses}}}]}], refreshedContext, projectInstruction);
                 totalTokens += finalResponse.tokensUsed;
                 finalModelMessage = { id: Date.now().toString() + '-final', role: 'model', parts: [{ text: finalResponse.data.text ?? "OK." }] };

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { List, Task, Tag, Filter, Priority } from '../types';
 import { Settings, SmartListVisibility } from '../hooks/useSettings';
-import { AllTasksIcon, TodayIcon, TomorrowIcon, Next7DaysIcon, AssignedToMeIcon, InboxIcon, SummaryIcon, CompletedIcon, TrashIcon, MoreIcon, PremiumIcon, PinIcon, EditIcon, DuplicateIcon, ShareIcon, ArchiveIcon, PlusIcon, ChevronDownIcon, WontDoIcon, TagIcon, FiltersIcon } from './Icons';
+import { AllTasksIcon, TodayIcon, TomorrowIcon, Next7DaysIcon, AssignedToMeIcon, InboxIcon, SummaryIcon, CompletedIcon, TrashIcon, MoreIcon, TrophyIcon, PinIcon, EditIcon, DuplicateIcon, ShareIcon, ArchiveIcon, PlusIcon, ChevronDownIcon, WontDoIcon, TagIcon, FiltersIcon } from './Icons';
 import { Popover } from './Popover';
 import { useData } from '../contexts/DataContext';
 import { EditListModal } from './EditListModal';
@@ -51,9 +51,24 @@ const SidebarListItem: React.FC<{
     count?: number;
     color?: string;
     moreMenu?: React.ReactNode;
-}> = ({ isActive, onClick, icon, label, count, color, moreMenu }) => {
+    isDraggable?: boolean;
+    onDragStart?: () => void;
+    onDrop?: () => void;
+    onDragEnter?: () => void;
+    onDragEnd?: () => void;
+    isDropTarget?: boolean;
+}> = ({ isActive, onClick, icon, label, count, color, moreMenu, isDraggable, onDragStart, onDrop, onDragEnter, onDragEnd, isDropTarget }) => {
     return (
-        <div className="relative group">
+        <div 
+            className="relative group"
+            draggable={isDraggable}
+            onDragStart={onDragStart}
+            onDrop={onDrop}
+            onDragEnter={onDragEnter}
+            onDragEnd={onDragEnd}
+            onDragOver={isDraggable ? (e) => e.preventDefault() : undefined}
+        >
+            {isDropTarget && <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary rounded-full z-10" />}
             <button
                 onClick={onClick}
                 className={`w-full flex items-center px-3 py-2 rounded-md text-sm transition-colors ${
@@ -104,14 +119,31 @@ export const TasksSidebar: React.FC<TasksSidebarProps> = ({ lists, tasks, tags, 
     const [isAddTagModalOpen, setAddTagModalOpen] = useState(false);
     const [isAddFilterModalOpen, setAddFilterModalOpen] = useState(false);
     const [listToEdit, setListToEdit] = useState<List | null>(null);
-    const { handleUpdateList, handleDeleteList } = useData();
+    const { handleUpdateList, handleDeleteList, handleReorderList } = useData();
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const [collapsedSections, setCollapsedSections] = useLocalStorage<Record<string, boolean>>(
         'sidebar_collapsed_sections',
         { lists: false, filters: false, tags: false }
     );
     
+    const [draggedId, setDraggedId] = useState<string | null>(null);
+    const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+
     const menuTriggersRef = useRef<Record<string, HTMLButtonElement | null>>({});
+
+    const handleDragStart = (id: string) => setDraggedId(id);
+    const handleDragEnter = (id: string) => { if (id !== draggedId) setDropTargetId(id); };
+    const handleDrop = () => {
+        if (draggedId && dropTargetId) {
+            handleReorderList(draggedId, dropTargetId);
+        }
+        setDraggedId(null);
+        setDropTargetId(null);
+    };
+    const handleDragEnd = () => {
+        setDraggedId(null);
+        setDropTargetId(null);
+    };
 
     const handleToggleSection = (sectionId: string) => {
         setCollapsedSections(prev => ({
@@ -299,6 +331,12 @@ export const TasksSidebar: React.FC<TasksSidebarProps> = ({ lists, tasks, tags, 
                                         count={taskCounts[list.id]}
                                         color={list.color}
                                         moreMenu={moreMenu}
+                                        isDraggable={true}
+                                        onDragStart={() => handleDragStart(list.id)}
+                                        onDrop={handleDrop}
+                                        onDragEnter={() => handleDragEnter(list.id)}
+                                        onDragEnd={handleDragEnd}
+                                        isDropTarget={dropTargetId === list.id}
                                     />
                                 );
                             })}
@@ -392,7 +430,7 @@ export const TasksSidebar: React.FC<TasksSidebarProps> = ({ lists, tasks, tags, 
                 <div className="mt-auto pt-2 border-t border-border-primary">
                     <button className="w-full flex items-center justify-between px-3 py-2 text-sm rounded-md text-yellow-400 hover:bg-background-tertiary">
                         <div className="flex items-center space-x-3">
-                             <PremiumIcon/>
+                             <TrophyIcon/>
                              <span>Upgrade to Premium</span>
                         </div>
                         <span>&gt;</span>

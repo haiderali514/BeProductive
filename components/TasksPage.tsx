@@ -1,18 +1,18 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { Priority, Task, List, AddTaskFormProps } from '../types.ts';
-import { TaskItem } from './TaskItem.tsx';
-import { SmartAddTaskForm } from './SmartAddTaskForm.tsx';
-import { SimpleAddTaskForm } from './SimpleAddTaskForm.tsx';
-import { PlanWithAIModal } from './PlanWithAIModal.tsx';
-import { AITaskSuggestion } from '../services/geminiService.ts';
-import { useSettings } from '../contexts/SettingsContext.tsx';
-import { useData } from '../contexts/DataContext.tsx';
-import { useApiUsage } from '../contexts/ApiUsageContext.tsx';
-import { ResizablePanel } from './ResizablePanel.tsx';
-import { TaskDetailPanel } from './TaskDetailPanel.tsx';
-import { TasksSidebar } from './TasksSidebar.tsx';
-import { MoreIcon, PlusIcon, ChevronDownIcon, LibraryIcon, MatrixIcon, FiltersIcon, CheckItemIcon, HamburgerMenuIcon, SettingsIcon, ShareIcon, AnalyticsIcon, PrintIcon, ChevronRightIcon } from './Icons.tsx';
-import { Popover } from './Popover.tsx';
+import { Priority, Task, List, AddTaskFormProps } from '../types';
+import { TaskItem } from './TaskItem';
+import { SmartAddTaskForm } from './SmartAddTaskForm';
+import { SimpleAddTaskForm } from './SimpleAddTaskForm';
+import { PlanWithAIModal } from './PlanWithAIModal';
+import { AITaskSuggestion } from '../services/geminiService';
+import { useSettings } from '../contexts/SettingsContext';
+import { useData } from '../contexts/DataContext';
+import { useApiUsage } from '../contexts/ApiUsageContext';
+import { ResizablePanel } from './ResizablePanel';
+import { TaskDetailPanel } from './TaskDetailPanel';
+import { TasksSidebar } from './TasksSidebar';
+import { MoreIcon, PlusIcon, ChevronDownIcon, LibraryIcon, MatrixIcon, FiltersIcon, CheckItemIcon, HamburgerMenuIcon, SettingsIcon, ShareIcon, AnalyticsIcon, PrintIcon, ChevronRightIcon } from './Icons';
+import { Popover } from './Popover';
 
 
 const DormantInput: React.FC<{ onClick: () => void }> = ({ onClick }) => (
@@ -128,6 +128,7 @@ export const TasksPage: React.FC = () => {
         handleEmptyTrash,
         handleAddTag,
         handleAddFilter,
+        handleReorderTask,
     } = useData();
     const [settings, onSettingsChange] = useSettings();
     const [, logApiCall] = useApiUsage();
@@ -142,6 +143,24 @@ export const TasksPage: React.FC = () => {
     const moreMenuTriggerRef = useRef<HTMLButtonElement>(null);
     const [isAddingSection, setIsAddingSection] = useState(false);
     const [isPinnedCollapsed, setIsPinnedCollapsed] = useState(false);
+
+    // Drag and drop state
+    const [draggedId, setDraggedId] = useState<string | null>(null);
+    const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+
+    const handleDragStart = (id: string) => setDraggedId(id);
+    const handleDragEnter = (id: string) => { if (id !== draggedId) setDropTargetId(id); };
+    const handleDrop = () => {
+        if (draggedId && dropTargetId) {
+            handleReorderTask(draggedId, dropTargetId);
+        }
+        setDraggedId(null);
+        setDropTargetId(null);
+    };
+    const handleDragEnd = () => {
+        setDraggedId(null);
+        setDropTargetId(null);
+    };
 
     const handleDeactivateInput = useCallback(() => {
         setIsInputActive(false);
@@ -256,12 +275,11 @@ export const TasksPage: React.FC = () => {
     }, [tasks, activeView, filters, tags]);
 
     const { pinnedTasks, unpinnedTasks } = useMemo(() => {
-        const sorted = [...filteredTasks].sort((a,b) => a.title.localeCompare(b.title));
         if (isSpecialView) {
-            return { pinnedTasks: [], unpinnedTasks: sorted };
+            return { pinnedTasks: [], unpinnedTasks: filteredTasks };
         }
-        const pinned = sorted.filter(task => task.pinned && !task.isSection);
-        const unpinned = sorted.filter(task => !task.pinned);
+        const pinned = filteredTasks.filter(task => task.pinned && !task.isSection);
+        const unpinned = filteredTasks.filter(task => !task.pinned);
         return { pinnedTasks: pinned, unpinnedTasks: unpinned };
     }, [filteredTasks, isSpecialView]);
 
@@ -353,6 +371,11 @@ export const TasksPage: React.FC = () => {
                             onSelect={handleSelectTask}
                             isSelected={task.id === selectedTaskId}
                             settings={settings}
+                            onDragStart={() => handleDragStart(task.id)}
+                            onDrop={handleDrop}
+                            onDragEnter={() => handleDragEnter(task.id)}
+                            onDragEnd={handleDragEnd}
+                            isDropTarget={dropTargetId === task.id}
                         />
                     );
                 }
@@ -475,6 +498,11 @@ export const TasksPage: React.FC = () => {
                                 onSelect={handleSelectTask}
                                 isSelected={task.id === selectedTaskId}
                                 settings={settings}
+                                onDragStart={() => handleDragStart(task.id)}
+                                onDrop={handleDrop}
+                                onDragEnter={() => handleDragEnter(task.id)}
+                                onDragEnd={handleDragEnd}
+                                isDropTarget={dropTargetId === task.id}
                             />
                         ))}
                     </>

@@ -1,12 +1,12 @@
 
 
 import React, { useState, useMemo } from 'react';
-import { useSettings } from '../contexts/SettingsContext.tsx';
-import { AnalyticsIcon, TasksIcon, HabitIcon, PomodoroIcon, SettingsIcon, AIAssistantIcon, NotificationBellIcon, MatrixIcon, CountdownIcon, UserIcon, CalendarIcon } from './Icons.tsx';
-import { ActiveView } from '../types.ts';
-import { NotificationCenter } from './NotificationCenter.tsx';
-import { useNotifications } from '../contexts/NotificationContext.tsx';
-import { useData } from '../contexts/DataContext.tsx';
+import { useSettings } from '../contexts/SettingsContext';
+import { AnalyticsIcon, TasksIcon, HabitIcon, PomodoroIcon, SettingsIcon, AIAssistantIcon, NotificationBellIcon, MatrixIcon, CountdownIcon, UserIcon, CalendarIcon, TrophyIcon } from './Icons';
+import { ActiveView } from '../types';
+import { NotificationCenter } from './NotificationCenter';
+import { useNotifications } from '../contexts/NotificationContext';
+import { useData } from '../contexts/DataContext';
 
 interface SidebarProps {
   activeView: ActiveView;
@@ -28,7 +28,7 @@ const SidebarIcon: React.FC<{
     >
         {icon}
         {hasNotification && <div className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-background-secondary"></div>}
-        <span className="absolute left-full ml-3 w-max px-2 py-1 bg-background-tertiary text-content-primary text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+        <span className="absolute left-full ml-3 w-max px-2 py-1 bg-background-tertiary text-content-primary text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
             {label}
         </span>
     </button>
@@ -49,13 +49,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, onO
         'ai-assistant': { icon: <AIAssistantIcon />, label: 'AI Assistant' },
         'eisenhower-matrix': { icon: <MatrixIcon />, label: 'Eisenhower Matrix' },
         analytics: { icon: <AnalyticsIcon />, label: 'Analytics' },
+        achievements: { icon: <TrophyIcon />, label: 'Achievements' },
         habits: { icon: <HabitIcon />, label: 'Habits' },
         pomodoro: { icon: <PomodoroIcon />, label: 'Pomodoro' },
         countdown: { icon: <CountdownIcon />, label: 'Countdown' },
     };
 
     const visibleViews = useMemo(() => {
-        const order: Exclude<ActiveView, 'profile'>[] = ['tasks', 'calendar', 'ai-assistant', 'eisenhower-matrix', 'analytics', 'habits', 'pomodoro', 'countdown'];
+        const order: Exclude<ActiveView, 'profile'>[] = ['ai-assistant', 'habits', 'tasks', 'pomodoro', 'calendar', 'eisenhower-matrix', 'analytics', 'achievements', 'countdown'];
         
         return order.filter(view => {
             switch(view) {
@@ -64,6 +65,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, onO
                 case 'habits': return settings.showHabitTracker;
                 case 'pomodoro': return settings.showPomodoro;
                 case 'countdown': return settings.showCountdown;
+                case 'achievements': return true;
                 // others are always visible for now. Analytics is not in settings.
                 default: return true;
             }
@@ -82,7 +84,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, onO
                 >
                     <img src={userProfile.avatarUrl} alt={userProfile.name} className="w-full h-full rounded-full object-cover" />
                 </button>
-                <span className="absolute left-full ml-3 w-max px-2 py-1 bg-background-tertiary text-content-primary text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                <span className="absolute left-full ml-3 w-max px-2 py-1 bg-background-tertiary text-content-primary text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
                     {userProfile.name}
                 </span>
             </div>

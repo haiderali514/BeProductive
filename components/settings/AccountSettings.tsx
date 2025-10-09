@@ -1,5 +1,5 @@
 import React from 'react';
-import { ApiUsage, ApiFeature } from '../../hooks/useApiUsage.ts';
+import { ApiUsage, ApiFeature } from '../../hooks/useApiUsage';
 
 interface AccountSettingsProps {
     onLogout: () => void;
@@ -15,6 +15,7 @@ const FEATURE_NAMES: Record<ApiFeature, string> = {
     goalProgress: 'Goal Progress Reports',
     proactiveSuggestions: 'Proactive Suggestions',
     chatTitleGeneration: 'Chat Title Generation',
+    analyticsInsights: 'Analytics Insights',
 };
 
 export const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout, apiUsage }) => {
@@ -28,8 +29,6 @@ export const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout, apiU
         return FEATURE_NAMES[key as ApiFeature] || key;
     };
 
-    // FIX: Cast the result of Object.entries to give TypeScript the correct type for the values.
-    // This resolves errors where `count` and `tokens` were accessed on `unknown` type.
     const sortedBreakdown = (Object.entries(apiUsage.breakdown) as [string, { count: number; tokens: number }][])
         .filter(([, value]) => value.count > 0)
         .sort(([, a], [, b]) => b.tokens - a.tokens);

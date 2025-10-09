@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { List, Priority, AddTaskFormProps, Task } from '../types.ts';
-import { MagicIcon, CalendarIcon, FlagIcon, TagIcon, MoveToListIcon, MoreIcon, AttachmentIcon, TemplateIcon, SettingsIcon, AIAssistantIcon, MoonIcon, ChevronRightIcon } from './Icons.tsx';
-import { Popover } from './Popover.tsx';
-import { useTaskForm } from '../hooks/useTaskForm.ts';
-import { useData } from '../contexts/DataContext.tsx';
+import { List, Priority, AddTaskFormProps, Task } from '../types';
+import { MagicIcon, CalendarIcon, FlagIcon, TagIcon, MoveToListIcon, MoreIcon, AttachmentIcon, TemplateIcon, SettingsIcon, AIAssistantIcon, MoonIcon, ChevronRightIcon } from './Icons';
+import { Popover } from './Popover';
+import { useTaskForm } from '../hooks/useTaskForm';
+import { useData } from '../contexts/DataContext';
 
 export const DatePickerPopover: React.FC<{
     selectedDate: Date | null;
@@ -260,19 +260,12 @@ export const SmartAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTask,
         setActivePopover(null);
     };
     
-    // FIX: Declare refs at the top level of the component, not inside an object literal.
-    const dateTriggerRef = useRef<HTMLButtonElement>(null);
-    const priorityTriggerRef = useRef<HTMLButtonElement>(null);
-    const listTriggerRef = useRef<HTMLButtonElement>(null);
-    const tagsTriggerRef = useRef<HTMLButtonElement>(null);
-    const moreTriggerRef = useRef<HTMLButtonElement>(null);
-
     const triggerRefs = {
-        date: dateTriggerRef,
-        priority: priorityTriggerRef,
-        list: listTriggerRef,
-        tags: tagsTriggerRef,
-        more: moreTriggerRef,
+        date: useRef<HTMLButtonElement>(null),
+        priority: useRef<HTMLButtonElement>(null),
+        list: useRef<HTMLButtonElement>(null),
+        tags: useRef<HTMLButtonElement>(null),
+        more: useRef<HTMLButtonElement>(null),
     };
 
     const priorityOptions = [
