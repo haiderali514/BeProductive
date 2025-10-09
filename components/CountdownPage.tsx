@@ -44,7 +44,7 @@ const useTimeRemaining = (targetDate: string): TimeLeft => {
 
 const TimeUnit: React.FC<{ value: number; label: string }> = ({ value, label }) => (
     <div className="flex flex-col items-center">
-        <span className="text-4xl md:text-6xl font-bold text-content-primary tabular-nums">{String(value).padStart(2, '0')}</span>
+        <span className="text-4xl md:text-5xl font-bold text-content-primary tabular-nums">{String(value).padStart(2, '0')}</span>
         <span className="text-xs text-content-tertiary uppercase tracking-widest">{label}</span>
     </div>
 );
@@ -55,7 +55,7 @@ const CountdownItem: React.FC<{ countdown: Countdown; onDelete: (id: string) => 
     const hasFinished = Object.keys(timeLeft).length === 0;
 
     return (
-        <div className="bg-background-secondary rounded-lg p-6 shadow-lg flex flex-col relative group">
+        <div className="bg-background-secondary rounded-lg p-4 shadow-lg flex flex-col relative group">
             <h3 className="text-xl font-bold text-center mb-4 text-primary truncate">{countdown.title}</h3>
             {hasFinished ? (
                  <div className="flex-1 flex items-center justify-center">
@@ -90,8 +90,8 @@ export const CountdownPage: React.FC<CountdownPageProps> = ({ countdowns, onAddC
 
   return (
     <>
-      <div className="p-8 flex-1 flex flex-col h-full overflow-hidden">
-        <header className="flex justify-between items-center mb-6 flex-shrink-0">
+      <div className="p-6 flex-1 flex flex-col h-full overflow-hidden">
+        <header className="flex justify-between items-center mb-4 flex-shrink-0">
           <h1 className="text-3xl font-bold text-content-primary">Countdown</h1>
           <button
             onClick={() => setAddModalOpen(true)}
@@ -102,7 +102,7 @@ export const CountdownPage: React.FC<CountdownPageProps> = ({ countdowns, onAddC
         </header>
         <main className="flex-1 overflow-y-auto -mr-4 pr-4">
             {countdowns.length > 0 ? (
-                <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
                     {countdowns.map(cd => (
                         <CountdownItem key={cd.id} countdown={cd} onDelete={onDeleteCountdown} />
                     ))}

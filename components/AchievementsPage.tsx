@@ -42,8 +42,8 @@ const AchievementSection: React.FC<{
     if (achievements.length === 0) return null;
     return (
         <div>
-            <h2 className="text-2xl font-bold mb-6 text-content-primary">{title}</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+            <h2 className="text-2xl font-bold mb-4 text-content-primary">{title}</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                 {achievements.map(ach => {
                     const progress = ach.getProgress(data);
                     return <AchievementBadge key={ach.id} achievement={ach} progress={progress} />;
@@ -62,10 +62,10 @@ const LevelProgressCard: React.FC<{ score: number; level: Level }> = ({ score, l
     const xpToNextLevel = nextLevel ? nextLevel.xpRange[0] - score : 0;
     
     return (
-        <div className="bg-background-secondary p-6 rounded-lg mb-8 max-w-lg mx-auto">
+        <div className="bg-background-secondary p-4 rounded-lg mb-6 max-w-lg mx-auto">
             <div className="text-center mb-4">
                 <p className="text-sm text-content-secondary">Total Achievement Score</p>
-                <p className="text-5xl font-bold text-primary my-1">{score.toLocaleString()} <span className="text-3xl">XP</span></p>
+                <p className="text-4xl font-bold text-primary my-1">{score.toLocaleString()} <span className="text-2xl">XP</span></p>
             </div>
             
             <div className="flex justify-between items-end mb-1">
@@ -152,7 +152,7 @@ export const AchievementsPage: React.FC<AchievementsPageProps> = ({ tasks, habit
 
 
     return (
-        <div className="p-8 h-full flex flex-col">
+        <div className="p-6 h-full flex flex-col">
             <header className="flex-shrink-0">
                 <h1 className="text-3xl font-bold text-content-primary mb-4">Achievements</h1>
                 <div className="flex space-x-1 bg-background-secondary p-1 rounded-lg self-start">

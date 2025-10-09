@@ -334,8 +334,8 @@ export const AIAssistantPage: React.FC = () => {
                                     <button className="p-2 text-content-secondary hover:text-primary rounded-full hover:bg-background-secondary"><ReportIcon/></button>
                                 </div>
                             </header>
-                            <div className="flex-1 overflow-y-auto p-6">
-                                <div className="max-w-4xl mx-auto space-y-6">
+                            <div className="flex-1 overflow-y-auto p-4">
+                                <div className="max-w-4xl mx-auto space-y-4">
                                     {activeConversation.messages.map(message => (
                                         <ChatBubble key={message.id} message={message} />
                                     ))}

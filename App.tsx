@@ -108,7 +108,7 @@ const MainApp: React.FC = () => {
                 setActiveView={setActiveView}
                 onOpenSettings={() => setIsSettingsOpen(true)}
             />
-            <main className="flex-1 flex flex-col">
+            <main className="flex-1 flex flex-col min-h-0">
                 {renderActiveView()}
             </main>
             <SettingsModal 

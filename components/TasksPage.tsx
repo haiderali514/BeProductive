@@ -386,7 +386,7 @@ export const TasksPage: React.FC = () => {
 
     const TaskList = () => (
         <div className="flex-1 flex flex-col h-full bg-background-primary">
-            <header className="p-6 flex justify-between items-center flex-shrink-0">
+            <header className="p-4 flex justify-between items-center flex-shrink-0">
                 <h1 className="text-2xl font-bold">{activeListName}</h1>
                 <div className="flex items-center space-x-2">
                     {!isSpecialView && (

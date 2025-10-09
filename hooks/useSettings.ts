@@ -77,7 +77,7 @@ const defaultSettings: Settings = {
     theme: 'dark',
     autoSwitchTheme: false,
     font: 'default',
-    fontSize: 'extra-large',
+    fontSize: 'normal',
     sidebarCount: 'show',
     completedTaskStyle: 'default',
     taskInputStyle: 'detailed',

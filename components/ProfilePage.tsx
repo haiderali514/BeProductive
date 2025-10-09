@@ -216,7 +216,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onUpdateProfi
             case 'profile':
                 return (
                     <div className="max-w-2xl">
-                        <div className="flex items-center space-x-6 mb-8">
+                        <div className="flex items-center space-x-6 mb-6">
                             <img src={profile.avatarUrl} alt="User Avatar" className="w-24 h-24 rounded-full border-4 border-primary" />
                             <div>
                                 <h1 className="text-3xl font-bold text-content-primary">{profile.name}</h1>
@@ -237,7 +237,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onUpdateProfi
                 return (
                     <div className="max-w-4xl">
                         <p className="text-sm text-content-secondary mb-6">This is what Aura, your AI coach, knows about you. Keeping this up-to-date helps it provide more personalized advice.</p>
-                        <div className="space-y-10">
+                        <div className="space-y-8">
                             <div>
                                 <h3 className="font-bold mb-1 text-content-primary text-lg">Long-term Goals</h3>
                                 <p className="text-xs text-content-tertiary mb-3">Your big picture ambitions. Aura can help you break them down.</p>
@@ -334,10 +334,10 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onUpdateProfi
                 </nav>
             </aside>
             <main className="flex-1 flex flex-col h-full">
-                <header className="p-6 border-b border-border-primary">
+                <header className="p-4 border-b border-border-primary">
                     <h2 className="text-2xl font-bold">{sectionTitles[activeSection]}</h2>
                 </header>
-                <div className="flex-1 overflow-y-auto p-8">
+                <div className="flex-1 overflow-y-auto p-6">
                     {renderSection()}
                 </div>
             </main>

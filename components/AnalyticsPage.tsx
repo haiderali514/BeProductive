@@ -58,7 +58,7 @@ const calculateStreak = (checkIns: string[]): number => {
 };
 
 const ChartWrapper: React.FC<{ title: string; children: React.ReactElement; height?: number }> = ({ title, children, height = 250 }) => (
-    <div className="bg-background-secondary p-6 rounded-lg shadow">
+    <div className="bg-background-secondary p-4 rounded-lg shadow">
         <h3 className="text-lg font-semibold mb-4">{title}</h3>
         <ResponsiveContainer width="100%" height={height}>
             {children}
@@ -104,7 +104,7 @@ const ProductivityComparisonCard: React.FC<{ title: string; change: number; isPe
 };
 
 const BadgesDisplay: React.FC<{ badges: Achievement[]; allBadgesCount: number; setActiveView: (view: ActiveView) => void; }> = ({ badges, allBadgesCount, setActiveView }) => (
-    <div className="bg-background-secondary p-6 rounded-lg shadow">
+    <div className="bg-background-secondary p-4 rounded-lg shadow">
         <h3 className="text-lg font-semibold mb-3">🏅 Badges Unlocked ({badges.length} / {allBadgesCount})</h3>
         <div className="flex flex-wrap gap-3 mb-3">
             {badges.slice(0, 10).map(badge => {
@@ -298,7 +298,8 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ tasks, habits, ses
             acc[day] = (acc[day] || 0) + duration;
             return acc;
         }, {} as Record<string, number>);
-        const mostProductiveDay = Object.entries(focusByDayOfWeek).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
+        // FIX: Explicitly type the parameters of the sort callback function to prevent a potential TypeScript error where `b[1]` or `a[1]` might not be inferred as numbers, causing issues with the subtraction operation.
+        const mostProductiveDay = Object.entries(focusByDayOfWeek).sort((a: [string, number], b: [string, number]) => b[1] - a[1])[0]?.[0] || 'N/A';
         
         const focusTrend = Array.from({ length: 30 }).map((_, i) => {
             const d = new Date();
@@ -399,7 +400,7 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ tasks, habits, ses
 
     return (
         <>
-            <div className="flex-1 overflow-y-auto p-8 bg-background-primary">
+            <div className="flex-1 overflow-y-auto p-6 bg-background-primary">
                 <div className="flex justify-between items-center mb-4">
                     <h1 className="text-3xl font-bold text-content-primary">Analytics</h1>
                     <button onClick={() => setReviewModalOpen(true)} disabled={!settings.enableAIFeatures} title={!settings.enableAIFeatures ? "AI features are disabled" : "Generate Weekly Review"} className="px-4 py-2 bg-primary/20 text-primary rounded-lg font-semibold hover:bg-primary/30 transition-colors flex items-center space-x-2 disabled:bg-background-tertiary disabled:text-content-tertiary disabled:cursor-not-allowed">
@@ -407,13 +408,13 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ tasks, habits, ses
                     </button>
                 </div>
                 
-                <div className="flex space-x-2 mb-8">
+                <div className="flex space-x-2 mb-6">
                     {filterButtons.map(btn => (<button key={btn.id} onClick={() => setFilter(btn.id)} className={getButtonClass(btn.id)}>{btn.label}</button>))}
                 </div>
 
                 {filter === 'dashboard' && (
-                     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                        <div className="xl:col-span-2 space-y-6">
+                     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                        <div className="xl:col-span-2 space-y-4">
                             <ChartWrapper title="Achievement Score Trend (Last 7 Days)">
                                 <LineChart data={analyticsData.achievementScoreTrend}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#333333" />
@@ -425,7 +426,7 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ tasks, habits, ses
                             </ChartWrapper>
                             <BadgesDisplay badges={analyticsData.unlockedBadges} allBadgesCount={ACHIEVEMENTS_LIST.length} setActiveView={setActiveView} />
                         </div>
-                        <div className="space-y-6">
+                        <div className="space-y-4">
                             <ProductivityComparisonCard title="Tasks Done" change={analyticsData.taskCompletionChange} isPercentage={false} />
                             <ProductivityComparisonCard title="Focus Time (min)" change={analyticsData.focusChangeMinutes} isPercentage={false} />
                             <ProductivityComparisonCard title="Habit Consistency" change={analyticsData.habitConsistencyChange} />
@@ -445,7 +446,7 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ tasks, habits, ses
                                 <Bar dataKey="created" stackId="b" fill="#8884d8" name="Created" />
                             </BarChart>
                         </ChartWrapper>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <ChartWrapper title="Focus Distribution by List">
                                 <PieChart>
                                     <Pie data={analyticsData.focusByListData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} fill="#8884d8">
@@ -469,8 +470,8 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ tasks, habits, ses
                 )}
                 
                 {(filter === 'tasks') && (
-                    <div className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <StatCard title="Total Completed" value={analyticsData.taskAnalytics.totalCompleted} />
                             <StatCard title="Overdue" value={analyticsData.taskAnalytics.overdue} />
                             <StatCard title="Completion Rate" value={`${analyticsData.taskAnalytics.completionRate}%`} />
@@ -484,7 +485,7 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ tasks, habits, ses
                                 <Bar dataKey="completed" name="Completed Tasks" fill="#82ca9d" />
                             </BarChart>
                         </ChartWrapper>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <ChartWrapper title="Completed by Priority">
                                 {analyticsData.taskAnalytics.completedByPriority.length > 0 ? (
                                     <PieChart>
@@ -517,8 +518,8 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ tasks, habits, ses
                 )}
                 
                 {(filter === 'focus') && (
-                     <div className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                     <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <StatCard title="Total Focus" value={`${analyticsData.focusAnalytics.totalHours}h`} />
                             <StatCard title="Avg. Session" value={analyticsData.focusAnalytics.avgSessionLength} />
                             <StatCard title="Most Productive Day" value={analyticsData.focusAnalytics.mostProductiveDay} />
@@ -546,8 +547,8 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ tasks, habits, ses
                 )}
 
                 {(filter === 'habits') && (
-                    <div className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <StatCard title="Total Check-ins" value={analyticsData.habitAnalytics.totalCheckIns} />
                             <StatCard title="Overall Consistency" value={analyticsData.habitAnalytics.consistencyRate} />
                             <StatCard title="Most Consistent" value={analyticsData.habitAnalytics.mostConsistentHabit} description="Based on completion rate" />

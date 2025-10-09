@@ -29,7 +29,7 @@ const SwitchableStatCard: React.FC<{
   );
 
   return (
-    <div onClick={() => setShowFirst(!showFirst)} className="bg-background-secondary p-4 rounded-lg cursor-pointer relative group min-h-[110px]">
+    <div onClick={() => setShowFirst(!showFirst)} className="bg-background-secondary p-4 rounded-lg cursor-pointer relative group">
       <div className="absolute top-3 right-3 text-content-tertiary opacity-0 group-hover:opacity-100 transition-opacity">
         <ArrowsRightLeftIcon className="w-4 h-4" />
       </div>
@@ -48,7 +48,7 @@ const StatCard: React.FC<{
     value: React.ReactNode;
     description?: string;
 }> = ({ icon, title, value, description }) => (
-    <div className="bg-background-secondary p-4 rounded-lg min-h-[110px]">
+    <div className="bg-background-secondary p-4 rounded-lg">
          <div className="flex items-center space-x-2 h-8">
           <div className="w-4 h-4">{icon}</div>
           <p className="text-sm text-content-secondary pr-4 truncate">{title}</p>
@@ -147,7 +147,7 @@ const SpecificHabitCalendar: React.FC<{
     };
     
     return (
-        <div className="mt-8">
+        <div className="mt-6">
             <h3 className="text-lg font-semibold text-content-primary mb-4">Check-in Calendar</h3>
             <div className="bg-background-secondary p-4 rounded-lg">
                 <div className="flex justify-between items-center mb-4">
@@ -223,7 +223,7 @@ const OverallActivityCalendar: React.FC<{ habits: Habit[] }> = ({ habits }) => {
     };
 
     return (
-        <div className="mt-8">
+        <div className="mt-6">
             <h3 className="text-lg font-semibold text-content-primary mb-4">Overall Activity</h3>
             <div className="bg-background-secondary p-4 rounded-lg">
                 <div className="flex justify-between items-center mb-4">
@@ -295,7 +295,7 @@ const OverallStats: React.FC<{ habits: Habit[] }> = ({ habits }) => {
 
     return (
         <div>
-            <h2 className="text-xl font-bold mb-6 text-content-primary">Overall Stats</h2>
+            <h2 className="text-xl font-bold mb-4 text-content-primary">Overall Stats</h2>
             <div className="grid grid-cols-2 gap-4">
                 <SwitchableStatCard 
                     icon={<CheckCircleSolidIcon className="text-green-500" />}
@@ -364,7 +364,7 @@ const SpecificHabitStats: React.FC<{
 
     return (
         <div>
-            <div className="flex items-center mb-6">
+            <div className="flex items-center mb-4">
                 <span className="text-4xl mr-4">{habit.icon}</span>
                 <h2 className="text-2xl font-bold text-content-primary truncate">{habit.name}</h2>
             </div>
@@ -401,7 +401,7 @@ const SpecificHabitStats: React.FC<{
 
 export const HabitStatsPanel: React.FC<HabitStatsPanelProps> = ({ habits, selectedHabit, onToggleHabit }) => {
     return (
-        <aside className="h-full bg-background-primary p-6 overflow-y-auto hidden md:block w-full">
+        <aside className="h-full bg-background-primary p-4 overflow-y-auto hidden md:block w-full">
             {selectedHabit ? <SpecificHabitStats habit={selectedHabit} onToggleHabit={onToggleHabit} /> : <OverallStats habits={habits} />}
         </aside>
     );

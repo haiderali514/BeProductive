@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { PomodoroSession, Task, Habit } from '../types';
 import { TaskSelectorPopover } from './TaskSelectorPopover';
@@ -73,31 +71,31 @@ const FocusOverview: React.FC<{ sessions: PomodoroSession[]; onAddManual: () => 
     };
 
     return (
-        <div className="p-6 flex flex-col h-full">
+        <div className="p-4 flex flex-col h-full">
             <h2 className="text-xl font-bold mb-4">Overview</h2>
-            <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="bg-background-tertiary p-4 rounded-lg min-h-[110px]">
+            <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="bg-background-tertiary p-4 rounded-lg">
                     <div className="h-8">
                         <p className="text-sm text-content-secondary truncate">Today's Pomo</p>
                     </div>
                     <p className="text-2xl font-bold text-content-primary truncate">{todayPomos}</p>
                     <div className="h-4"></div>
                 </div>
-                <div className="bg-background-tertiary p-4 rounded-lg min-h-[110px]">
+                <div className="bg-background-tertiary p-4 rounded-lg">
                     <div className="h-8">
                         <p className="text-sm text-content-secondary truncate">Today's Focus</p>
                     </div>
                     <p className="text-2xl font-bold text-content-primary truncate">{todayDuration}</p>
                     <div className="h-4"></div>
                 </div>
-                <div className="bg-background-tertiary p-4 rounded-lg min-h-[110px]">
+                <div className="bg-background-tertiary p-4 rounded-lg">
                     <div className="h-8">
                         <p className="text-sm text-content-secondary truncate">Total Pomo</p>
                     </div>
                     <p className="text-2xl font-bold text-content-primary truncate">{totalPomos}</p>
                     <div className="h-4"></div>
                 </div>
-                <div className="bg-background-tertiary p-4 rounded-lg min-h-[110px]">
+                <div className="bg-background-tertiary p-4 rounded-lg">
                     <div className="h-8">
                         <p className="text-sm text-content-secondary truncate">Total Focus Duration</p>
                     </div>
@@ -297,63 +295,68 @@ export const PomodoroPage: React.FC<PomodoroPageProps> = ({ sessions, onAddSessi
                 </div>
 
                 {/* Main Content (child 2) */}
-                <div className="flex-1 flex flex-col items-center justify-center p-8">
-                    {isActive ? (
-                        <>
-                             <p className="text-content-secondary mb-4">{selectedFocus?.name || 'Focus'}</p>
-                             <div className="w-[400px] h-[400px] rounded-full border-[10px] border-background-tertiary flex items-center justify-center mb-8">
-                                <div className="text-center">
-                                    <p className={`text-8xl font-mono transition-colors ${isPaused ? 'text-content-tertiary' : 'text-content-primary'}`}>
-                                        {formatTime(timeRemaining)}
-                                    </p>
-                                    {isPaused && <p className="text-yellow-500 font-semibold mt-2 text-lg">Paused</p>}
-                                    <p className="text-base text-content-tertiary mt-2">
-                                        {startTime && `${new Date(startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${new Date(sessionEndTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`}
-                                    </p>
+                <div className="flex-1 flex flex-col items-center justify-center p-6">
+                    <div className="flex flex-col justify-end items-center min-h-[6rem] mb-6">
+                        {isActive ? (
+                            <p className="text-content-secondary">{selectedFocus?.name || 'Focus'}</p>
+                        ) : (
+                            <>
+                                <div className="flex space-x-2 mb-2">
+                                    <button className="px-4 py-1.5 rounded-full bg-primary/20 text-primary text-sm font-semibold">Pomo</button>
+                                    <button className="px-4 py-1.5 rounded-full hover:bg-background-tertiary text-content-secondary text-sm font-semibold">Stopwatch</button>
                                 </div>
+                                
+                                <div className="text-center">
+                                    <TaskSelectorPopover
+                                        isOpen={isTaskSelectorOpen}
+                                        onClose={() => setTaskSelectorOpen(false)}
+                                        onSelect={setSelectedFocus}
+                                        tasks={tasks}
+                                        habits={habits}
+                                    >
+                                        <button onClick={() => setTaskSelectorOpen(true)} className="text-lg text-content-secondary hover:text-content-primary transition-colors">
+                                            {selectedFocus?.name || 'Focus'} &gt;
+                                        </button>
+                                    </TaskSelectorPopover>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                    
+                    <div className={`w-[360px] h-[360px] rounded-full border-[10px] flex items-center justify-center ${isActive ? 'border-background-tertiary' : 'border-background-secondary'}`}>
+                        {isActive ? (
+                            <div className="flex flex-col items-center justify-center">
+                                <p className={`text-7xl font-mono transition-colors ${isPaused ? 'text-content-tertiary' : 'text-content-primary'}`}>
+                                    {formatTime(timeRemaining)}
+                                </p>
+                                {isPaused && <p className="text-yellow-500 font-semibold mt-2 text-lg">Paused</p>}
+                                <p className="text-base text-content-tertiary mt-2">
+                                    {startTime && `${new Date(startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${new Date(sessionEndTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`}
+                                </p>
                             </div>
-                             <div className="flex space-x-4">
+                        ) : (
+                            <h2 className="text-6xl font-mono text-content-primary">{formatTime(timeRemaining)}</h2>
+                        )}
+                    </div>
+                    
+                    <div className="flex items-center justify-center min-h-[6rem] mt-6">
+                        {isActive ? (
+                            <div className="flex space-x-4">
                                 {isPaused ? (
                                     <>
                                         <button onClick={handleContinue} className="px-10 py-3 bg-primary text-white rounded-full font-semibold hover:bg-primary-focus transition-colors">Continue</button>
-                                        {/* FIX: Wrap handleEnd in an arrow function to prevent passing the event object as the first argument, which caused a type error. */}
                                         <button onClick={() => handleEnd(false)} className="px-10 py-3 bg-transparent border-2 border-primary text-primary rounded-full font-semibold hover:bg-primary/10 transition-colors">End</button>
                                     </>
                                 ) : (
                                      <button onClick={handlePause} className="px-16 py-4 bg-transparent border-2 border-primary text-primary rounded-full font-semibold text-lg hover:bg-primary/10 transition-colors">Pause</button>
                                 )}
                              </div>
-                        </>
-                    ) : (
-                        <>
-                            <div className="flex space-x-2 mb-8">
-                                <button className="px-4 py-1.5 rounded-full bg-primary/20 text-primary text-sm font-semibold">Pomo</button>
-                                <button className="px-4 py-1.5 rounded-full hover:bg-background-tertiary text-content-secondary text-sm font-semibold">Stopwatch</button>
-                            </div>
-                            
-                            <div className="text-center mb-8">
-                                <TaskSelectorPopover
-                                    isOpen={isTaskSelectorOpen}
-                                    onClose={() => setTaskSelectorOpen(false)}
-                                    onSelect={setSelectedFocus}
-                                    tasks={tasks}
-                                    habits={habits}
-                                >
-                                     <button onClick={() => setTaskSelectorOpen(true)} className="text-lg text-content-secondary hover:text-content-primary transition-colors">
-                                        {selectedFocus?.name || 'Focus'} &gt;
-                                    </button>
-                                </TaskSelectorPopover>
-                            </div>
-    
-                            <div className="w-[400px] h-[400px] rounded-full border-[10px] border-background-secondary flex items-center justify-center mb-8">
-                                <h2 className="text-7xl font-mono text-content-primary">{formatTime(timeRemaining)}</h2>
-                            </div>
-                            
-                            <button onClick={handleStart} className="px-16 py-4 bg-primary text-white rounded-full font-semibold text-lg hover:bg-primary-focus transition-colors">
+                        ) : (
+                            <button onClick={handleStart} className="px-16 py-4 bg-primary text-white font-semibold text-lg hover:bg-primary-focus transition-colors">
                                 Start
                             </button>
-                        </>
-                    )}
+                        )}
+                    </div>
                 </div>
             </ResizablePanel>
 

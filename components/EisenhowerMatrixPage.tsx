@@ -105,11 +105,11 @@ export const EisenhowerMatrixPage: React.FC<EisenhowerMatrixPageProps> = ({ task
     }, [tasks]);
 
     return (
-        <div className="p-8 flex-1 flex flex-col h-full overflow-hidden">
+        <div className="p-6 flex-1 flex flex-col h-full overflow-hidden">
             <h1 className="text-3xl font-bold text-content-primary mb-1 flex-shrink-0">Eisenhower Matrix</h1>
             <p className="text-content-secondary mb-6 flex-shrink-0">Prioritize your tasks based on urgency and importance.</p>
             
-            <div className="grid grid-cols-2 grid-rows-2 gap-6 flex-1 min-h-0">
+            <div className="grid grid-cols-2 grid-rows-2 gap-4 flex-1 min-h-0">
                 <MatrixQuadrant 
                     title="Do" 
                     description="Urgent & Important" 

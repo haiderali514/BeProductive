@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo } from 'react';
 import { Habit } from '../types';
 import { HabitStatsPanel } from './HabitStatsPanel';
@@ -45,7 +43,7 @@ const DailyProgressHeader: React.FC<{
     }, [today, habits]);
 
     return (
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-4">
             {dayCardsData.map(({ date, dateStr, progress }) => {
                 const isSelected = selectedDate === dateStr;
                 const isToday = toYYYYMMDD(today) === dateStr;
@@ -149,7 +147,7 @@ const ChevronIcon: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) => (
 );
 
 
-export const HabitPage: React.FC<Omit<HabitPageProps, 'onReorderHabit'> & {onReorderHabit: (draggedId: string, targetId: string) => void}> = ({ habits, onToggleHabit, onAddHabit, settings, onReorderHabit }) => {
+export const HabitPage: React.FC<HabitPageProps> = ({ habits, onToggleHabit, onAddHabit, settings, onReorderHabit }) => {
   const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
@@ -209,7 +207,7 @@ export const HabitPage: React.FC<Omit<HabitPageProps, 'onReorderHabit'> & {onReo
     <>
       <ResizablePanel storageKey="habit-stats-width" panelSide="right" initialWidth={480} minWidth={320} maxWidth={600}>
         <HabitStatsPanel habits={habits} selectedHabit={selectedHabit} onToggleHabit={onToggleHabit} />
-        <div className="p-8 overflow-y-auto h-full">
+        <div className="p-6 overflow-y-auto h-full">
             <div className="flex justify-between items-center mb-4">
                 <h1 className="text-3xl font-bold text-content-primary">Habit</h1>
                 <button 
@@ -227,7 +225,7 @@ export const HabitPage: React.FC<Omit<HabitPageProps, 'onReorderHabit'> & {onReo
                 onDateSelect={handleDateSelect}
             />
 
-            <div className="space-y-8">
+            <div className="space-y-6">
                 {(['Morning', 'Afternoon', 'Night'] as const).map((period) => {
                     const periodHabits = groupedHabits[period];
                     if (!periodHabits || periodHabits.length === 0) return null;
