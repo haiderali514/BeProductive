@@ -28,7 +28,7 @@ const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { tasks, lists, habits, userProfile, handleAddTask, getTasksForPeriod, findFreeSlots, setUserProfile, pomodoroSessions } = useData();
-    const [settings] = useSettings();
+    const { settings } = useSettings();
     const [, logApiCall] = useApiUsage();
 
     const [conversations, setConversations] = useLocalStorage<Conversation[]>('aiConversations', [{ id: '1', title: 'Welcome Chat', messages: [{ id: '0', role: 'model', parts: [{ text: "Hello! I'm Aura, your personal AI assistant. How can I help you organize your day?" }] }] }]);

@@ -3,6 +3,7 @@ import { PomodoroSession, Task, Habit } from '../types';
 import { TaskSelectorPopover } from './TaskSelectorPopover';
 import { AddFocusRecordModal } from './AddFocusRecordModal';
 import { ResizablePanel } from './ResizablePanel';
+import { useSettings } from '../contexts/SettingsContext';
 
 interface PomodoroPageProps {
     sessions: PomodoroSession[];
@@ -143,6 +144,7 @@ export const PomodoroPage: React.FC<PomodoroPageProps> = ({ sessions, onAddSessi
     const [isTaskSelectorOpen, setTaskSelectorOpen] = useState(false);
     const [isAddModalOpen, setAddModalOpen] = useState(false);
     const [now, setNow] = useState(new Date());
+    const { playSound } = useSettings();
 
     const intervalRef = useRef<number | null>(null);
 
@@ -184,6 +186,7 @@ export const PomodoroPage: React.FC<PomodoroPageProps> = ({ sessions, onAddSessi
             setStartTime(now);
             setIsActive(true);
             setIsPaused(false);
+            playSound('reminder');
         } else {
             setTaskSelectorOpen(true);
         }
@@ -194,6 +197,7 @@ export const PomodoroPage: React.FC<PomodoroPageProps> = ({ sessions, onAddSessi
     
     const handleEnd = (autoFinish = false) => {
         stopTimer();
+        playSound('reminder');
         if (startTime) {
              onAddSession({
                 startTime,

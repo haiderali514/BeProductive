@@ -34,7 +34,7 @@ const SidebarIcon: React.FC<{
 
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, onOpenSettings }) => {
-    const [settings] = useSettings();
+    const { settings } = useSettings();
     const { notifications, markNotificationAsRead, clearAllNotifications } = useNotifications();
     const { userProfile } = useData();
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);

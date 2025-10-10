@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 import { Settings } from '../../hooks/useSettings';
 
@@ -40,6 +38,14 @@ const ToggleSwitch: React.FC<{ checked: boolean; onChange: (checked: boolean) =>
 
 
 export const NotificationsSettings: React.FC<NotificationsSettingsProps> = ({ settings, onSettingsChange }) => {
+
+    const handleReminderTypeChange = (val: string) => {
+        if (val === 'push' && typeof Notification !== 'undefined' && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+        onSettingsChange({ reminderType: val as any });
+    };
+
     return (
         <div>
             <h2 className="text-2xl font-bold mb-2">Notifications</h2>
@@ -47,7 +53,7 @@ export const NotificationsSettings: React.FC<NotificationsSettingsProps> = ({ se
                 <SettingRow label="Reminder">
                     <Dropdown
                         value={settings.reminderType}
-                        onChange={(val) => onSettingsChange({ reminderType: val as any })}
+                        onChange={handleReminderTypeChange}
                         options={[
                             { value: 'in-app', label: 'In-app reminder' },
                             { value: 'push', label: 'Push notification' }

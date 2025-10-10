@@ -43,7 +43,7 @@ const MainApp: React.FC = () => {
         handleUpdateTask,
         handleReorderHabit,
     } = useData();
-    const [settings] = useSettings();
+    const { settings } = useSettings();
     // FIX: `useApiUsage` returns a tuple. Use array destructuring to get `logApiCall`.
     const [apiUsage, logApiCall] = useApiUsage();
 

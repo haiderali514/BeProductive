@@ -161,7 +161,7 @@ export const AIAssistantPage: React.FC = () => {
         updateProjectInstruction
     } = useChat();
     const { userProfile } = useData();
-    const [settings] = useSettings();
+    const { settings } = useSettings();
     const [promptInput, setPromptInput] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -170,6 +170,7 @@ export const AIAssistantPage: React.FC = () => {
     const [isProjectModalOpen, setProjectModalOpen] = useState(false);
     
     const [activeChatMenu, setActiveChatMenu] = useState<string | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
 
     const activeConversation = conversations.find(c => c.id === activeConversationId);
     const activeProject = activeConversation?.projectId ? projects.find(p => p.id === activeConversation.projectId) : null;
@@ -207,6 +208,24 @@ export const AIAssistantPage: React.FC = () => {
     const sortedConversations = useMemo(() => {
         return [...conversations].reverse();
     }, [conversations]);
+
+    const filteredProjects = useMemo(() => {
+        if (!searchTerm.trim()) {
+            return projects;
+        }
+        return projects.filter(p =>
+            p.name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }, [projects, searchTerm]);
+    
+    const filteredConversations = useMemo(() => {
+        if (!searchTerm.trim()) {
+            return sortedConversations;
+        }
+        return sortedConversations.filter(c =>
+            c.title.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }, [sortedConversations, searchTerm]);
 
 
     // FIX: Refactored to correctly access `name` or `title` property and avoid type errors.
@@ -278,7 +297,12 @@ export const AIAssistantPage: React.FC = () => {
                             </button>
                         </div>
                         <div className="relative">
-                            <input type="text" placeholder="Search chats..." className="w-full bg-background-primary border border-border-primary rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                            <input 
+                                type="text" 
+                                placeholder="Search projects & chats..." 
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                                className="w-full bg-background-primary border border-border-primary rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
                             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-content-tertiary"><SearchIcon className="h-4 w-4" /></div>
                         </div>
                     </div>
@@ -296,11 +320,15 @@ export const AIAssistantPage: React.FC = () => {
                         </div>
                         {!collapsedSections['projects'] && (
                             <div className="space-y-1">
-                                {projects.map(p => (
-                                    <div key={p.id}>
-                                        {renderSidebarItem(p, 'project')}
-                                    </div>
-                                ))}
+                                {filteredProjects.length > 0 ? (
+                                    filteredProjects.map(p => (
+                                        <div key={p.id}>
+                                            {renderSidebarItem(p, 'project')}
+                                        </div>
+                                    ))
+                                ) : searchTerm.trim() ? (
+                                    <p className="px-2 py-2 text-sm text-center text-content-tertiary">No projects found.</p>
+                                ) : null}
                             </div>
                         )}
                         
@@ -313,7 +341,11 @@ export const AIAssistantPage: React.FC = () => {
                         </div>
                         {!collapsedSections['chats'] && (
                             <div className="space-y-1">
-                                {sortedConversations.map(c => renderSidebarItem(c, 'chat'))}
+                                {filteredConversations.length > 0 ? (
+                                    filteredConversations.map(c => renderSidebarItem(c, 'chat'))
+                                ) : searchTerm.trim() ? (
+                                    <p className="px-2 py-2 text-sm text-center text-content-tertiary">No chats found.</p>
+                                ) : null}
                             </div>
                         )}
                     </div>

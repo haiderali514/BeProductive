@@ -68,58 +68,33 @@ const toYYYYMMDD = (date: Date): string => {
     return `${year}-${month}-${day}`;
 };
 
-const calculateStreak = (checkIns: string[]): number => {
-    if (checkIns.length === 0) return 0;
-    
-    const checkInSet = new Set(checkIns);
-    
-    let currentDate = new Date();
-    if (!checkInSet.has(toYYYYMMDD(currentDate))) {
-      currentDate.setDate(currentDate.getDate() - 1);
-      if (!checkInSet.has(toYYYYMMDD(currentDate))) {
-        return 0;
-      }
-    }
-    
-    let streak = 0;
-    while(checkInSet.has(toYYYYMMDD(currentDate))) {
-        streak++;
-        currentDate.setDate(currentDate.getDate() - 1);
-    }
-    
-    return streak;
-};
-
 const calculateLongestStreak = (checkIns: string[]): number => {
     if (checkIns.length < 2) return checkIns.length;
 
-    const sortedDates = checkIns.map(d => new Date(d).getTime()).sort((a, b) => a - b);
+    const sortedDates = [...new Set(checkIns)].sort();
     
-    const uniqueDates = [...new Set(sortedDates)];
-
     let longestStreak = 0;
     let currentStreak = 0;
     
-    if (uniqueDates.length > 0) {
+    if (sortedDates.length > 0) {
         longestStreak = 1;
         currentStreak = 1;
     }
 
-    for (let i = 1; i < uniqueDates.length; i++) {
-        const diff = uniqueDates[i] - uniqueDates[i-1];
+    for (let i = 1; i < sortedDates.length; i++) {
+        const currentDate = new Date(sortedDates[i]);
+        const prevDate = new Date(sortedDates[i-1]);
+        
+        const diff = currentDate.getTime() - prevDate.getTime();
         const oneDay = 1000 * 60 * 60 * 24;
-
-        if (diff === oneDay) {
+        
+        if (Math.abs(diff - oneDay) < 1000) { // Allow tolerance for DST changes
             currentStreak++;
         } else {
             currentStreak = 1;
         }
-        
-        if (currentStreak > longestStreak) {
-            longestStreak = currentStreak;
-        }
+        longestStreak = Math.max(longestStreak, currentStreak);
     }
-
     return longestStreak;
 };
 
@@ -148,7 +123,6 @@ const SpecificHabitCalendar: React.FC<{
     
     return (
         <div className="mt-6">
-            <h3 className="text-lg font-semibold text-content-primary mb-4">Check-in Calendar</h3>
             <div className="bg-background-secondary p-4 rounded-lg">
                 <div className="flex justify-between items-center mb-4">
                     <button onClick={() => changeMonth(-1)} className="p-1 rounded-full hover:bg-border-primary">&lt;</button>
@@ -224,7 +198,6 @@ const OverallActivityCalendar: React.FC<{ habits: Habit[] }> = ({ habits }) => {
 
     return (
         <div className="mt-6">
-            <h3 className="text-lg font-semibold text-content-primary mb-4">Overall Activity</h3>
             <div className="bg-background-secondary p-4 rounded-lg">
                 <div className="flex justify-between items-center mb-4">
                     <button onClick={() => changeMonth(-1)} className="p-1 rounded-full hover:bg-border-primary">&lt;</button>
@@ -259,7 +232,7 @@ const OverallActivityCalendar: React.FC<{ habits: Habit[] }> = ({ habits }) => {
 };
 
 
-const OverallStats: React.FC<{ habits: Habit[] }> = ({ habits }) => {
+const OverallStatsContent: React.FC<{ habits: Habit[] }> = ({ habits }) => {
     const {
         monthlyCheckins,
         todaysCheckins,
@@ -276,7 +249,7 @@ const OverallStats: React.FC<{ habits: Habit[] }> = ({ habits }) => {
         const totalHabits = habits.length;
         const completionRate = totalHabits > 0 ? Math.round((todaysCheckins / totalHabits) * 100) : 0;
         
-        const highestCurrentStreak = Math.max(0, ...habits.map(h => calculateStreak(h.checkIns)));
+        const highestCurrentStreak = Math.max(0, ...habits.map(h => h.streak));
         
         const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
         const monthlyCheckins = habits.reduce((sum, h) => sum + h.checkIns.filter(ci => ci.startsWith(monthPrefix)).length, 0);
@@ -295,7 +268,6 @@ const OverallStats: React.FC<{ habits: Habit[] }> = ({ habits }) => {
 
     return (
         <div>
-            <h2 className="text-xl font-bold mb-4 text-content-primary">Overall Stats</h2>
             <div className="grid grid-cols-2 gap-4">
                 <SwitchableStatCard 
                     icon={<CheckCircleSolidIcon className="text-green-500" />}
@@ -305,7 +277,7 @@ const OverallStats: React.FC<{ habits: Habit[] }> = ({ habits }) => {
                 <SwitchableStatCard 
                     icon={<BoltSolidIcon className="text-blue-500" />}
                     title1="Total Check-Ins" value1={`${totalCheckins} Days`}
-                    title2="Overall Rate" value2={`${totalCompletionRate}%`} description2="All time"
+                    title2="Overall Rate" value2={`${totalCompletionRate}%`}
                 />
                  <SwitchableStatCard
                     icon={<ChartPieSolidIcon className="text-orange-400" />}
@@ -314,8 +286,8 @@ const OverallStats: React.FC<{ habits: Habit[] }> = ({ habits }) => {
                 />
                 <SwitchableStatCard
                     icon={<FireSolidIcon className="text-red-500" />}
-                    title1="Current Streak" value1={`${highestCurrentStreak} Days`} description1="Across all habits"
-                    title2="Longest Streak" value2={`${longestStreakEver} Days`} description2="All time"
+                    title1="Current Streak" value1={`${highestCurrentStreak} Days`}
+                    title2="Longest Streak" value2={`${longestStreakEver} Days`}
                 />
             </div>
             <OverallActivityCalendar habits={habits} />
@@ -323,13 +295,12 @@ const OverallStats: React.FC<{ habits: Habit[] }> = ({ habits }) => {
     );
 };
 
-const SpecificHabitStats: React.FC<{
+const SpecificHabitStatsContent: React.FC<{
     habit: Habit;
     onToggleHabit: (habitId: string, date: string) => void;
 }> = ({ habit, onToggleHabit }) => {
     const {
         totalCheckins,
-        currentStreak,
         monthlyCheckins,
         monthlyRate,
         overallCompletionRate,
@@ -346,14 +317,12 @@ const SpecificHabitStats: React.FC<{
         const overallCompletionRate = habit.totalDays > 0 ? Math.round((habit.checkIns.length / habit.totalDays) * 100) : 0;
 
         const longestStreak = calculateLongestStreak(habit.checkIns);
-        const currentStreak = calculateStreak(habit.checkIns);
 
         const milestones = [21, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 365];
-        const nextMilestone = milestones.find(day => day > currentStreak) || 365;
+        const nextMilestone = milestones.find(day => day > habit.streak) || 365;
         
         return {
             totalCheckins: habit.checkIns.length,
-            currentStreak,
             monthlyCheckins,
             monthlyRate,
             overallCompletionRate,
@@ -364,10 +333,6 @@ const SpecificHabitStats: React.FC<{
 
     return (
         <div>
-            <div className="flex items-center mb-4">
-                <span className="text-4xl mr-4">{habit.icon}</span>
-                <h2 className="text-2xl font-bold text-content-primary truncate">{habit.name}</h2>
-            </div>
             <div className="grid grid-cols-2 gap-4">
                 <SwitchableStatCard
                     icon={<BoltSolidIcon className="text-blue-500" />}
@@ -377,11 +342,11 @@ const SpecificHabitStats: React.FC<{
                  <SwitchableStatCard
                     icon={<ChartPieSolidIcon className="text-orange-400" />}
                     title1="Monthly check-in rate" value1={`${monthlyRate}%`}
-                    title2="Overall Rate" value2={`${overallCompletionRate}%`} description2="All time"
+                    title2="Overall Rate" value2={`${overallCompletionRate}%`}
                 />
                 <SwitchableStatCard
                     icon={<FireSolidIcon className="text-red-500" />}
-                    title1="Current Streak" value1={`${currentStreak} Days`}
+                    title1="Current Streak" value1={`${habit.streak} Days`}
                     title2="Best Streak" value2={`${longestStreak} Days`}
                 />
                 <StatCard
@@ -389,7 +354,7 @@ const SpecificHabitStats: React.FC<{
                     title="Next Milestone"
                     value={
                         <span>
-                            {currentStreak} / <span className="text-content-secondary">{nextMilestone} Days</span>
+                            {habit.streak} / <span className="text-content-secondary">{nextMilestone} Days</span>
                         </span>
                     }
                 />
@@ -401,8 +366,25 @@ const SpecificHabitStats: React.FC<{
 
 export const HabitStatsPanel: React.FC<HabitStatsPanelProps> = ({ habits, selectedHabit, onToggleHabit }) => {
     return (
-        <aside className="h-full bg-background-primary p-4 overflow-y-auto hidden md:block w-full">
-            {selectedHabit ? <SpecificHabitStats habit={selectedHabit} onToggleHabit={onToggleHabit} /> : <OverallStats habits={habits} />}
+        <aside className="h-full bg-background-primary flex flex-col">
+            {/* Sticky Header */}
+            <div className="p-4 border-b border-border-primary flex-shrink-0">
+                {selectedHabit ? (
+                    <div className="flex items-center">
+                        <span className="text-4xl mr-4">{selectedHabit.icon}</span>
+                        <h2 className="text-2xl font-bold text-content-primary truncate">{selectedHabit.name}</h2>
+                    </div>
+                ) : (
+                    <h2 className="text-xl font-bold text-content-primary">Overall Stats</h2>
+                )}
+            </div>
+            
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto px-4 pt-4 pb-2">
+                {selectedHabit 
+                    ? <SpecificHabitStatsContent habit={selectedHabit} onToggleHabit={onToggleHabit} /> 
+                    : <OverallStatsContent habits={habits} />}
+            </div>
         </aside>
     );
 };

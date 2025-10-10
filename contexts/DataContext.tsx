@@ -57,8 +57,39 @@ interface DataContextType {
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
+const toYYYYMMDD = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const calculateCurrentStreak = (checkIns: string[]): number => {
+    if (checkIns.length === 0) return 0;
+    
+    const checkInSet = new Set(checkIns);
+    let streak = 0;
+    
+    // Start checking from today
+    let currentDate = new Date();
+    
+    // If today is not checked, the streak might have ended yesterday. So, we start checking from yesterday.
+    if (!checkInSet.has(toYYYYMMDD(currentDate))) {
+        currentDate.setDate(currentDate.getDate() - 1);
+    }
+
+    // Now, walk backwards day by day
+    while (checkInSet.has(toYYYYMMDD(currentDate))) {
+        streak++;
+        currentDate.setDate(currentDate.getDate() - 1);
+    }
+    
+    return streak;
+};
+
+
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [settings] = useSettings();
+    const { settings, playSound } = useSettings();
     const [, logApiCall] = useApiUsage();
 
     const [lists, setLists] = useLocalStorage<List[]>('lists', DEFAULT_LISTS);
@@ -145,9 +176,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
             setTasks(prev => prev.map(t => t.id === taskId ? { ...t, dueDate: nextDueDate.toISOString().split('T')[0], subtasks: t.subtasks.map(st => ({...st, completed: false})) } : t));
         } else {
+            if (!taskToToggle.completed) {
+                playSound('completion');
+            }
             setTasks(prev => prev.map(t => t.id === taskId ? { ...t, completed: !t.completed, completionDate: !t.completed ? new Date().toISOString() : undefined, wontDo: false } : t));
         }
-    }, [tasks, setTasks]);
+    }, [tasks, setTasks, playSound]);
 
     const handleToggleSubtaskComplete = useCallback((taskId: string, subtaskId: string) => {
         setTasks(prev => prev.map(t => t.id === taskId ? { ...t, subtasks: t.subtasks.map(s => s.id === subtaskId ? { ...s, completed: !s.completed } : s) } : t));
@@ -202,8 +236,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, [setPomodoroSessions]);
 
     const handleToggleHabit = useCallback((habitId: string, date: string) => {
-        setHabits(prev => prev.map(h => h.id === habitId ? { ...h, checkIns: h.checkIns.includes(date) ? h.checkIns.filter(d => d !== date) : [...h.checkIns, date] } : h));
-    }, [setHabits]);
+        setHabits(prev => {
+            const newHabits = prev.map(h => {
+                if (h.id === habitId) {
+                    const isChecking = !h.checkIns.includes(date);
+                    if (isChecking) {
+                        playSound('completion');
+                    }
+                    const newCheckIns = isChecking 
+                        ? [...h.checkIns, date] 
+                        : h.checkIns.filter(d => d !== date);
+                    
+                    const newStreak = calculateCurrentStreak(newCheckIns);
+
+                    return { ...h, checkIns: newCheckIns, streak: newStreak };
+                }
+                return h;
+            });
+            return newHabits;
+        });
+    }, [setHabits, playSound]);
+
 
     const handleAddHabit = useCallback((habitData: { name: string; icon: string; period: 'Morning' | 'Afternoon' | 'Night' }) => {
         const newHabit: Habit = { id: Date.now().toString(), ...habitData, checkIns: [], totalDays: 0, streak: 0 };

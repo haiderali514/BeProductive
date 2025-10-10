@@ -130,7 +130,7 @@ export const TasksPage: React.FC = () => {
         handleAddFilter,
         handleReorderTask,
     } = useData();
-    const [settings, onSettingsChange] = useSettings();
+    const { settings, onSettingsChange } = useSettings();
     const [, logApiCall] = useApiUsage();
     
     const [activeView, setActiveView] = useState('inbox');

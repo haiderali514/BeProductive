@@ -17,7 +17,7 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { tasks, lists, habits, userProfile, pomodoroSessions } = useData();
-    const [settings] = useSettings();
+    const { settings, playSound } = useSettings();
     const [, logApiCall] = useApiUsage();
 
     const [notifications, setNotifications] = useLocalStorage<Notification[]>('notifications', []);
@@ -27,9 +27,25 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         if (type === 'task-due' && relatedId && notifications.some(n => n.relatedId === relatedId && n.type === 'task-due')) {
             return;
         }
+        
+        // Always add to in-app center
         const newNotification: Notification = { id: Date.now().toString(), message, type, relatedId, read: false, timestamp: Date.now() };
         setNotifications(prev => [newNotification, ...prev].slice(0, 50));
-    }, [notifications, setNotifications]);
+
+        const isReminder = type === 'task-due' || type === 'habit-reminder';
+
+        // Handle delivery type
+        if (isReminder) {
+            if (settings.reminderType === 'push' && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+                // eslint-disable-next-line no-new
+                new Notification("AI Task Manager", {
+                    body: message,
+                    icon: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'
+                });
+            }
+            playSound('reminder');
+        }
+    }, [notifications, setNotifications, settings.reminderType, playSound]);
 
     const markNotificationAsRead = useCallback((id: string) => {
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
@@ -39,6 +55,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         setNotifications([]);
     }, [setNotifications]);
 
+    // Effect for Task Reminders
     useEffect(() => {
         const checkTaskReminders = () => {
             const now = new Date();
@@ -58,17 +75,49 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return () => clearInterval(intervalId);
     }, [tasks, addNotification]);
 
+    // Effect for Habit Reminders
+    useEffect(() => {
+        const checkHabitReminders = () => {
+            const now = new Date();
+            const currentHour = now.getHours();
+            
+            let period: 'Morning' | 'Afternoon' | 'Night' | null = null;
+            if (currentHour === 9) period = 'Morning'; // 9 AM
+            else if (currentHour === 15) period = 'Afternoon'; // 3 PM
+            else if (currentHour === 21) period = 'Night'; // 9 PM
+
+            if (period) {
+                const todayStr = now.toISOString().split('T')[0];
+                habits.forEach(habit => {
+                    if (habit.period === period && !habit.checkIns.includes(todayStr)) {
+                        const alreadyNotified = notifications.some(n => 
+                            n.relatedId === habit.id && 
+                            n.type === 'habit-reminder' && 
+                            new Date(n.timestamp).toISOString().split('T')[0] === todayStr
+                        );
+                        if (!alreadyNotified) {
+                            addNotification(`Don't forget your ${period.toLowerCase()} habit: "${habit.name}"`, 'habit-reminder', habit.id);
+                        }
+                    }
+                });
+            }
+        };
+        
+        checkHabitReminders();
+        const intervalId = setInterval(checkHabitReminders, 60 * 60 * 1000); // Check every hour
+        return () => clearInterval(intervalId);
+    }, [habits, addNotification, notifications]);
+
+    // Effect for Proactive AI Suggestions
     useEffect(() => {
         const checkProactiveSuggestion = async () => {
             if (!settings.enableAIFeatures) return;
 
-            // Only check once every 6 hours
             const SIX_HOURS_IN_MS = 6 * 60 * 60 * 1000;
             if (Date.now() - lastAISuggestion < SIX_HOURS_IN_MS) {
                 return;
             }
             
-            console.log("Checking for proactive AI suggestion...");
             setLastAISuggestion(Date.now());
 
             try {
@@ -84,7 +133,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             }
         };
         
-        // Check on initial load and then every hour
         checkProactiveSuggestion();
         const intervalId = setInterval(checkProactiveSuggestion, 60 * 60 * 1000);
         return () => clearInterval(intervalId);

@@ -1,5 +1,3 @@
-
-
 import React, { useState } from 'react';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useApiUsage } from '../../contexts/ApiUsageContext';
@@ -21,7 +19,7 @@ interface SettingsModalProps {
 type SettingsPanel = 'account' | 'features' | 'smartList' | 'notifications' | 'dateTime' | 'appearance' | 'shortcuts';
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-    const [settings, onSettingsChange] = useSettings();
+    const { settings, onSettingsChange } = useSettings();
     const [apiUsage] = useApiUsage();
     const { handleLogout } = useAuth();
     const [activePanel, setActivePanel] = useState<SettingsPanel>('account');
