@@ -13,6 +13,7 @@ interface HabitItemProps {
     onDragEnter: () => void;
     onDragEnd: () => void;
     isDropTarget: boolean;
+    viewMode: 'list' | 'grid';
 }
 
 const toYYYYMMDD = (date: Date): string => {
@@ -22,7 +23,7 @@ const toYYYYMMDD = (date: Date): string => {
     return `${year}-${month}-${day}`;
 };
 
-export const HabitItem: React.FC<HabitItemProps> = ({ habit, onToggleHabit, onSelect, isSelected, selectedDate, onDragStart, onDrop, onDragEnter, onDragEnd, isDropTarget }) => {
+export const HabitItem: React.FC<HabitItemProps> = ({ habit, onToggleHabit, onSelect, isSelected, selectedDate, onDragStart, onDrop, onDragEnter, onDragEnd, isDropTarget, viewMode }) => {
     // 7-day history ending today.
     const dates = useMemo(() => Array.from({ length: 7 }).map((_, i) => {
         const d = new Date();
@@ -30,10 +31,12 @@ export const HabitItem: React.FC<HabitItemProps> = ({ habit, onToggleHabit, onSe
         return toYYYYMMDD(d);
     }), []);
     
-    const CheckButton: React.FC<{ date: string; size?: 'sm' | 'lg' }> = ({ date, size = 'sm' }) => {
+    const isGrid = viewMode === 'grid';
+
+    const CheckButton: React.FC<{ date: string }> = ({ date }) => {
         const isChecked = habit.checkIns.includes(date);
-        const sizeClasses = size === 'sm' ? 'w-7 h-7' : 'w-10 h-10';
-        const iconSizeClasses = size === 'sm' ? 'h-4 w-4' : 'h-6 w-6';
+        const sizeClasses = 'w-7 h-7';
+        const iconSizeClasses = 'h-4 w-4';
 
         return (
              <button 
@@ -58,12 +61,14 @@ export const HabitItem: React.FC<HabitItemProps> = ({ habit, onToggleHabit, onSe
             onDragEnd={onDragEnd}
             onDragOver={(e) => e.preventDefault()}
             onClick={() => onSelect(habit.id)}
-            className={`relative p-3 bg-background-secondary rounded-lg cursor-pointer transition-all flex items-center justify-between border-2 ${isSelected ? 'border-primary' : 'border-transparent'}`}
+            className={`relative p-3 bg-background-secondary rounded-lg cursor-pointer transition-all border-2 ${isSelected ? 'border-primary' : 'border-transparent'} ${
+                (isGrid && !selectedDate) ? 'flex flex-col justify-between' : 'flex items-center justify-between'
+            }`}
         >
             {isDropTarget && <div className="absolute top-0 left-0 right-0 h-1 bg-primary rounded-full z-10" />}
             
-            {/* Left Side: Info */}
-            <div className="flex items-center space-x-3 min-w-0 flex-1">
+            {/* Info Section */}
+            <div className={`flex items-center space-x-3 min-w-0 ${ (isGrid && !selectedDate) ? '' : 'flex-1' }`}>
                 <span className="text-3xl bg-background-primary p-2 rounded-full flex-shrink-0">{habit.icon}</span>
                 <div className="min-w-0">
                     <p className="text-content-primary font-semibold truncate">{habit.name}</p>
@@ -74,13 +79,20 @@ export const HabitItem: React.FC<HabitItemProps> = ({ habit, onToggleHabit, onSe
                 </div>
             </div>
 
-            {/* Right Side: Actions */}
-            <div className="flex-shrink-0 pl-2">
-                {selectedDate ? (
-                    <CheckButton date={selectedDate} size="lg" />
+            {/* Actions Section */}
+            <div className={`${(isGrid && !selectedDate) ? 'mt-3' : 'flex-shrink-0 pl-2'}`}>
+                {isGrid && selectedDate ? (
+                     <CheckButton date={selectedDate} />
                 ) : (
-                    <div className="hidden sm:flex items-center space-x-1.5">
-                        {dates.map(date => <CheckButton key={date} date={date} size="sm" />)}
+                    <div className={`${isGrid ? 'flex items-center justify-between' : 'hidden sm:flex items-center space-x-1.5'}`}>
+                        {selectedDate ? (
+                            <>
+                                {Array.from({ length: 6 }).map((_, i) => <div key={i} className="w-7 h-7" />)}
+                                <CheckButton date={selectedDate} />
+                            </>
+                        ) : (
+                            dates.map(date => <CheckButton key={date} date={date} />)
+                        )}
                     </div>
                 )}
             </div>

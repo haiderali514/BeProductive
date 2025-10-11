@@ -60,7 +60,7 @@ const SidebarListItem: React.FC<{
 }> = ({ isActive, onClick, icon, label, count, color, moreMenu, isDraggable, onDragStart, onDrop, onDragEnter, onDragEnd, isDropTarget }) => {
     return (
         <div 
-            className="relative group"
+            className={`relative group rounded-md transition-colors ${isActive ? '' : 'hover:bg-background-tertiary'}`}
             draggable={isDraggable}
             onDragStart={onDragStart}
             onDrop={onDrop}
@@ -74,7 +74,7 @@ const SidebarListItem: React.FC<{
                 className={`w-full flex items-center px-3 py-2 rounded-md text-sm transition-colors ${
                     isActive
                         ? 'bg-primary/20 text-primary font-semibold'
-                        : 'text-content-secondary hover:bg-background-tertiary hover:text-content-primary'
+                        : 'text-content-secondary group-hover:text-content-primary'
                 }`}
             >
                 {/* Icon and Label */}
@@ -164,36 +164,36 @@ export const TasksSidebar: React.FC<TasksSidebarProps> = ({ lists, tasks, tags, 
 
     const taskCounts = useMemo(() => {
         const counts: Record<string, number> = {};
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const todayStr = today.toISOString().split('T')[0];
+        const now = new Date();
+        const formatDate = (date: Date) => date.toLocaleDateString('en-CA', { timeZone: settings.timezone });
+    
+        const todayStr = formatDate(now);
         
-        const tomorrow = new Date(today);
-        tomorrow.setDate(today.getDate() + 1);
-        const tomorrowStr = tomorrow.toISOString().split('T')[0];
-
-        const sevenDaysLater = new Date(today);
-        sevenDaysLater.setDate(today.getDate() + 6);
-
+        const tomorrowDate = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        const tomorrowStr = formatDate(tomorrowDate);
+    
+        const sevenDaysLater = new Date(now.getTime() + 6 * 24 * 60 * 60 * 1000);
+        const endStr = formatDate(sevenDaysLater);
+    
         tasks.forEach(task => {
             if (!task.completed && !task.wontDo && !task.trashed) {
                 // Regular lists
                 counts[task.listId] = (counts[task.listId] || 0) + 1;
-
+    
                 // Tags
                 task.tags.forEach(tagId => {
                     counts[`tag-${tagId}`] = (counts[`tag-${tagId}`] || 0) + 1;
                 });
-
+    
                 // Smart lists
                 counts.all = (counts.all || 0) + 1;
                 if (task.dueDate?.startsWith(todayStr)) counts.today = (counts.today || 0) + 1;
                 if (task.dueDate?.startsWith(tomorrowStr)) counts.tomorrow = (counts.tomorrow || 0) + 1;
-
-                if(task.dueDate) {
-                     try {
-                        const taskDate = new Date(task.dueDate.split(' ')[0] + 'T00:00:00Z');
-                        if (taskDate >= today && taskDate <= sevenDaysLater) {
+    
+                if (task.dueDate) {
+                    try {
+                        const taskDateStr = task.dueDate.split(' ')[0];
+                        if (taskDateStr >= todayStr && taskDateStr <= endStr) {
                             counts.next7days = (counts.next7days || 0) + 1;
                         }
                     } catch {}
@@ -201,7 +201,7 @@ export const TasksSidebar: React.FC<TasksSidebarProps> = ({ lists, tasks, tags, 
             }
         });
         return counts;
-    }, [tasks]);
+    }, [tasks, settings.timezone]);
     
     const visibleSmartLists = useMemo(() => {
         return smartListsConfig.filter(list => {
@@ -248,7 +248,7 @@ export const TasksSidebar: React.FC<TasksSidebarProps> = ({ lists, tasks, tags, 
                                     <button 
                                         ref={el => { menuTriggersRef.current[list.id] = el; }}
                                         onClick={(e) => { e.stopPropagation(); setOpenMenuId(prevId => prevId === list.id ? null : list.id)}}
-                                        className="p-1 rounded-full text-content-tertiary hover:text-content-primary hover:bg-background-primary"
+                                        className="p-1 rounded-full text-content-tertiary hover:text-content-primary"
                                     >
                                         <MoreIcon className="w-4 h-4" />
                                     </button>
@@ -294,9 +294,11 @@ export const TasksSidebar: React.FC<TasksSidebarProps> = ({ lists, tasks, tags, 
                             <ChevronDownIcon className={`h-4 w-4 mr-1 transition-transform ${collapsedSections['lists'] ? '-rotate-90' : ''}`} />
                             Lists
                         </button>
-                        <button onClick={() => setAddListModalOpen(true)} className="p-1 rounded text-content-tertiary hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                            <PlusIcon />
-                        </button>
+                        <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => setAddListModalOpen(true)} className="p-1 rounded text-content-tertiary hover:text-content-primary">
+                                <PlusIcon />
+                            </button>
+                        </div>
                     </div>
                     {!collapsedSections['lists'] && (
                         <div className="space-y-1">
@@ -307,7 +309,7 @@ export const TasksSidebar: React.FC<TasksSidebarProps> = ({ lists, tasks, tags, 
                                         <button 
                                             ref={el => { menuTriggersRef.current[list.id] = el; }}
                                             onClick={(e) => { e.stopPropagation(); setOpenMenuId(prevId => prevId === list.id ? null : list.id)}}
-                                            className="p-1 rounded-full text-content-tertiary hover:text-content-primary hover:bg-background-primary"
+                                            className="p-1 rounded-full text-content-tertiary hover:text-content-primary"
                                         >
                                             <MoreIcon className="w-4 h-4" />
                                         </button>
@@ -352,7 +354,7 @@ export const TasksSidebar: React.FC<TasksSidebarProps> = ({ lists, tasks, tags, 
                                 </button>
                                 <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
                                     <button ref={el => { menuTriggersRef.current['filters_main'] = el; }} onClick={() => setOpenMenuId(prev => prev === 'filters_main' ? null : 'filters_main')} className="p-1 rounded text-content-tertiary hover:text-content-primary"><MoreIcon className="w-4 h-4"/></button>
-                                    <button onClick={() => setAddFilterModalOpen(true)} className="p-1 rounded text-content-tertiary hover:text-primary"><PlusIcon /></button>
+                                    <button onClick={() => setAddFilterModalOpen(true)} className="p-1 rounded text-content-tertiary hover:text-content-primary"><PlusIcon /></button>
                                 </div>
                             </div>
                             {!collapsedSections['filters'] && (
@@ -385,7 +387,7 @@ export const TasksSidebar: React.FC<TasksSidebarProps> = ({ lists, tasks, tags, 
                                 </button>
                                 <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
                                     <button ref={el => { menuTriggersRef.current['tags_main'] = el; }} onClick={() => setOpenMenuId(prev => prev === 'tags_main' ? null : 'tags_main')} className="p-1 rounded text-content-tertiary hover:text-content-primary"><MoreIcon className="w-4 h-4"/></button>
-                                    <button onClick={() => setAddTagModalOpen(true)} className="p-1 rounded text-content-tertiary hover:text-primary"><PlusIcon /></button>
+                                    <button onClick={() => setAddTagModalOpen(true)} className="p-1 rounded text-content-tertiary hover:text-content-primary"><PlusIcon /></button>
                                 </div>
                             </div>
                             {!collapsedSections['tags'] && (

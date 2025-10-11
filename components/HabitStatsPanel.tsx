@@ -15,21 +15,29 @@ const SwitchableStatCard: React.FC<{
 }> = ({ icon, title1, value1, description1, title2, value2, description2 }) => {
   const [showFirst, setShowFirst] = useState(true);
 
-  const StatContent: React.FC<{title: string, value: string|number, description?: string}> = ({title, value, description}) => (
-    <>
-      <div className="flex items-center space-x-2 h-8">
-          <div className="w-4 h-4">{icon}</div>
-          <p className="text-sm text-content-secondary pr-4 truncate">{title}</p>
-      </div>
-      <p className="text-2xl font-bold text-content-primary truncate">{value}</p>
-      <div className="h-4">
-        {description && <p className="text-xs text-content-tertiary">{description}</p>}
-      </div>
-    </>
-  );
+  const StatContent: React.FC<{title: string, value: string|number, description?: string}> = ({title, value, description}) => {
+      const valueParts = typeof value === 'string' ? String(value).match(/^([\d,.]+)\s*(.*)$/) : null;
+      return (
+        <>
+          <div className="flex items-center mb-1 cursor-pointer">
+              <div className="w-4 h-4">{icon}</div>
+              <p className="leading-4 text-xs text-content-secondary ml-1 truncate">{title}</p>
+          </div>
+          {valueParts ? (
+                <div className="flex items-baseline">
+                    <p className="text-xl font-semibold text-content-primary truncate leading-6">{valueParts[1]}</p>
+                    {valueParts[2] && <p className="ml-1 text-xs font-medium text-content-secondary leading-5">{valueParts[2]}</p>}
+                </div>
+            ) : (
+                <div className="text-xl font-semibold text-content-primary truncate leading-6">{value}</div>
+            )}
+            {description && <p className="text-xs text-content-tertiary">{description}</p>}
+        </>
+      );
+  };
 
   return (
-    <div onClick={() => setShowFirst(!showFirst)} className="bg-background-secondary p-4 rounded-lg cursor-pointer relative group">
+    <div onClick={() => setShowFirst(!showFirst)} className="bg-background-secondary rounded-[12px] px-[14px] pt-[13px] pb-[11px] cursor-pointer relative group">
       <div className="absolute top-3 right-3 text-content-tertiary opacity-0 group-hover:opacity-100 transition-opacity">
         <ArrowsRightLeftIcon className="w-4 h-4" />
       </div>
@@ -47,18 +55,29 @@ const StatCard: React.FC<{
     title: string;
     value: React.ReactNode;
     description?: string;
-}> = ({ icon, title, value, description }) => (
-    <div className="bg-background-secondary p-4 rounded-lg">
-         <div className="flex items-center space-x-2 h-8">
-          <div className="w-4 h-4">{icon}</div>
-          <p className="text-sm text-content-secondary pr-4 truncate">{title}</p>
-      </div>
-      <div className="text-2xl font-bold text-content-primary truncate">{value}</div>
-      <div className="h-4">
-        {description && <p className="text-xs text-content-tertiary">{description}</p>}
-      </div>
-    </div>
-);
+}> = ({ icon, title, value, description }) => {
+    const valueParts = typeof value === 'string' ? String(value).match(/^([\d,.]+)\s*(.*)$/) : null;
+
+    return (
+        <div className="bg-background-secondary rounded-[12px] px-[14px] pt-[13px] pb-[11px]">
+            <div className="flex items-center mb-1">
+                <div className="w-4 h-4">{icon}</div>
+                <p className="text-xs text-content-secondary ml-1 truncate">{title}</p>
+            </div>
+            
+            {valueParts ? (
+                <div className="flex items-baseline">
+                    <p className="text-xl font-semibold text-content-primary truncate leading-6">{valueParts[1]}</p>
+                    {valueParts[2] && <p className="ml-1 text-xs font-medium text-content-secondary leading-5">{valueParts[2]}</p>}
+                </div>
+            ) : (
+                <div className="text-xl font-semibold text-content-primary truncate leading-6">{value}</div>
+            )}
+            
+            {description && <p className="text-xs text-content-tertiary">{description}</p>}
+        </div>
+    );
+};
 
 
 const toYYYYMMDD = (date: Date): string => {
@@ -126,7 +145,7 @@ const SpecificHabitCalendar: React.FC<{
             <div className="bg-background-secondary p-4 rounded-lg">
                 <div className="flex justify-between items-center mb-4">
                     <button onClick={() => changeMonth(-1)} className="p-1 rounded-full hover:bg-border-primary">&lt;</button>
-                    <h4 className="font-bold">{monthName} {year}</h4>
+                    <div className="font-bold">{monthName} {year}</div>
                     <button onClick={() => changeMonth(1)} className="p-1 rounded-full hover:bg-border-primary">&gt;</button>
                 </div>
                 <div className="grid grid-cols-7 gap-2 text-center text-xs text-content-secondary">
@@ -201,7 +220,7 @@ const OverallActivityCalendar: React.FC<{ habits: Habit[] }> = ({ habits }) => {
             <div className="bg-background-secondary p-4 rounded-lg">
                 <div className="flex justify-between items-center mb-4">
                     <button onClick={() => changeMonth(-1)} className="p-1 rounded-full hover:bg-border-primary">&lt;</button>
-                    <h4 className="font-bold">{monthName} {year}</h4>
+                    <div className="font-bold">{monthName} {year}</div>
                     <button onClick={() => changeMonth(1)} className="p-1 rounded-full hover:bg-border-primary">&gt;</button>
                 </div>
                 <div className="grid grid-cols-7 gap-2 text-center text-xs text-content-secondary">
@@ -353,8 +372,8 @@ const SpecificHabitStatsContent: React.FC<{
                     icon={<CheckCircleSolidIcon className="text-green-500" />}
                     title="Next Milestone"
                     value={
-                        <span>
-                            {habit.streak} / <span className="text-content-secondary">{nextMilestone} Days</span>
+                        <span className="text-xl font-semibold text-content-primary truncate leading-6">
+                            {habit.streak} / <span className="text-content-secondary text-base">{nextMilestone} Days</span>
                         </span>
                     }
                 />
@@ -368,19 +387,19 @@ export const HabitStatsPanel: React.FC<HabitStatsPanelProps> = ({ habits, select
     return (
         <aside className="h-full bg-background-primary flex flex-col">
             {/* Sticky Header */}
-            <div className="p-4 border-b border-border-primary flex-shrink-0">
+            <div className="p-4 border-b border-border-primary flex-shrink-0 h-20 flex items-center">
                 {selectedHabit ? (
                     <div className="flex items-center">
                         <span className="text-4xl mr-4">{selectedHabit.icon}</span>
                         <h2 className="text-2xl font-bold text-content-primary truncate">{selectedHabit.name}</h2>
                     </div>
                 ) : (
-                    <h2 className="text-xl font-bold text-content-primary">Overall Stats</h2>
+                    <h2 className="text-2xl font-bold text-content-primary">Overall Stats</h2>
                 )}
             </div>
             
             {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto px-4 pt-4 pb-2">
+            <div className="flex-1 overflow-y-auto px-4 pt-4">
                 {selectedHabit 
                     ? <SpecificHabitStatsContent habit={selectedHabit} onToggleHabit={onToggleHabit} /> 
                     : <OverallStatsContent habits={habits} />}

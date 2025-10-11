@@ -5,7 +5,7 @@ import { CreateHabitModal } from './CreateHabitModal';
 import { Settings } from '../hooks/useSettings';
 import { ResizablePanel } from './ResizablePanel';
 import { CircularProgress } from './CircularProgress';
-import { LibraryIcon, MatrixIcon, PlusIcon, MoreIcon } from './Icons';
+import { LibraryIcon, MatrixIcon, PlusIcon, MoreIcon, CheckCircleSolidIcon } from './Icons';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { HabitItem } from './HabitItem';
 
@@ -61,7 +61,15 @@ const DailyProgressHeader: React.FC<{
                         <p className={`text-sm mb-2 ${isSelected ? 'text-primary' : 'text-content-secondary'}`}>{dayName}</p>
                         <p className={`font-semibold mb-3 text-lg ${isToday && !isSelected ? 'text-primary' : ''}`}>{date.getDate()}</p>
                         <div className="relative w-8 h-8 mx-auto">
-                           <CircularProgress size={32} strokeWidth={3} progress={progress} />
+                           {progress === 100 && habits.length > 0 ? (
+                                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </div>
+                           ) : (
+                                <CircularProgress size={32} strokeWidth={3} progress={progress} />
+                           )}
                         </div>
                     </div>
                 );
@@ -194,7 +202,7 @@ export const HabitPage: React.FC<HabitPageProps> = ({ habits, onToggleHabit, onA
                                 <span className="ml-2 text-sm font-normal text-content-tertiary">{periodHabits.length}</span>
                                 </button>
                                 {!isCollapsed && (
-                                    <div className={`${viewMode === 'grid' ? 'grid grid-cols-1 xl:grid-cols-2 gap-3' : 'space-y-3'}`}>
+                                    <div className={`${viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 gap-3' : 'space-y-3'}`}>
                                         {periodHabits.map(habit => (
                                             <HabitItem
                                                 key={habit.id}
@@ -208,6 +216,7 @@ export const HabitPage: React.FC<HabitPageProps> = ({ habits, onToggleHabit, onA
                                                 onDragEnter={() => handleDragEnter(habit.id)}
                                                 onDragEnd={handleDragEnd}
                                                 isDropTarget={dropTargetId === habit.id}
+                                                viewMode={viewMode}
                                             />
                                         ))}
                                     </div>

@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 import { Settings } from '../../hooks/useSettings';
 
@@ -33,6 +31,11 @@ const ToggleSwitch: React.FC<{ checked: boolean; onChange: (checked: boolean) =>
         <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`} />
     </button>
 );
+
+const timezones = [
+    'UTC', 'Europe/London', 'Europe/Paris', 'Asia/Dubai', 'Asia/Karachi', 'Asia/Kolkata', 'Asia/Tokyo',
+    'Australia/Sydney', 'America/Los_Angeles', 'America/Denver', 'America/Chicago', 'America/New_York',
+];
 
 
 export const DateTimeSettings: React.FC<DateTimeSettingsProps> = ({ settings, onSettingsChange }) => {
@@ -75,8 +78,12 @@ export const DateTimeSettings: React.FC<DateTimeSettingsProps> = ({ settings, on
                 </SettingRow>
             </div>
              <div className="bg-background-primary rounded-lg p-4 mt-8">
-                 <SettingRow label="Time Zone" description="If enabled, you can select the time zone when setting time for tasks.">
-                     <ToggleSwitch checked={settings.enableTimezone} onChange={(val) => onSettingsChange({ enableTimezone: val })} />
+                 <SettingRow label="Time Zone" description="Dates and times will be adjusted to this time zone.">
+                     <Dropdown 
+                        value={settings.timezone}
+                        options={timezones.map(tz => ({ value: tz, label: tz.replace(/_/g, ' ') }))}
+                        onChange={(val) => onSettingsChange({ timezone: val })}
+                    />
                 </SettingRow>
             </div>
         </div>

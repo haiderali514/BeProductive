@@ -33,7 +33,7 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({ size, stroke
         r={radius}
         cx={size / 2}
         cy={size / 2}
-        style={{ transition: 'stroke-dashoffset 0.5s ease-out' }}
+        style={{ transition: 'stroke-dashoffset 0.15s linear' }}
       />
     </svg>
   );

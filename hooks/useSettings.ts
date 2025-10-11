@@ -1,5 +1,3 @@
-
-
 import useLocalStorage from './useLocalStorage';
 
 export type SmartListVisibility = 'show' | 'show-if-not-empty' | 'hide';
@@ -28,7 +26,7 @@ export interface Settings {
     startWeekOn: 'saturday' | 'sunday' | 'monday';
     showWeekNumbers: boolean;
     additionalCalendar: 'none' | 'hijri' | 'persian';
-    enableTimezone: boolean;
+    timezone: string;
 
     // Appearance
     theme: string;
@@ -73,14 +71,14 @@ const defaultSettings: Settings = {
     startWeekOn: 'monday',
     showWeekNumbers: true,
     additionalCalendar: 'none',
-    enableTimezone: false,
+    timezone: 'Asia/Karachi',
     theme: 'dark',
     autoSwitchTheme: false,
     font: 'default',
     fontSize: 'normal',
     sidebarCount: 'show',
     completedTaskStyle: 'default',
-    taskInputStyle: 'detailed',
+    taskInputStyle: 'simple',
     smartListSettings: {
         all: 'show',
         today: 'show',

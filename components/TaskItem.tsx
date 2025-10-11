@@ -68,7 +68,8 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, onToggleComplete, onTo
         const options: Intl.DateTimeFormatOptions = { 
             weekday: 'short', 
             month: 'short', 
-            day: 'numeric' 
+            day: 'numeric',
+            timeZone: settings.timezone,
         };
         if (hasTime) {
             options.hour = 'numeric';
@@ -76,7 +77,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, onToggleComplete, onTo
         }
 
         return date.toLocaleString(undefined, options);
-    }, [task.dueDate]);
+    }, [task.dueDate, settings.timezone]);
 
     const isStrikethrough = settings.completedTaskStyle === 'strikethrough';
     
