@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useCallback, useEffect } from 'react';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { List, Task, Priority, Recurrence, Subtask, Habit, PomodoroSession, UserProfile, UserTrait, TraitType, GoalSubtype, Countdown, Tag, Filter, FilterDateOption } from '../types';
-import { DEFAULT_LISTS, DEFAULT_TASKS, DEFAULT_HABITS, DEFAULT_POMODORO_SESSIONS, DEFAULT_USER_PROFILE, DEFAULT_COUNTDOWNS } from '../constants';
+import { DEFAULT_LISTS, DEFAULT_TASKS, DEFAULT_HABITS, DEFAULT_POMODORO_SESSIONS, DEFAULT_USER_PROFILE, DEFAULT_COUNTDOWNS, DEFAULT_TAGS, DEFAULT_FILTERS } from '../constants';
 import { generateSubtasks } from '../services/geminiService';
 import { useSettings } from './SettingsContext';
 import { useApiUsage } from './ApiUsageContext';
@@ -27,6 +27,7 @@ interface DataContextType {
         tags: string[]; 
         isSection?: boolean;
         isCollapsed?: boolean;
+        afterTaskId?: string;
     }) => Task;
     handleUpdateTask: (taskId: string, updates: Partial<Task>) => void;
     handleToggleComplete: (taskId: string) => void;
@@ -98,8 +99,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [pomodoroSessions, setPomodoroSessions] = useLocalStorage<PomodoroSession[]>('pomodoroSessions', DEFAULT_POMODORO_SESSIONS);
     const [userProfile, setUserProfile] = useLocalStorage<UserProfile>('userProfile', DEFAULT_USER_PROFILE);
     const [countdowns, setCountdowns] = useLocalStorage<Countdown[]>('countdowns', DEFAULT_COUNTDOWNS);
-    const [tags, setTags] = useLocalStorage<Tag[]>('tags', []);
-    const [filters, setFilters] = useLocalStorage<Filter[]>('filters', []);
+    const [tags, setTags] = useLocalStorage<Tag[]>('tags', DEFAULT_TAGS);
+    const [filters, setFilters] = useLocalStorage<Filter[]>('filters', DEFAULT_FILTERS);
 
     useEffect(() => {
         // Data migration logic from old profile structure
@@ -128,17 +129,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, [setLists, setTasks]);
 
 
-    const handleAddTask = useCallback((taskData: { title: string; listId: string; priority: Priority; dueDate: string | null; recurrence: Recurrence | null; tags: string[]; isSection?: boolean, isCollapsed?: boolean }) => {
+    const handleAddTask = useCallback((taskData: { title: string; listId: string; priority: Priority; dueDate: string | null; recurrence: Recurrence | null; tags: string[]; isSection?: boolean, isCollapsed?: boolean, afterTaskId?: string }) => {
+        const { afterTaskId, ...restOfTaskData } = taskData;
         const newTask: Task = { 
             id: Date.now().toString(), 
             completed: false, 
             subtasks: [], 
-            tags: taskData.tags || [], 
+            tags: restOfTaskData.tags || [], 
             description: '', 
             pinned: false,
-            ...taskData 
+            ...restOfTaskData 
         };
-        setTasks(prev => [...prev, newTask]);
+        setTasks(prev => {
+            if (afterTaskId) {
+                const newTasks = [...prev];
+                const targetIndex = newTasks.findIndex(t => t.id === afterTaskId);
+                if (targetIndex !== -1) {
+                    newTasks.splice(targetIndex + 1, 0, newTask);
+                    return newTasks;
+                }
+            }
+            return [...prev, newTask];
+        });
         return newTask;
     }, [setTasks]);
 
@@ -247,8 +259,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         ? [...h.checkIns, date] 
                         : h.checkIns.filter(d => d !== date);
                     
+                    // Recalculate streak
                     const newStreak = calculateCurrentStreak(newCheckIns);
-
+                    
                     return { ...h, checkIns: newCheckIns, streak: newStreak };
                 }
                 return h;
@@ -256,88 +269,72 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return newHabits;
         });
     }, [setHabits, playSound]);
-
-
+    
     const handleAddHabit = useCallback((habitData: { name: string; icon: string; period: 'Morning' | 'Afternoon' | 'Night' }) => {
-        const newHabit: Habit = { id: Date.now().toString(), ...habitData, checkIns: [], totalDays: 0, streak: 0 };
+        const newHabit: Habit = {
+            id: Date.now().toString(),
+            name: habitData.name,
+            icon: habitData.icon,
+            period: habitData.period,
+            checkIns: [],
+            totalDays: 0,
+            streak: 0,
+        };
         setHabits(prev => [...prev, newHabit]);
     }, [setHabits]);
-    
+
     const handleUpdateProfile = useCallback((newProfileData: Partial<UserProfile>) => {
         setUserProfile(prev => ({...prev, ...newProfileData}));
     }, [setUserProfile]);
 
-    const getTasksForPeriod = useCallback((period: 'today' | 'tomorrow' | 'this week') => {
-        const activeTasks = tasks.filter(t => !t.completed && !t.wontDo && !t.trashed);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const todayStr = today.toISOString().split('T')[0];
-
-        const tomorrow = new Date(today);
-        tomorrow.setDate(today.getDate() + 1);
-        const tomorrowStr = tomorrow.toISOString().split('T')[0];
-
-        switch(period) {
-            case 'today':
-                return activeTasks.filter(t => t.dueDate && t.dueDate.startsWith(todayStr));
-            case 'tomorrow':
-                return activeTasks.filter(t => t.dueDate && t.dueDate.startsWith(tomorrowStr));
-            case 'this week':
-                const startDayIndex = settings.startWeekOn === 'monday' ? 1 : (settings.startWeekOn === 'saturday' ? 6 : 0);
-                const currentDay = today.getDay();
-                const weekStart = new Date(today);
-                const diff = currentDay - startDayIndex;
-                weekStart.setDate(today.getDate() - (diff < 0 ? diff + 7 : diff));
-
-                const weekEnd = new Date(weekStart);
-                weekEnd.setDate(weekStart.getDate() + 6);
-
-                return activeTasks.filter(t => {
-                    if (!t.dueDate) return false;
-                    const taskDate = new Date(t.dueDate.split(' ')[0] + 'T00:00:00');
-                    return taskDate >= weekStart && taskDate <= weekEnd;
-                });
-            default:
-                return [];
+    const getTasksForPeriod = useCallback((period: 'today' | 'tomorrow' | 'this week'): Task[] => {
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        const activeTasks = tasks.filter(t => !t.completed && !t.trashed && !t.wontDo);
+    
+        if (period === 'today') {
+            return activeTasks.filter(t => t.dueDate && t.dueDate.startsWith(todayStr));
         }
-    }, [tasks, settings.startWeekOn]);
+        if (period === 'tomorrow') {
+            const tomorrow = new Date();
+            tomorrow.setDate(now.getDate() + 1);
+            const tomorrowStr = tomorrow.toISOString().split('T')[0];
+            return activeTasks.filter(t => t.dueDate && t.dueDate.startsWith(tomorrowStr));
+        }
+        if (period === 'this week') {
+            const weekEnd = new Date();
+            weekEnd.setDate(now.getDate() + 7);
+            const weekEndStr = weekEnd.toISOString().split('T')[0];
+            return activeTasks.filter(t => t.dueDate && t.dueDate >= todayStr && t.dueDate <= weekEndStr);
+        }
+        return [];
+    }, [tasks]);
 
-    const findFreeSlots = useCallback((dateStr: string, durationMinutes: number) => {
-        const targetDate = new Date(dateStr + 'T00:00:00');
-        targetDate.setHours(0, 0, 0, 0);
-        const nextDay = new Date(targetDate);
-        nextDay.setDate(targetDate.getDate() + 1);
-
-        const daySessions = pomodoroSessions
-            .filter(s => s.startTime >= targetDate.getTime() && s.startTime < nextDay.getTime())
-            .sort((a, b) => a.startTime - b.startTime);
-        
-        const slots = [];
-        // Check from 9 AM to 9 PM
-        let searchStart = new Date(targetDate);
-        searchStart.setHours(9, 0, 0, 0);
-
-        const dayEnd = new Date(targetDate);
-        dayEnd.setHours(21, 0, 0, 0);
-
-        for (const session of daySessions) {
-            if (session.startTime > searchStart.getTime()) {
-                const gap = session.startTime - searchStart.getTime();
-                if (gap >= durationMinutes * 60 * 1000) {
-                    slots.push(`${searchStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${new Date(session.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`);
-                }
+    const findFreeSlots = useCallback((dateStr: string, durationMinutes: number): string[] => {
+        const targetDate = new Date(dateStr);
+        const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 8, 0, 0); // 8 AM
+        const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 22, 0, 0); // 10 PM
+    
+        const existingEvents = pomodoroSessions
+            .filter(s => new Date(s.startTime).toISOString().split('T')[0] === dateStr)
+            .map(s => ({ start: s.startTime, end: s.endTime }))
+            .sort((a, b) => a.start - b.start);
+    
+        const freeSlots = [];
+        let searchStart = startOfDay.getTime();
+    
+        for (const event of existingEvents) {
+            if (event.start - searchStart >= durationMinutes * 60000) {
+                freeSlots.push(`${new Date(searchStart).toLocaleTimeString()} - ${new Date(event.start).toLocaleTimeString()}`);
             }
-            searchStart = new Date(session.endTime);
+            searchStart = Math.max(searchStart, event.end);
         }
-
-        if (dayEnd.getTime() > searchStart.getTime()) {
-            const lastGap = dayEnd.getTime() - searchStart.getTime();
-            if (lastGap >= durationMinutes * 60 * 1000) {
-                slots.push(`${searchStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${dayEnd.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`);
-            }
+    
+        if (endOfDay.getTime() - searchStart >= durationMinutes * 60000) {
+            freeSlots.push(`${new Date(searchStart).toLocaleTimeString()} - ${endOfDay.toLocaleTimeString()}`);
         }
-
-        return slots;
+    
+        return freeSlots;
     }, [pomodoroSessions]);
 
     const handleAddCountdown = useCallback((title: string, date: string) => {
@@ -348,55 +345,99 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const handleDeleteCountdown = useCallback((id: string) => {
         setCountdowns(prev => prev.filter(cd => cd.id !== id));
     }, [setCountdowns]);
-
+    
     const handleAddTag = useCallback((tagData: { name: string; color: string; parentId: string | null; }) => {
-        const newTag: Tag = { id: Date.now().toString(), ...tagData };
-        setTags(prev => [...prev, newTag]);
-    }, [setTags]);
+        const newTag: Tag = {
+            id: Date.now().toString(),
+            name: tagData.name,
+            color: tagData.color,
+            parentId: tagData.parentId,
+        };
+        if (!tags.some(t => t.name.toLowerCase() === newTag.name.toLowerCase())) {
+            setTags(prev => [...prev, newTag]);
+        }
+    }, [tags, setTags]);
 
     const handleAddFilter = useCallback((filterData: Omit<Filter, 'id'>) => {
-        const newFilter: Filter = { id: Date.now().toString(), ...filterData };
+        const newFilter: Filter = { ...filterData, id: Date.now().toString() };
         setFilters(prev => [...prev, newFilter]);
     }, [setFilters]);
 
-    const reorderArray = <T extends { id: string }>(items: T[], draggedId: string, targetId: string): T[] => {
-        const draggedItem = items.find(item => item.id === draggedId);
-        if (!draggedItem) return items;
-
-        const remainingItems = items.filter(item => item.id !== draggedId);
-        
-        const targetIndex = remainingItems.findIndex(item => item.id === targetId);
-        if (targetIndex === -1) return items; // Should not happen
-
-        remainingItems.splice(targetIndex, 0, draggedItem);
-        return remainingItems;
-    };
-
     const handleReorderTask = useCallback((draggedTaskId: string, targetTaskId: string) => {
-        setTasks(prev => reorderArray(prev, draggedTaskId, targetTaskId));
+        setTasks(prev => {
+            const tasks = [...prev];
+            const draggedIndex = tasks.findIndex(t => t.id === draggedTaskId);
+            const targetIndex = tasks.findIndex(t => t.id === targetTaskId);
+    
+            if (draggedIndex === -1 || targetIndex === -1) return prev;
+    
+            const [draggedItem] = tasks.splice(draggedIndex, 1);
+            const targetItem = prev[targetIndex]; // Use original array to find target properties
+    
+            if (targetItem.isSection) {
+                draggedItem.listId = targetItem.listId;
+                draggedItem.pinned = false;
+            } else {
+                draggedItem.listId = targetItem.listId;
+                draggedItem.pinned = targetItem.pinned;
+            }
+    
+            // Find the new index of the target in the modified array
+            const newTargetIndex = tasks.findIndex(t => t.id === targetTaskId);
+            tasks.splice(newTargetIndex, 0, draggedItem);
+    
+            return tasks;
+        });
     }, [setTasks]);
 
     const handleReorderList = useCallback((draggedListId: string, targetListId: string) => {
-        setLists(prev => reorderArray(prev, draggedListId, targetListId));
+        setLists(prev => {
+            const draggedIndex = prev.findIndex(l => l.id === draggedListId);
+            const targetIndex = prev.findIndex(l => l.id === targetListId);
+            if (draggedIndex === -1 || targetIndex === -1) return prev;
+            
+            const newLists = [...prev];
+            const [draggedItem] = newLists.splice(draggedIndex, 1);
+            newLists.splice(targetIndex, 0, draggedItem);
+            return newLists;
+        });
     }, [setLists]);
 
     const handleReorderHabit = useCallback((draggedHabitId: string, targetHabitId: string) => {
-        setHabits(prev => reorderArray(prev, draggedHabitId, targetHabitId));
+        setHabits(prev => {
+            const draggedIndex = prev.findIndex(h => h.id === draggedHabitId);
+            let targetIndex = prev.findIndex(h => h.id === targetHabitId);
+    
+            if (draggedIndex === -1 || targetIndex === -1) return prev;
+    
+            const newHabits = [...prev];
+            const [draggedHabit] = newHabits.splice(draggedIndex, 1);
+            
+            if (draggedIndex < targetIndex) {
+                targetIndex--;
+            }
+            
+            newHabits.splice(targetIndex, 0, draggedHabit);
+
+            const targetHabitInOriginalArray = prev.find(h => h.id === targetHabitId);
+            const targetPeriod = targetHabitInOriginalArray?.period;
+            
+            if (targetPeriod && draggedHabit.period !== targetPeriod) {
+                const updatedDraggedHabit = { ...draggedHabit, period: targetPeriod };
+                newHabits.splice(targetIndex, 1, updatedDraggedHabit);
+            }
+            
+            return newHabits;
+        });
     }, [setHabits]);
 
-    const value = {
-        lists, tasks, habits, pomodoroSessions, userProfile, countdowns, tags, filters,
-        handleAddList, handleUpdateList, handleDeleteList,
-        handleAddTask, handleUpdateTask, handleToggleComplete, handleToggleSubtaskComplete,
-        handleAddSubtask, handleDeleteTask, handleSetRecurrence, handleGenerateSubtasks, handleAddPomodoroSession,
-        handleToggleHabit, handleAddHabit, handleUpdateProfile, getTasksForPeriod, findFreeSlots,
-        handleAddCountdown, handleDeleteCountdown, setUserProfile,
-        handleAddTag, handleAddFilter,
-        handleWontDoTask, handleRestoreTask, handlePermanentDeleteTask, handleEmptyTrash,
-        handleReorderTask, handleReorderList, handleReorderHabit,
-    };
+    const value = { lists, tasks, habits, pomodoroSessions, userProfile, countdowns, tags, filters, handleAddList, handleUpdateList, handleDeleteList, handleAddTask, handleUpdateTask, handleToggleComplete, handleToggleSubtaskComplete, handleAddSubtask, handleDeleteTask, handleSetRecurrence, handleGenerateSubtasks, handleAddPomodoroSession, handleToggleHabit, handleAddHabit, handleUpdateProfile, getTasksForPeriod, findFreeSlots, handleAddCountdown, handleDeleteCountdown, setUserProfile, handleAddTag, handleAddFilter, handleWontDoTask, handleRestoreTask, handlePermanentDeleteTask, handleEmptyTrash, handleReorderTask, handleReorderList, handleReorderHabit };
 
-    return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
+    return (
+        <DataContext.Provider value={value}>
+            {children}
+        </DataContext.Provider>
+    );
 };
 
 export const useData = () => {

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Tag } from '../types';
+import { CloseIcon } from './Icons';
 
 interface AddTagModalProps {
     isOpen: boolean;
@@ -27,53 +28,57 @@ export const AddTagModal: React.FC<AddTagModalProps> = ({ isOpen, onClose, onAdd
 
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center" onClick={onClose}>
-            <div className="bg-background-secondary rounded-lg shadow-xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
-                <div className="flex justify-between items-center mb-4">
+            <div className="bg-background-secondary rounded-lg shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+                <div className="p-4 border-b border-border-primary flex justify-between items-center">
                     <h2 className="text-xl font-bold text-content-primary">Add Tag</h2>
-                    <button onClick={onClose} className="p-1 rounded-full text-content-tertiary hover:bg-background-tertiary">&times;</button>
+                    <button onClick={onClose} className="p-2 rounded-full text-content-tertiary hover:bg-background-tertiary">
+                        <CloseIcon className="w-5 h-5" />
+                    </button>
                 </div>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <input
-                            type="text"
-                            value={name}
-                            onChange={e => setName(e.target.value)}
-                            placeholder="Tag Name"
-                            className="w-full bg-background-primary border border-border-primary rounded-md px-3 py-2 text-content-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                            required
-                            autoFocus
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-content-secondary mb-2">Color</label>
-                        <div className="grid grid-cols-9 gap-2">
-                            {TAG_COLORS.map(c => (
-                                <button
-                                    type="button"
-                                    key={c}
-                                    onClick={() => setColor(c)}
-                                    className={`w-6 h-6 rounded-full ring-2 ring-offset-2 ring-offset-background-secondary ${color === c ? 'ring-primary' : 'ring-transparent'}`}
-                                    style={{ backgroundColor: c }}
-                                    aria-label={`Select color ${c}`}
-                                />
-                            ))}
+                <form onSubmit={handleSubmit}>
+                    <div className="p-6 space-y-4">
+                        <div>
+                            <input
+                                type="text"
+                                value={name}
+                                onChange={e => setName(e.target.value)}
+                                placeholder="Tag Name"
+                                className="w-full bg-background-primary border border-border-primary rounded-md px-3 py-2 text-content-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                                required
+                                autoFocus
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-content-secondary mb-2">Color</label>
+                            <div className="grid grid-cols-9 gap-2">
+                                {TAG_COLORS.map(c => (
+                                    <button
+                                        type="button"
+                                        key={c}
+                                        onClick={() => setColor(c)}
+                                        className={`w-6 h-6 rounded-full ring-2 ring-offset-2 ring-offset-background-secondary ${color === c ? 'ring-primary' : 'ring-transparent'}`}
+                                        style={{ backgroundColor: c }}
+                                        aria-label={`Select color ${c}`}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                        <div>
+                            <label htmlFor="parent-tag" className="block text-sm font-medium text-content-secondary mb-1">Parent Tag</label>
+                            <select
+                                id="parent-tag"
+                                value={parentId || ''}
+                                onChange={e => setParentId(e.target.value || null)}
+                                className="w-full bg-background-primary border border-border-primary rounded-md px-3 py-2 text-content-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                            >
+                                <option value="">None</option>
+                                {tags.map(tag => (
+                                    <option key={tag.id} value={tag.id}>{tag.name}</option>
+                                ))}
+                            </select>
                         </div>
                     </div>
-                    <div>
-                        <label htmlFor="parent-tag" className="block text-sm font-medium text-content-secondary mb-1">Parent Tag</label>
-                        <select
-                            id="parent-tag"
-                            value={parentId || ''}
-                            onChange={e => setParentId(e.target.value || null)}
-                            className="w-full bg-background-primary border border-border-primary rounded-md px-3 py-2 text-content-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                        >
-                            <option value="">None</option>
-                            {tags.map(tag => (
-                                <option key={tag.id} value={tag.id}>{tag.name}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="flex justify-end pt-2 space-x-3">
+                    <div className="p-4 bg-background-primary rounded-b-lg flex justify-end space-x-3">
                         <button type="button" onClick={onClose} className="px-4 py-2 rounded-md bg-background-tertiary hover:bg-border-primary text-content-primary font-semibold">Close</button>
                         <button type="submit" className="px-4 py-2 rounded-md bg-primary hover:bg-primary-focus text-white font-semibold">Save</button>
                     </div>

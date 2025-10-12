@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { List } from '../types';
+import { CloseIcon } from './Icons';
 
 interface EditListModalProps {
     isOpen: boolean;
@@ -35,9 +36,11 @@ export const EditListModal: React.FC<EditListModalProps> = ({ isOpen, onClose, l
     return (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center" onClick={onClose}>
             <div className="bg-background-secondary rounded-lg shadow-2xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
-                <div className="p-6 border-b border-border-primary flex justify-between items-center">
+                <div className="p-4 border-b border-border-primary flex justify-between items-center">
                     <h2 className="text-xl font-bold">Edit List</h2>
-                    <button onClick={onClose} className="p-2 rounded-full text-content-tertiary hover:bg-background-tertiary">&times;</button>
+                    <button onClick={onClose} className="p-2 rounded-full text-content-tertiary hover:bg-background-tertiary">
+                        <CloseIcon className="w-5 h-5"/>
+                    </button>
                 </div>
                 
                 {isSimpleMode ? (
@@ -100,7 +103,7 @@ export const EditListModal: React.FC<EditListModalProps> = ({ isOpen, onClose, l
                     </div>
                 )}
                 
-                <div className="p-4 bg-background-primary flex justify-end space-x-3">
+                <div className="p-4 bg-background-primary rounded-b-lg flex justify-end space-x-3">
                     <button onClick={onClose} className="px-4 py-2 rounded-md bg-background-tertiary hover:bg-border-primary text-content-primary font-semibold">
                         {isSimpleMode ? 'Close' : 'Cancel'}
                     </button>

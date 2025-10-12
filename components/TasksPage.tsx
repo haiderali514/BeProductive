@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Priority, Task, List, AddTaskFormProps } from '../types';
 import { TaskItem } from './TaskItem';
 import { SmartAddTaskForm } from './SmartAddTaskForm';
@@ -12,7 +11,7 @@ import { useApiUsage } from '../contexts/ApiUsageContext';
 import { ResizablePanel } from './ResizablePanel';
 import { TaskDetailPanel } from './TaskDetailPanel';
 import { TasksSidebar } from './TasksSidebar';
-import { MoreIcon, PlusIcon, ChevronDownIcon, LibraryIcon, MatrixIcon, FiltersIcon, CheckItemIcon, HamburgerMenuIcon, SettingsIcon, ShareIcon, AnalyticsIcon, PrintIcon, ChevronRightIcon, MagicIcon } from './Icons';
+import { MoreIcon, PlusIcon, ChevronDownIcon, LibraryIcon, MatrixIcon, FiltersIcon, CheckItemIcon, HamburgerMenuIcon, SettingsIcon, ShareIcon, AnalyticsIcon, PrintIcon, ChevronRightIcon, MagicIcon, SidebarCollapseIcon } from './Icons';
 import { Popover } from './Popover';
 import useLocalStorage from '../hooks/useLocalStorage';
 
@@ -24,11 +23,24 @@ const SectionHeader: React.FC<{
     title: string;
     isCollapsed: boolean;
     onToggleCollapse: () => void;
-}> = ({ title, isCollapsed, onToggleCollapse }) => {
+    onDragEnter: () => void;
+    onDrop: (e: React.DragEvent) => void;
+    onDragEnd: () => void;
+    isDropTarget: boolean;
+}> = ({ title, isCollapsed, onToggleCollapse, onDragEnter, onDrop, onDragEnd, isDropTarget }) => {
     return (
-        <div className="flex items-center group px-3 py-1 cursor-pointer" onClick={onToggleCollapse}>
-            <ChevronDownIcon className={`h-4 w-4 text-content-tertiary transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
-            <h2 className="text-sm font-bold uppercase text-content-tertiary ml-2">{title}</h2>
+        <div
+            onDragEnter={onDragEnter}
+            onDrop={onDrop}
+            onDragEnd={onDragEnd}
+            onDragOver={(e) => e.preventDefault()}
+            className="relative"
+        >
+            {isDropTarget && <div className="absolute top-0 left-0 right-0 h-1 bg-primary rounded-full z-10" />}
+            <div className="flex items-center group px-3 py-1 cursor-pointer" onClick={onToggleCollapse}>
+                <ChevronDownIcon className={`h-4 w-4 text-content-tertiary transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
+                <h2 className="text-sm font-bold uppercase text-content-tertiary ml-2">{title}</h2>
+            </div>
         </div>
     );
 };
@@ -80,7 +92,7 @@ const MenuItem: React.FC<{
     onClick?: () => void;
     hasSubmenu?: boolean;
 }> = ({ icon, label, onClick, hasSubmenu }) => (
-    <button onClick={onClick} className="w-full text-left flex items-center justify-between p-2 rounded hover:bg-[#2f2f2f]">
+    <button onClick={onClick} className="w-full text-left flex items-center justify-between p-2 rounded text-sm hover:bg-[#2f2f2f]">
         <div className="flex items-center space-x-3">
             {icon}
             <span>{label}</span>
@@ -88,6 +100,29 @@ const MenuItem: React.FC<{
         {hasSubmenu && <ChevronRightIcon className="w-4 h-4 text-content-tertiary" />}
     </button>
 );
+
+const EmptySectionDropzone: React.FC<{
+    onDragEnter: () => void;
+    onDrop: (e: React.DragEvent) => void;
+    onDragEnd: () => void;
+    isDropTarget: boolean;
+}> = ({ onDragEnter, onDrop, onDragEnd, isDropTarget }) => {
+    return (
+        <div
+            onDragEnter={onDragEnter}
+            onDrop={onDrop}
+            onDragEnd={onDragEnd}
+            onDragOver={(e) => e.preventDefault()}
+            className="relative h-10 -mt-1"
+        >
+            {isDropTarget && (
+                <div className="mx-4 h-full border-2 border-dashed border-primary/50 rounded-lg flex items-center justify-center transition-all duration-200 animate-fade-in-up">
+                    <span className="text-sm text-primary/80">Move to this section</span>
+                </div>
+            )}
+        </div>
+    );
+};
 
 // ====================================================================
 // TasksPage Component
@@ -129,6 +164,7 @@ export const TasksPage: React.FC = () => {
     const moreMenuTriggerRef = useRef<HTMLButtonElement>(null);
     const [isAddingSection, setIsAddingSection] = useState(false);
     const [isPinnedCollapsed, setIsPinnedCollapsed] = useState(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useLocalStorage('tasks-sidebar-collapsed', false);
 
     // Drag and drop state
     const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -136,7 +172,8 @@ export const TasksPage: React.FC = () => {
 
     const handleDragStart = (id: string) => setDraggedId(id);
     const handleDragEnter = (id: string) => { if (id !== draggedId) setDropTargetId(id); };
-    const handleDrop = () => {
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
         if (draggedId && dropTargetId) {
             handleReorderTask(draggedId, dropTargetId);
         }
@@ -328,7 +365,8 @@ export const TasksPage: React.FC = () => {
         const elements: React.ReactNode[] = [];
         let isCurrentSectionCollapsed = false;
 
-        for (const task of taskList) {
+        for (let i = 0; i < taskList.length; i++) {
+            const task = taskList[i];
             if (task.isSection) {
                 isCurrentSectionCollapsed = task.isCollapsed ?? false;
                 elements.push(
@@ -337,8 +375,27 @@ export const TasksPage: React.FC = () => {
                         title={task.title}
                         isCollapsed={isCurrentSectionCollapsed}
                         onToggleCollapse={() => handleToggleSectionCollapse(task.id)}
+                        onDragEnter={() => handleDragEnter(task.id)}
+                        onDrop={handleDrop}
+                        onDragEnd={handleDragEnd}
+                        isDropTarget={dropTargetId === task.id}
                     />
                 );
+
+                const isLastItem = i === taskList.length - 1;
+                const nextItemIsSection = !isLastItem && taskList[i + 1].isSection;
+
+                if ((isLastItem || nextItemIsSection) && !isCurrentSectionCollapsed) {
+                    elements.push(
+                        <EmptySectionDropzone
+                            key={`${task.id}-dropzone`}
+                            onDragEnter={() => handleDragEnter(task.id)}
+                            onDrop={handleDrop}
+                            onDragEnd={handleDragEnd}
+                            isDropTarget={dropTargetId === task.id}
+                        />
+                    );
+                }
             } else {
                 if (!isCurrentSectionCollapsed) {
                     elements.push(
@@ -370,7 +427,7 @@ export const TasksPage: React.FC = () => {
         return elements;
     }
 
-    const MainContent = () => {
+    const TaskListContent = () => {
         const boardSections = useMemo(() => {
             if (viewMode !== 'board' || isSpecialView) return [];
         
@@ -407,33 +464,38 @@ export const TasksPage: React.FC = () => {
         }, [unpinnedTasks, pinnedTasks, viewMode, isPinnedCollapsed, isSpecialView]);
 
         return (
-            <div className="flex-1 flex flex-col h-full bg-background-primary">
+            <div className="flex-1 flex flex-col h-full bg-background-primary min-w-0">
                 <header className="p-4 flex justify-between items-center flex-shrink-0">
-                    <h1 className="text-2xl font-bold">{activeListName}</h1>
+                    <div className="flex items-center space-x-4">
+                        <button 
+                            onClick={() => setIsSidebarCollapsed(p => !p)} 
+                            className="p-2 text-content-secondary rounded-lg hover:bg-background-tertiary hover:text-content-primary"
+                            title={isSidebarCollapsed ? "Show menu" : "Hide menu"}
+                        >
+                            {isSidebarCollapsed ? <HamburgerMenuIcon className="h-5 w-5" /> : <SidebarCollapseIcon className="h-5 w-5" />}
+                        </button>
+                        <h1 className="text-2xl font-bold">{activeListName}</h1>
+                    </div>
                     <div className="flex items-center space-x-2">
-                        <button ref={moreMenuTriggerRef} onClick={() => setIsMoreMenuOpen(true)} className="p-2 text-content-secondary rounded-lg hover:bg-background-tertiary hover:text-content-primary">
+                        <button ref={moreMenuTriggerRef} onClick={() => setIsMoreMenuOpen(o => !o)} className="p-2 text-content-secondary rounded-lg hover:bg-background-tertiary hover:text-content-primary">
                             <MoreIcon className="h-5 w-5" />
                         </button>
                          <Popover isOpen={isMoreMenuOpen} onClose={() => setIsMoreMenuOpen(false)} triggerRef={moreMenuTriggerRef} position="bottom-end">
-                            <div className="w-64 bg-[#242424] rounded-lg shadow-xl border border-border-primary text-white text-sm">
-                                <div className="p-2">
-                                    <div className="px-2 pt-1 pb-2 text-xs text-content-tertiary">VIEW</div>
-                                    <MenuItem icon={<LibraryIcon className="w-5 h-5" />} label="List View" onClick={() => { setViewMode('list'); setIsMoreMenuOpen(false); }} />
-                                    <MenuItem icon={<MatrixIcon className="w-5 h-5" />} label="Board View" onClick={() => { setViewMode('board'); setIsMoreMenuOpen(false); }} />
-                                    <div className="my-1 border-t border-border-primary mx-2"></div>
-                                    <MenuItem icon={<CheckItemIcon className="w-5 h-5" />} label="Hide Completed" />
-                                    <MenuItem icon={<HamburgerMenuIcon className="w-5 h-5" />} label="Hide Details" />
-                                </div>
+                            <div className="w-64 bg-[#242424] rounded-lg shadow-xl border border-border-primary p-2 text-white text-sm">
+                                <div className="px-2 pt-1 pb-2 text-xs text-content-tertiary">VIEW</div>
+                                <MenuItem icon={<LibraryIcon className="w-5 h-5" />} label="List View" onClick={() => { setViewMode('list'); setIsMoreMenuOpen(false); }} />
+                                <MenuItem icon={<MatrixIcon className="w-5 h-5" />} label="Board View" onClick={() => { setViewMode('board'); setIsMoreMenuOpen(false); }} />
+                                <div className="my-1 border-t border-border-primary mx-2"></div>
+                                <MenuItem icon={<CheckItemIcon className="w-5 h-5" />} label="Hide Completed" />
+                                <MenuItem icon={<HamburgerMenuIcon className="w-5 h-5" />} label="Hide Details" />
                                 {!isSpecialView && (
                                     <>
                                         <div className="my-1 border-t border-border-primary mx-2"></div>
-                                        <div className="p-2">
-                                            <MenuItem icon={<MagicIcon />} label="Plan with AI" onClick={() => { setIsPlanModalOpen(true); setIsMoreMenuOpen(false); }} />
-                                            <MenuItem icon={<PlusIcon />} label="Add Section" onClick={() => { setIsAddingSection(true); setIsMoreMenuOpen(false); }} />
-                                            <MenuItem icon={<ShareIcon className="w-5 h-5" />} label="Share" />
-                                            <MenuItem icon={<AnalyticsIcon className="w-5 h-5" />} label="List Activities" />
-                                            <MenuItem icon={<PrintIcon className="w-5 h-5" />} label="Print" hasSubmenu />
-                                        </div>
+                                        <MenuItem icon={<MagicIcon />} label="Plan with AI" onClick={() => { setIsPlanModalOpen(true); setIsMoreMenuOpen(false); }} />
+                                        <MenuItem icon={<PlusIcon />} label="Add Section" onClick={() => { setIsAddingSection(true); setIsMoreMenuOpen(false); }} />
+                                        <MenuItem icon={<ShareIcon className="w-5 h-5" />} label="Share" />
+                                        <MenuItem icon={<AnalyticsIcon className="w-5 h-5" />} label="List Activities" />
+                                        <MenuItem icon={<PrintIcon className="w-5 h-5" />} label="Print" hasSubmenu />
                                     </>
                                 )}
                             </div>
@@ -484,6 +546,10 @@ export const TasksPage: React.FC = () => {
                                         title="Pinned" 
                                         isCollapsed={isPinnedCollapsed} 
                                         onToggleCollapse={() => setIsPinnedCollapsed(p => !p)} 
+                                        onDragEnter={() => handleDragEnter('pinned-section')}
+                                        onDrop={handleDrop}
+                                        onDragEnd={handleDragEnd}
+                                        isDropTarget={dropTargetId === 'pinned-section'}
                                     />
                                     {!isPinnedCollapsed && pinnedTasks.map(task => (
                                         <TaskItem key={task.id} task={task} onToggleComplete={handleToggleComplete} onToggleSubtaskComplete={handleToggleSubtaskComplete} onDelete={handleDeleteTask} onGenerateSubtasks={handleGenerateSubtasks} onSetRecurrence={handleSetRecurrence} onWontDo={handleWontDoTask} onRestore={handleRestoreTask} onPermanentDelete={handlePermanentDeleteTask} aiEnabled={settings.enableAIFeatures} onSelect={handleSelectTask} isSelected={task.id === selectedTaskId} settings={settings} onDragStart={() => handleDragStart(task.id)} onDrop={handleDrop} onDragEnter={() => handleDragEnter(task.id)} onDragEnd={handleDragEnd} isDropTarget={dropTargetId === task.id}/>
@@ -542,62 +608,52 @@ export const TasksPage: React.FC = () => {
         );
     }
 
+    const MainArea = () => (
+      <div className="flex-1 flex h-full overflow-hidden">
+        {selectedTask ? (
+          <ResizablePanel panelSide="right" storageKey="task-detail-width" initialWidth={450} minWidth={350} maxWidth={800}>
+            <TaskDetailPanel
+                task={selectedTask}
+                lists={lists}
+                pomodoroSessions={pomodoroSessions}
+                onUpdateTask={handleUpdateTask}
+                onDeleteTask={handleDeleteTaskAndClosePanel}
+                onAddSubtask={handleAddSubtask}
+                onToggleSubtaskComplete={handleToggleSubtaskComplete}
+            />
+            <TaskListContent />
+          </ResizablePanel>
+        ) : (
+          <TaskListContent />
+        )}
+      </div>
+    );
 
     return (
         <>
-            <ResizablePanel storageKey="tasks-sidebar-width" initialWidth={240} minWidth={200} maxWidth={320}>
-                <TasksSidebar
-                    lists={lists}
-                    tasks={tasks}
-                    tags={tags}
-                    filters={filters}
-                    activeView={activeView}
-                    onSelectView={setActiveView}
-                    onAddList={handleAddList}
-                    onAddTag={handleAddTag}
-                    onAddFilter={handleAddFilter}
-                    settings={settings}
-                    onSettingsChange={onSettingsChange}
-                />
-                
-                <div className="flex-1 flex h-full relative overflow-hidden">
-                    <MainContent />
-                    <AnimatePresence>
-                        {selectedTask && (
-                           <>
-                                {/* @ts-ignore */}
-                                <motion.div
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    exit={{ opacity: 0 }}
-                                    transition={{ duration: 0.2 }}
-                                    onClick={() => setSelectedTaskId(null)}
-                                    className="absolute inset-0 bg-black/50 z-10"
-                                />
-                                {/* @ts-ignore */}
-                                <motion.div
-                                    key={selectedTask.id}
-                                    initial={{ x: '100%' }}
-                                    animate={{ x: '0%' }}
-                                    exit={{ x: '100%' }}
-                                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                                    className="absolute top-0 right-0 h-full w-[45%] min-w-[400px] max-w-[600px] bg-background-primary shadow-2xl z-20"
-                                >
-                                    <TaskDetailPanel
-                                        task={selectedTask}
-                                        lists={lists}
-                                        pomodoroSessions={pomodoroSessions}
-                                        onUpdateTask={handleUpdateTask}
-                                        onDeleteTask={handleDeleteTaskAndClosePanel}
-                                        onAddSubtask={handleAddSubtask}
-                                        onToggleSubtaskComplete={handleToggleSubtaskComplete}
-                                    />
-                                </motion.div>
-                            </>
-                        )}
-                    </AnimatePresence>
-                </div>
-            </ResizablePanel>
+            <div className="flex h-full w-full">
+                {isSidebarCollapsed ? (
+                    null
+                ) : (
+                    <ResizablePanel storageKey="tasks-sidebar-width" initialWidth={240} minWidth={200} maxWidth={320}>
+                        <TasksSidebar
+                            lists={lists}
+                            tasks={tasks}
+                            tags={tags}
+                            filters={filters}
+                            activeView={activeView}
+                            onSelectView={setActiveView}
+                            onAddList={handleAddList}
+                            onAddTag={handleAddTag}
+                            onAddFilter={handleAddFilter}
+                            settings={settings}
+                            onSettingsChange={onSettingsChange}
+                        />
+                        <MainArea />
+                    </ResizablePanel>
+                )}
+                {isSidebarCollapsed && <MainArea/>}
+            </div>
             
             {settings.enableAIFeatures && isPlanModalOpen && (
                 <PlanWithAIModal

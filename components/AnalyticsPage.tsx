@@ -66,13 +66,27 @@ const ChartWrapper: React.FC<{ title: string; children: React.ReactElement; heig
     </div>
 );
 
-const StatCard: React.FC<{ title: string; value: string | number; description?: string }> = ({ title, value, description }) => (
-    <div className="bg-background-secondary p-4 rounded-lg shadow">
-        <p className="text-sm text-content-secondary">{title}</p>
-        <p className="text-3xl font-bold mt-1">{value}</p>
-        {description && <p className="text-xs text-content-tertiary mt-1">{description}</p>}
-    </div>
-);
+const StatCard: React.FC<{ title: string; value: React.ReactNode; description?: string }> = ({ title, value, description }) => {
+    const valueParts = typeof value === 'string' ? String(value).match(/^([\d,.]+)\s*(.*)$/) : null;
+
+    return (
+        <div className="bg-background-secondary rounded-[12px] px-[14px] pt-[13px] pb-[11px]">
+            <div className="flex items-center mb-1">
+                <p className="text-sm text-content-secondary">{title}</p>
+            </div>
+            {valueParts ? (
+                <div className="flex items-baseline">
+                    <p className="text-3xl font-bold mt-1 truncate">{valueParts[1]}</p>
+                    {valueParts[2] && <p className="ml-1 text-sm font-medium text-content-secondary">{valueParts[2]}</p>}
+                </div>
+            ) : (
+                <div className="text-3xl font-bold mt-1">{value}</div>
+            )}
+            {description && <p className="text-xs text-content-tertiary mt-1">{description}</p>}
+        </div>
+    );
+};
+
 
 // --- New Gamification Components ---
 
@@ -401,12 +415,12 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ tasks, habits, ses
     return (
         <>
             <div className="flex-1 overflow-y-auto p-6 bg-background-primary">
-                <div className="flex justify-between items-center mb-4">
-                    <h1 className="text-3xl font-bold text-content-primary">Analytics</h1>
+                <header className="flex justify-between items-center mb-4">
+                    <h1 className="text-2xl font-bold text-content-primary">Analytics</h1>
                     <button onClick={() => setReviewModalOpen(true)} disabled={!settings.enableAIFeatures} title={!settings.enableAIFeatures ? "AI features are disabled" : "Generate Weekly Review"} className="px-4 py-2 bg-primary/20 text-primary rounded-lg font-semibold hover:bg-primary/30 transition-colors flex items-center space-x-2 disabled:bg-background-tertiary disabled:text-content-tertiary disabled:cursor-not-allowed">
                         <span>Generate Weekly Review ✨</span>
                     </button>
-                </div>
+                </header>
                 
                 <div className="flex space-x-2 mb-6">
                     {filterButtons.map(btn => (<button key={btn.id} onClick={() => setFilter(btn.id)} className={getButtonClass(btn.id)}>{btn.label}</button>))}

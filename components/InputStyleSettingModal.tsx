@@ -25,10 +25,14 @@ export const InputStyleSettingModal: React.FC<InputStyleSettingModalProps> = ({ 
 
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center" onClick={onClose}>
-            <div className="bg-background-secondary rounded-lg shadow-xl w-full max-w-2xl p-6 relative" onClick={e => e.stopPropagation()}>
-                <button onClick={onClose} className="absolute top-4 right-4 p-1.5 rounded-full text-content-tertiary hover:bg-background-tertiary"><CloseIcon className="w-5 h-5"/></button>
-                <h2 className="text-xl font-bold mb-6 text-center">Input Box Setting</h2>
-                <div className="grid grid-cols-2 gap-6">
+            <div className="bg-background-secondary rounded-lg shadow-xl w-full max-w-2xl" onClick={e => e.stopPropagation()}>
+                <div className="p-4 border-b border-border-primary flex justify-between items-center">
+                    <h2 className="text-xl font-bold text-content-primary">Input Box Setting</h2>
+                    <button onClick={onClose} className="p-2 rounded-full text-content-tertiary hover:bg-background-tertiary">
+                        <CloseIcon className="w-5 h-5"/>
+                    </button>
+                </div>
+                <div className="p-6 grid grid-cols-2 gap-6">
                     {/* Simple Style */}
                     <div onClick={() => handleSelect('simple')} className="cursor-pointer space-y-3 flex flex-col items-center">
                         <div className={`relative w-full p-4 border-2 rounded-lg ${currentStyle === 'simple' ? 'border-primary' : 'border-border-primary'}`}>

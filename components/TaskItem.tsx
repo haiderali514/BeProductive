@@ -21,7 +21,7 @@ interface TaskItemProps {
   isSelected: boolean;
   settings: Settings;
   onDragStart: () => void;
-  onDrop: () => void;
+  onDrop: (e: React.DragEvent) => void;
   onDragEnter: () => void;
   onDragEnd: () => void;
   isDropTarget: boolean;

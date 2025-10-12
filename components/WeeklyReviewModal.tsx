@@ -1,7 +1,6 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { CloseIcon } from './Icons';
 
 interface WeeklyReviewModalProps {
     isOpen: boolean;
@@ -53,19 +52,19 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({ isOpen, on
 
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center" onClick={onClose}>
-            <div className="bg-background-secondary rounded-lg shadow-xl p-8 w-full max-w-[672px] flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
-                <div className="flex justify-between items-center mb-4 flex-shrink-0">
-                    <h2 className="text-2xl font-bold text-content-primary">Your Weekly Review ✨</h2>
+            <div className="bg-background-secondary rounded-lg shadow-xl w-full max-w-2xl flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
+                <div className="p-4 border-b border-border-primary flex justify-between items-center flex-shrink-0">
+                    <h2 className="text-xl font-bold text-content-primary">Your Weekly Review ✨</h2>
                     <button onClick={onClose} className="p-2 rounded-full text-content-tertiary hover:bg-background-tertiary">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        <CloseIcon className="w-5 h-5" />
                     </button>
                 </div>
                 
-                <div className="flex-1 overflow-y-auto -mr-4 pr-4">
+                <div className="flex-1 overflow-y-auto p-6">
                     {renderContent()}
                 </div>
 
-                <div className="flex justify-end pt-6 mt-4 border-t border-border-primary flex-shrink-0">
+                <div className="p-4 bg-background-primary rounded-b-lg flex justify-end">
                     <button 
                         type="button" 
                         onClick={onClose}

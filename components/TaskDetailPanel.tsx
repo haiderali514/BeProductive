@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Priority, Task, List, Subtask, PomodoroSession } from '../types';
-import { MoreIcon, TrashIcon, TasksIcon, StarIcon, CommentIcon, PlusCircleIcon, SubtaskIcon, LinkParentIcon, WontDoIcon, TagIcon, AttachmentIcon, PomodoroIcon, TaskActivitiesIcon, TemplateIcon, DuplicateIcon, CopyLinkIcon, StickyNoteIcon, ConvertToNoteIcon, PrintIcon, ChevronRightIcon, FlagIcon, TextFormatIcon, HeadingIcon, BulletedListIcon, CheckItemIcon, QuoteIcon, DescriptionModeIcon, ChecklistModeIcon } from './Icons';
-import { PRIORITY_COLORS } from '../constants';
+import { PRIORITY_BG_COLORS } from '../constants';
+import { MoreIcon, TrashIcon, TasksIcon, StarIcon, CommentIcon, PlusCircleIcon, SubtaskIcon, LinkParentIcon, WontDoIcon, TagIcon, AttachmentIcon, PomodoroIcon, TaskActivitiesIcon, TemplateIcon, DuplicateIcon, CopyLinkIcon, StickyNoteIcon, ConvertToNoteIcon, PrintIcon, ChevronRightIcon, FlagIcon, TextFormatIcon, HeadingIcon, BulletedListIcon, CheckItemIcon, QuoteIcon, DescriptionModeIcon, ChecklistModeIcon, TomorrowIcon } from './Icons';
 import { Checkbox } from './Checkbox';
 import { Popover } from './Popover';
 
@@ -227,13 +227,18 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({ task, lists, p
                             <span className="font-semibold">{focusStats.duration}</span>
                         </div>
                     )}
-                    <button 
+                    <button
                         ref={priorityTriggerRef}
                         onClick={() => setPriorityPopoverOpen(p => !p)}
-                        className={`p-2 rounded-full hover:bg-background-tertiary ${task.priority !== Priority.NONE ? PRIORITY_COLORS[task.priority].replace('border-','text-') : 'text-content-secondary'}`}
+                        className={`flex items-center space-x-1 px-3 py-1.5 text-sm rounded-md hover:bg-background-tertiary transition-colors ${
+                            task.priority !== Priority.NONE 
+                                ? PRIORITY_BG_COLORS[task.priority] 
+                                : 'bg-background-tertiary text-content-secondary'
+                        }`}
                         aria-label="Set priority"
                     >
-                        <FlagIcon className="h-5 w-5" />
+                        <FlagIcon className="h-4 w-4" />
+                        <span>{task.priority !== Priority.NONE ? task.priority : 'Priority'}</span>
                     </button>
                      <Popover isOpen={isPriorityPopoverOpen} onClose={() => setPriorityPopoverOpen(false)} triggerRef={priorityTriggerRef} position="bottom-end">
                         <div className="w-48 bg-background-tertiary rounded-lg shadow-xl border border-border-primary p-2 text-content-primary">
@@ -244,35 +249,6 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({ task, lists, p
                                     {task.priority === opt.level && <span className="ml-auto text-primary">✓</span>}
                                 </button>
                             ))}
-                        </div>
-                    </Popover>
-                     <button 
-                        onClick={() => onUpdateTask(task.id, { pinned: !task.pinned })}
-                        className={`p-2 rounded-full hover:bg-background-tertiary ${task.pinned ? 'text-yellow-400' : 'text-content-secondary'}`}
-                        aria-label={task.pinned ? 'Unpin task' : 'Pin task'}
-                    >
-                        <StarIcon className="h-5 w-5" isFilled={task.pinned} />
-                    </button>
-                    <button ref={menuTriggerRef} onClick={() => setIsMenuOpen(p => !p)} className="p-2 text-content-secondary rounded-full hover:bg-background-tertiary"><MoreIcon className="w-5 h-5"/></button>
-                     <Popover isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} triggerRef={menuTriggerRef} position="bottom-end">
-                         <div className="w-64 bg-[#242424] rounded-lg shadow-xl border border-border-primary p-2 text-white" onMouseLeave={() => setFocusSubmenuOpen(false)}>
-                            {menuItems.map(item => <MenuItem key={item.label} item={item} onMouseEnter={() => setFocusSubmenuOpen(false)} />)}
-                            <div className="relative">
-                                <MenuItem item={{label: 'Start Focus', icon: <PomodoroIcon />, action: () => {}, hasSubmenu: true}} onMouseEnter={() => setFocusSubmenuOpen(true)} />
-                                {isFocusSubmenuOpen && (
-                                    <div className="absolute top-0 left-full ml-1 w-48 bg-[#242424] rounded-lg shadow-xl border border-border-primary p-2">
-                                        <MenuItem item={{label: 'Start Pomo', icon: <PomodoroIcon/>, action: () => console.log('Start Pomo')}} />
-                                        <MenuItem item={{label: 'Start Stopwatch', icon: <PomodoroIcon/>, action: () => console.log('Start Stopwatch')}} />
-                                    </div>
-                                )}
-                            </div>
-                            <div className="border-t border-border-primary my-2 mx-[-8px]"></div>
-                            {moreMenuItems.map(item => <MenuItem key={item.label} item={item} />)}
-                            <div className="border-t border-border-primary my-2 mx-[-8px]"></div>
-                            <button onClick={() => {onDeleteTask(task.id); setIsMenuOpen(false);}} className="w-full text-left flex items-center space-x-3 p-2 rounded text-sm text-red-500 hover:bg-red-500/10">
-                                <TrashIcon />
-                                <span>Delete</span>
-                            </button>
                         </div>
                     </Popover>
                 </div>
@@ -379,6 +355,28 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({ task, lists, p
                 <div className="flex items-center space-x-1 text-content-secondary">
                     <button onClick={() => setFormatBarOpen(p => !p)} className="p-2 hover:text-primary rounded-full hover:bg-background-tertiary" title="Formatting"><TextFormatIcon className="w-5 h-5"/></button>
                     <button onClick={() => setIsCommenting(c => !c)} className="p-2 hover:text-primary rounded-full hover:bg-background-tertiary" title="Add Comment"><CommentIcon className="w-5 h-5"/></button>
+                    <button ref={menuTriggerRef} onClick={() => setIsMenuOpen(p => !p)} className="p-2 text-content-secondary rounded-full hover:bg-background-tertiary"><MoreIcon className="w-5 h-5"/></button>
+                     <Popover isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} triggerRef={menuTriggerRef} position="top-end">
+                         <div className="w-64 bg-[#242424] rounded-lg shadow-xl border border-border-primary p-2 text-white" onMouseLeave={() => setFocusSubmenuOpen(false)}>
+                            {menuItems.map(item => <MenuItem key={item.label} item={item} onMouseEnter={() => setFocusSubmenuOpen(false)} />)}
+                            <div className="relative">
+                                <MenuItem item={{label: 'Start Focus', icon: <PomodoroIcon />, action: () => {}, hasSubmenu: true}} onMouseEnter={() => setFocusSubmenuOpen(true)} />
+                                {isFocusSubmenuOpen && (
+                                    <div className="absolute top-0 left-full ml-1 w-48 bg-[#242424] rounded-lg shadow-xl border border-border-primary p-2">
+                                        <MenuItem item={{label: 'Start Pomo', icon: <PomodoroIcon/>, action: () => console.log('Start Pomo')}} />
+                                        <MenuItem item={{label: 'Start Stopwatch', icon: <PomodoroIcon/>, action: () => console.log('Start Stopwatch')}} />
+                                    </div>
+                                )}
+                            </div>
+                            <div className="border-t border-border-primary my-2 mx-[-8px]"></div>
+                            {moreMenuItems.map(item => <MenuItem key={item.label} item={item} />)}
+                            <div className="border-t border-border-primary my-2 mx-[-8px]"></div>
+                            <button onClick={() => {onDeleteTask(task.id); setIsMenuOpen(false);}} className="w-full text-left flex items-center space-x-3 p-2 rounded text-sm text-red-500 hover:bg-red-500/10">
+                                <TrashIcon />
+                                <span>Delete</span>
+                            </button>
+                        </div>
+                    </Popover>
                 </div>
             </footer>
         </div>

@@ -471,8 +471,8 @@ export const PomodoroPage: React.FC<PomodoroPageProps> = ({ sessions, onAddSessi
                 </div>
                 {/* Left Panel */}
                 <div className="flex-1 flex flex-col h-full bg-background-primary">
-                    <header className="p-4 flex-shrink-0 flex items-center justify-between relative">
-                        <h1 className="text-xl font-bold">Pomodoro</h1>
+                    <header className="p-6 flex-shrink-0 flex items-center justify-between relative">
+                        <h1 className="text-2xl font-bold">Pomodoro</h1>
 
                         {!isActive && (
                             <div className="absolute left-1/2 -translate-x-1/2">

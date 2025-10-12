@@ -46,7 +46,18 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             try {
                 const audio = new Audio(SOUND_FILES[soundKey as keyof typeof SOUND_FILES]);
                 audio.volume = reminderVolume / 100;
-                audio.play().catch(e => console.error("Error playing sound:", e));
+                
+                // audio.play() returns a Promise which is rejected if playback fails.
+                const playPromise = audio.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        // Browsers prevent autoplay until a user interacts with the page.
+                        // We can safely ignore this specific error as it's expected behavior.
+                        if (error.name !== 'NotAllowedError') {
+                            console.error("Error playing sound:", error);
+                        }
+                    });
+                }
             } catch (error) {
                 console.error("Could not play sound:", error);
             }

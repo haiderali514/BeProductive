@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { List, Priority, AddTaskFormProps, Tag, Task } from '../types';
-import { CalendarIcon, FlagIcon, PlusIcon, TagIcon, MoveToListIcon, AttachmentIcon, MoreIcon, TemplateIcon, SettingsIcon, ChevronRightIcon } from './Icons';
+import { CalendarIcon, FlagSolidIcon, PlusIcon, TagIcon, MoveToListIcon, AttachmentIcon, MoreIcon, TemplateIcon, SettingsIcon, ChevronRightIcon } from './Icons';
 import { Popover, DatePickerPopover } from './Popover';
 import { useData } from '../contexts/DataContext';
 import { InputStyleSettingModal } from './InputStyleSettingModal';
@@ -22,8 +22,9 @@ const TagPopoverContent: React.FC<{
     initialTags: string[];
     onSave: (newTags: string[]) => void;
     onClose: () => void;
-}> = ({ initialTags, onSave, onClose }) => {
-    const { tags: allTags, handleAddTag } = useData();
+    allTags: Tag[];
+    onAddTag: (tagData: { name: string; color: string; parentId: string | null; }) => void;
+}> = ({ initialTags, onSave, onClose, allTags, onAddTag }) => {
     const [selectedTagNames, setSelectedTagNames] = useState<string[]>(initialTags);
     const [search, setSearch] = useState('');
 
@@ -35,7 +36,7 @@ const TagPopoverContent: React.FC<{
         const newTagName = search.trim();
         if (newTagName && !allTags.some(t => t.name.toLowerCase() === newTagName.toLowerCase())) {
             const newTagColor = TAG_COLORS[Math.floor(Math.random() * TAG_COLORS.length)];
-            handleAddTag({ name: newTagName, color: newTagColor, parentId: null });
+            onAddTag({ name: newTagName, color: newTagColor, parentId: null });
             toggleTag(newTagName);
             setSearch('');
         }
@@ -109,7 +110,7 @@ export const SmartAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTask,
     const moreTriggerRef = useRef<HTMLButtonElement>(null);
     const listSubmenuRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
-    const { tasks } = useData();
+    const { tasks, tags: allTags, handleAddTag } = useData();
     const isAppendingSyntax = useRef(false);
 
     const sectionsByList = useMemo(() => {
@@ -227,9 +228,6 @@ export const SmartAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTask,
         setTimeout(() => {
             if (!formRef.current?.contains(document.activeElement)) {
                  setIsFocused(false);
-                 if (isFormEmpty()) {
-                    resetForm();
-                 }
             }
         }, 150);
     };
@@ -270,9 +268,9 @@ export const SmartAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTask,
     const formattedDueDate = dueDate ? dueDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'Date';
 
     return (
-        <div className="px-4 pt-4 pb-2 bg-background-primary">
+        <div className="px-4 bg-background-primary">
             <div ref={formRef} onFocus={() => setIsFocused(true)} onBlur={handleBlur} className={`bg-background-secondary rounded-lg border-2 transition-all ${isFocused ? 'border-primary shadow-lg' : 'border-transparent'}`}>
-                <div className="p-2">
+                <div className="px-2">
                     <form onSubmit={handleSubmit} className="flex items-center">
                         <input
                             ref={inputRef}
@@ -281,12 +279,12 @@ export const SmartAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTask,
                             onChange={e => setInputValue(e.target.value)}
                             onKeyDown={handleKeyDown}
                             placeholder={isFocused ? "What would you like to do?" : "+ Add task"}
-                            className="w-full bg-transparent text-content-primary placeholder-content-secondary focus:outline-none px-2"
+                            className="w-full bg-transparent text-content-primary placeholder-content-secondary focus:outline-none px-2 py-3"
                         />
                     </form>
 
                     {(tags.length > 0 || priority !== Priority.NONE || dueDate || listInfo) && (
-                        <div className="flex items-center flex-wrap gap-1 px-2 pt-2">
+                        <div className="flex items-center flex-wrap gap-1 px-2">
                             {priority !== Priority.NONE && (
                                 <Pill colorClass={priorityPillColors[priority]} onRemove={() => setPriority(Priority.NONE)}>
                                     !{priority}
@@ -314,13 +312,13 @@ export const SmartAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTask,
                 <AnimatePresence>
                     {isFocused && (
                         // @ts-ignore
-                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="flex items-center justify-between overflow-hidden px-2 pb-2">
+                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="flex items-center justify-between overflow-hidden px-2 pt-2">
                             <div className="flex items-center space-x-1">
                                 <button ref={dateTriggerRef} type="button" onClick={() => setActivePopover('date')} className={`flex items-center space-x-1 text-sm px-2 py-1 rounded hover:bg-background-tertiary ${dueDate ? 'text-primary bg-primary/10' : 'text-content-secondary'}`}>
                                     <CalendarIcon className="h-4 w-4"/>
                                     <span>{formattedDueDate}</span>
                                 </button>
-                                <button ref={priorityTriggerRef} type="button" onClick={() => setActivePopover('priority')} className={`p-2 rounded hover:bg-background-tertiary ${priorityIconColors[priority]}`}><FlagIcon className="h-4 w-4"/></button>
+                                <button ref={priorityTriggerRef} type="button" onClick={() => setActivePopover('priority')} className={`p-2 rounded hover:bg-background-tertiary ${priorityIconColors[priority]}`}><FlagSolidIcon className="h-4 w-4"/></button>
                                 <button ref={tagTriggerRef} type="button" onClick={() => setActivePopover('tag')} className={`p-2 rounded hover:bg-background-tertiary ${tags.length > 0 ? 'text-primary' : 'text-content-secondary'}`}><TagIcon className="h-4 w-4"/></button>
                                 <button ref={listTriggerRef} type="button" onClick={() => setActivePopover('list')} className="p-2 rounded text-content-secondary hover:bg-background-tertiary"><MoveToListIcon className="h-4 w-4"/></button>
                                 <button ref={moreTriggerRef} type="button" onClick={() => setActivePopover('more')} className="p-2 rounded text-content-secondary hover:bg-background-tertiary"><MoreIcon className="h-4 w-4"/></button>
@@ -340,7 +338,7 @@ export const SmartAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTask,
                  <div className="w-48 bg-background-tertiary rounded-lg shadow-xl border border-border-primary p-2 text-content-primary">
                     {priorityOptions.map(opt => (
                         <button key={opt.level} onClick={() => { setPriority(opt.level); setActivePopover(null); }} className={`w-full text-left flex items-center p-2 rounded hover:bg-background-primary ${priority === opt.level ? 'bg-primary/20' : ''}`}>
-                            <FlagIcon className={`mr-2 h-5 w-5 ${opt.color}`} />
+                            <FlagSolidIcon className={`mr-2 h-5 w-5 ${opt.color}`} />
                             <span>{opt.level}</span>
                             {priority === opt.level && <span className="ml-auto text-primary">✓</span>}
                         </button>
@@ -348,7 +346,7 @@ export const SmartAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTask,
                 </div>
             </Popover>
             <Popover isOpen={activePopover === 'tag'} onClose={() => setActivePopover(null)} triggerRef={tagTriggerRef} position="bottom-start">
-                 <TagPopoverContent initialTags={tags} onSave={handleTagsSave} onClose={() => setActivePopover(null)} />
+                 <TagPopoverContent initialTags={tags} onSave={handleTagsSave} onClose={() => setActivePopover(null)} allTags={allTags} onAddTag={handleAddTag} />
             </Popover>
              <Popover isOpen={activePopover === 'list'} onClose={() => { setActivePopover(null); setHoveredListId(null); }} triggerRef={listTriggerRef} position="bottom-start">
                  <div className="w-64 bg-background-tertiary rounded-lg shadow-xl border border-border-primary text-content-primary max-h-60 flex flex-col p-2" onMouseLeave={() => setHoveredListId(null)}>

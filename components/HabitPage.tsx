@@ -60,13 +60,9 @@ const DailyProgressHeader: React.FC<{
                     >
                         <p className={`text-sm mb-2 ${isSelected ? 'text-primary' : 'text-content-secondary'}`}>{dayName}</p>
                         <p className={`font-semibold mb-3 text-lg ${isToday && !isSelected ? 'text-primary' : ''}`}>{date.getDate()}</p>
-                        <div className="relative w-8 h-8 mx-auto">
+                        <div className="relative w-8 h-8 mx-auto flex items-center justify-center">
                            {progress === 100 && habits.length > 0 ? (
-                                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                </div>
+                                <CheckCircleSolidIcon className="w-8 h-8 text-primary" />
                            ) : (
                                 <CircularProgress size={32} strokeWidth={3} progress={progress} />
                            )}
@@ -103,11 +99,7 @@ export const HabitPage: React.FC<HabitPageProps> = ({ habits, onToggleHabit, onA
   const handleDragEnter = (id: string) => { if (id !== draggedId) setDropTargetId(id); };
   const handleDrop = () => {
     if (draggedId && dropTargetId) {
-        const draggedHabit = habits.find(h => h.id === draggedId);
-        const targetHabit = habits.find(h => h.id === dropTargetId);
-        if (draggedHabit && targetHabit && draggedHabit.period === targetHabit.period) {
-            onReorderHabit(draggedId, dropTargetId);
-        }
+        onReorderHabit(draggedId, dropTargetId);
     }
     setDraggedId(null);
     setDropTargetId(null);
@@ -150,13 +142,13 @@ export const HabitPage: React.FC<HabitPageProps> = ({ habits, onToggleHabit, onA
       <ResizablePanel storageKey="habit-stats-width" panelSide="right" initialWidth={480} minWidth={320} maxWidth={600}>
         <HabitStatsPanel habits={habits} selectedHabit={selectedHabit} onToggleHabit={onToggleHabit} />
         <div className="flex flex-col h-full bg-background-primary">
-            <div className="px-6 pt-6 pb-4 flex-shrink-0">
+            <header className="p-4 flex-shrink-0">
                 <div className="flex justify-between items-center">
                     <h1 className="text-3xl font-bold text-content-primary">Habit</h1>
                     <div className="flex items-center space-x-2">
                          <button
                             onClick={() => setViewMode(prev => prev === 'list' ? 'grid' : 'list')}
-                            className="p-2 bg-background-secondary text-content-secondary rounded-lg hover:bg-background-tertiary hover:text-content-primary transition-colors"
+                            className="p-2 bg-transparent text-content-secondary rounded-lg hover:bg-background-tertiary transition-colors"
                             aria-label={`Switch to ${viewMode === 'list' ? 'grid' : 'list'} view`}
                             title={`Switch to ${viewMode === 'list' ? 'grid' : 'list'} view`}
                         >
@@ -164,21 +156,21 @@ export const HabitPage: React.FC<HabitPageProps> = ({ habits, onToggleHabit, onA
                         </button>
                         <button 
                             onClick={() => setCreateModalOpen(true)}
-                            className="p-2 bg-background-secondary text-content-secondary rounded-lg hover:bg-background-tertiary hover:text-content-primary transition-colors"
+                            className="p-2 bg-transparent text-content-secondary rounded-lg hover:bg-background-tertiary transition-colors"
                             aria-label="Create new habit"
                             title="Create new habit"
                         >
                             <PlusIcon />
                         </button>
                          <button 
-                            className="p-2 bg-background-secondary text-content-secondary rounded-lg hover:bg-background-tertiary hover:text-content-primary transition-colors"
+                            className="p-2 bg-transparent text-content-secondary rounded-lg hover:bg-background-tertiary transition-colors"
                             aria-label="More options"
                         >
                             <MoreIcon />
                         </button>
                     </div>
                 </div>
-            </div>
+            </header>
             
             <div className="px-6 py-4 sticky top-0 bg-background-primary z-10 flex-shrink-0 border-b border-border-primary">
                 <DailyProgressHeader 

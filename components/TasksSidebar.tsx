@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { List, Task, Tag, Filter, Priority } from '../types';
 import { Settings, SmartListVisibility } from '../hooks/useSettings';
-import { AllTasksIcon, TodayIcon, TomorrowIcon, Next7DaysIcon, AssignedToMeIcon, InboxIcon, SummaryIcon, CompletedIcon, TrashIcon, MoreIcon, TrophyIcon, PinIcon, EditIcon, DuplicateIcon, ShareIcon, ArchiveIcon, PlusIcon, ChevronDownIcon, WontDoIcon, TagIcon, FiltersIcon } from './Icons';
+import { AllTasksIcon, TodayIcon, TomorrowIcon, Next7DaysIcon, AssignedToMeIcon, InboxIcon, SummaryIcon, CompletedIcon, TrashIcon, MoreIcon, TrophyIcon, PinIcon, EditIcon, DuplicateIcon, ShareIcon, ArchiveIcon, PlusIcon, ChevronDownIcon, WontDoIcon, TagIcon, FiltersIcon, SidebarCollapseIcon } from './Icons';
 import { Popover } from './Popover';
 import { useData } from '../contexts/DataContext';
 import { EditListModal } from './EditListModal';
@@ -86,32 +86,56 @@ const SidebarListItem: React.FC<{
 
             {/* Right-aligned content container */}
             <div className="absolute right-3 top-1/2 -translate-y-1/2 h-full flex items-center justify-end pointer-events-none">
-                
-                {/* Count and Dot (visible normally, hidden on hover if more menu exists) */}
-                <div className={`flex items-center flex-row-reverse space-x-2 space-x-reverse transition-opacity duration-200 ${moreMenu ? 'group-hover:opacity-0' : ''}`}>
-                    <span className={`text-xs tabular-nums ${
-                        (typeof count === 'number' && count > 0)
-                        ? 'text-content-tertiary'
-                        : 'text-transparent'
-                    }`}>
-                        {typeof count === 'number' ? count : '0'}
-                    </span>
-                    <div
-                        className="w-2 h-2 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: color || 'transparent' }}
-                    ></div>
-                </div>
+                <div className="flex items-center space-x-4">
+                    {/* Color Dot (always visible) */}
+                    {color && (
+                        <div
+                            className="w-2 h-2 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: color }}
+                        />
+                    )}
+                    
+                    <div className="relative min-w-[2rem] text-right">
+                        {/* Count (hides on hover) */}
+                        <div className={`transition-opacity duration-200 ${moreMenu ? 'group-hover:opacity-0' : ''}`}>
+                            <span className={`text-xs tabular-nums ${
+                                (typeof count === 'number' && count > 0)
+                                ? 'text-content-tertiary'
+                                : 'text-transparent'
+                            }`}>
+                                {typeof count === 'number' ? count : '0'}
+                            </span>
+                        </div>
 
-                {/* More Menu (hidden normally, visible on hover) */}
-                {moreMenu && (
-                    <div className="absolute inset-y-0 right-0 flex items-center justify-end opacity-0 transition-opacity duration-200 group-hover:opacity-100 pointer-events-auto">
-                        {moreMenu}
+                        {/* More Menu (shows on hover) */}
+                        {moreMenu && (
+                            <div className="absolute inset-0 flex items-center justify-end opacity-0 transition-opacity duration-200 group-hover:opacity-100 pointer-events-auto">
+                                {moreMenu}
+                            </div>
+                        )}
                     </div>
-                )}
+                </div>
             </div>
         </div>
     );
 };
+
+const PinnedListCard: React.FC<{
+    list: List;
+    isActive: boolean;
+    onClick: () => void;
+}> = ({ list, isActive, onClick }) => (
+    <button
+        onClick={onClick}
+        title={list.name}
+        className={`flex flex-col items-center justify-center w-[72px] h-[72px] p-2 gap-1 rounded-lg transition-colors ${isActive ? 'bg-primary/20' : 'hover:bg-background-tertiary'}`}
+    >
+        <span className="text-2xl h-8 flex items-center justify-center">{list.emoji || '📁'}</span>
+        <span className={`text-xs w-full text-center truncate ${isActive ? 'text-primary' : 'text-content-secondary'}`}>
+            {list.name}
+        </span>
+    </button>
+);
 
 
 export const TasksSidebar: React.FC<TasksSidebarProps> = ({ lists, tasks, tags, filters, activeView, onSelectView, onAddList, onAddTag, onAddFilter, settings, onSettingsChange }) => {
@@ -214,12 +238,25 @@ export const TasksSidebar: React.FC<TasksSidebarProps> = ({ lists, tasks, tags, 
     
     const userLists = useMemo(() => lists.filter(l => l.id !== 'inbox'), [lists]);
     const pinnedLists = useMemo(() => userLists.filter(l => l.isPinned), [userLists]);
-    const regularLists = useMemo(() => userLists.filter(l => !l.isPinned), [userLists]);
 
     return (
         <>
             <aside className="bg-background-primary p-3 flex-col flex h-full overflow-y-auto relative z-10">
                 <nav className="flex-1">
+                     {pinnedLists.length > 0 && (
+                        <div className="px-1 pt-1 pb-3 mb-2 border-b border-border-primary">
+                            <div className="flex items-center justify-start gap-1 flex-wrap">
+                                {pinnedLists.map(list => (
+                                    <PinnedListCard
+                                        key={list.id}
+                                        list={list}
+                                        isActive={activeView === list.id}
+                                        onClick={() => onSelectView(list.id)}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
                      <div className="space-y-1">
                         {visibleSmartLists.map(listConfig => {
                             const list = listConfig.id === 'inbox' ? lists.find(l => l.id === 'inbox') : listConfig;
@@ -275,20 +312,6 @@ export const TasksSidebar: React.FC<TasksSidebarProps> = ({ lists, tasks, tags, 
                         })}
                     </div>
                     
-                    {pinnedLists.length > 0 && (
-                        <div>
-                            <button onClick={() => handleToggleSection('pinned')} className="w-full flex items-center pt-4 pb-2 px-2 text-xs font-bold uppercase text-content-tertiary hover:text-content-primary">
-                                <ChevronDownIcon className={`h-4 w-4 mr-1 transition-transform ${collapsedSections['pinned'] ? '-rotate-90' : ''}`} />
-                                Pinned
-                            </button>
-                            {!collapsedSections['pinned'] && (
-                                <div className="space-y-1">
-                                    {/* Content for pinned lists will be rendered below */}
-                                </div>
-                            )}
-                        </div>
-                    )}
-
                     <div className="flex justify-between items-center pt-4 pb-2 px-2 group">
                         <button onClick={() => handleToggleSection('lists')} className="flex items-center text-xs font-bold uppercase text-content-tertiary hover:text-content-primary">
                             <ChevronDownIcon className={`h-4 w-4 mr-1 transition-transform ${collapsedSections['lists'] ? '-rotate-90' : ''}`} />
@@ -302,7 +325,7 @@ export const TasksSidebar: React.FC<TasksSidebarProps> = ({ lists, tasks, tags, 
                     </div>
                     {!collapsedSections['lists'] && (
                         <div className="space-y-1">
-                            {[...pinnedLists, ...regularLists].map(list => {
+                            {userLists.map(list => {
                                 const isMenuOpen = openMenuId === list.id;
                                 const moreMenu = (
                                      <>

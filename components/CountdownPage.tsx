@@ -92,7 +92,7 @@ export const CountdownPage: React.FC<CountdownPageProps> = ({ countdowns, onAddC
     <>
       <div className="p-6 flex-1 flex flex-col h-full overflow-hidden">
         <header className="flex justify-between items-center mb-4 flex-shrink-0">
-          <h1 className="text-3xl font-bold text-content-primary">Countdown</h1>
+          <h1 className="text-2xl font-bold text-content-primary">Countdown</h1>
           <button
             onClick={() => setAddModalOpen(true)}
             className="px-4 py-2 bg-primary text-white rounded-lg font-semibold hover:bg-primary-focus transition-colors flex items-center space-x-2"

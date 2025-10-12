@@ -1,8 +1,7 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { Task, Habit, PomodoroSession } from '../types';
 import { DateTimePicker } from './DateTimePicker';
+import { CloseIcon } from './Icons';
 
 interface AddFocusRecordModalProps {
     isOpen: boolean;
@@ -101,50 +100,58 @@ export const AddFocusRecordModal: React.FC<AddFocusRecordModalProps> = ({ isOpen
 
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center" onClick={onClose}>
-            <div className="bg-background-secondary rounded-lg shadow-xl p-8 w-full max-w-[448px]" onClick={e => e.stopPropagation()}>
-                <h2 className="text-2xl font-bold mb-6 text-content-primary">Add Focus Record</h2>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-content-secondary mb-1">Task</label>
-                        <select
-                            value={taskId}
-                            onChange={e => setTaskId(e.target.value)}
-                            className="w-full bg-background-primary border border-border-primary rounded-md px-3 py-2 text-content-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                        >
-                            <option value="">-- Select a Task or Habit --</option>
-                            <optgroup label="Tasks">
-                                {tasks.filter(t => !t.completed).map(task => <option key={task.id} value={task.id}>{task.title}</option>)}
-                            </optgroup>
-                             <optgroup label="Habits">
-                                {habits.map(habit => <option key={habit.id} value={habit.id}>{habit.icon} {habit.name}</option>)}
-                            </optgroup>
-                        </select>
-                    </div>
+            <div className="bg-background-secondary rounded-lg shadow-xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
+                <div className="p-4 border-b border-border-primary flex justify-between items-center">
+                    <h2 className="text-xl font-bold text-content-primary">Add Focus Record</h2>
+                    <button onClick={onClose} className="p-2 rounded-full text-content-tertiary hover:bg-background-tertiary">
+                        <CloseIcon className="w-5 h-5" />
+                    </button>
+                </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                <form onSubmit={handleSubmit}>
+                    <div className="p-6 space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-content-secondary mb-1">Start</label>
-                            <DateTimePicker value={startTime} onChange={setStartTime} />
+                            <label className="block text-sm font-medium text-content-secondary mb-1">Task</label>
+                            <select
+                                value={taskId}
+                                onChange={e => setTaskId(e.target.value)}
+                                className="w-full bg-background-primary border border-border-primary rounded-md px-3 py-2 text-content-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                            >
+                                <option value="">-- Select a Task or Habit --</option>
+                                <optgroup label="Tasks">
+                                    {tasks.filter(t => !t.completed).map(task => <option key={task.id} value={task.id}>{task.title}</option>)}
+                                </optgroup>
+                                <optgroup label="Habits">
+                                    {habits.map(habit => <option key={habit.id} value={habit.id}>{habit.icon} {habit.name}</option>)}
+                                </optgroup>
+                            </select>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-content-secondary mb-1">Start</label>
+                                <DateTimePicker value={startTime} onChange={setStartTime} />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-content-secondary mb-1">End</label>
+                                <DateTimePicker value={endTime} onChange={setEndTime} />
+                            </div>
                         </div>
                         <div>
-                             <label className="block text-sm font-medium text-content-secondary mb-1">End</label>
-                            <DateTimePicker value={endTime} onChange={setEndTime} />
+                            <label className="block text-sm font-medium text-content-secondary mb-1">Focus Note</label>
+                            <textarea
+                                value={note}
+                                onChange={(e) => setNote(e.target.value)}
+                                placeholder="What did you work on?"
+                                rows={3}
+                                className="w-full bg-background-primary border border-border-primary rounded-md px-3 py-2 text-content-primary focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                            ></textarea>
                         </div>
+                        
+                        {error && <p className="text-red-500 text-center text-sm">{error}</p>}
                     </div>
-                     <div>
-                        <label className="block text-sm font-medium text-content-secondary mb-1">Focus Note</label>
-                        <textarea
-                            value={note}
-                            onChange={(e) => setNote(e.target.value)}
-                            placeholder="What did you work on?"
-                            rows={3}
-                            className="w-full bg-background-primary border border-border-primary rounded-md px-3 py-2 text-content-primary focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-                        ></textarea>
-                    </div>
-                    
-                    {error && <p className="text-red-500 text-center text-sm">{error}</p>}
 
-                    <div className="flex justify-end pt-4 space-x-3">
+                    <div className="p-4 bg-background-primary rounded-b-lg flex justify-end space-x-3">
                         <button type="button" onClick={onClose} className="px-4 py-2 rounded-md bg-background-tertiary hover:bg-border-primary text-content-primary font-semibold transition-colors">Cancel</button>
                         <button 
                             type="submit" 

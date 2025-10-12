@@ -1,4 +1,4 @@
-import { Priority, Habit, PomodoroSession, UserProfile, Countdown, List, Achievement, AppData, Level, Task } from './types';
+import { Priority, Habit, PomodoroSession, UserProfile, Countdown, List, Achievement, AppData, Level, Task, Tag, Filter } from './types';
 import { TasksIcon, PomodoroIcon, HabitIcon, BrainIcon, CalendarIcon, TrophyIcon, PuzzleIcon, SunIcon, SparklesIcon } from './components/Icons';
 
 export const PRIORITY_COLORS: Record<Priority, string> = {
@@ -18,9 +18,22 @@ export const PRIORITY_BG_COLORS: Record<Priority, string> = {
 export const DEFAULT_LISTS: List[] = [
     { id: 'inbox', name: 'Inbox', color: '#F5A623', emoji: '📥' },
     { id: 'welcome', name: 'Welcome', emoji: '👋', color: '#50E3C2', isPinned: false },
-    { id: 'work', name: 'Work', emoji: '💼', color: '#4A90E2', isPinned: false },
+    { id: 'work', name: 'Work', emoji: '💼', color: '#4A90E2', isPinned: true },
     { id: 'study', name: 'Study', emoji: '📖', color: '#BD10E0', isPinned: false },
+    { id: 'personal', name: 'Personal', emoji: '🏡', color: '#7ED321', isPinned: true },
+    { id: 'shopping', name: 'Shopping', emoji: '🛒', color: '#F8E71C', isPinned: false },
 ];
+
+const today = new Date('2024-08-04T12:00:00.000Z');
+const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+const twoDaysAgo = new Date(today); twoDaysAgo.setDate(today.getDate() - 2);
+const nextWeek = new Date(today); nextWeek.setDate(today.getDate() + 7);
+const lastWeek = new Date(today); lastWeek.setDate(today.getDate() - 7);
+
+const toDateTimeString = (date: Date) => date.toISOString().slice(0, 16).replace('T', ' ');
+const toDateString = (date: Date) => date.toISOString().split('T')[0];
+
 
 export const DEFAULT_TASKS: Task[] = [
     {
@@ -31,7 +44,7 @@ export const DEFAULT_TASKS: Task[] = [
       priority: Priority.MEDIUM,
       completed: false,
       subtasks: [],
-      tags: [],
+      tags: ['tag1'],
       pinned: true,
     },
     {
@@ -58,14 +71,197 @@ export const DEFAULT_TASKS: Task[] = [
       tags: [],
       pinned: false,
     },
+    {
+        id: '4',
+        title: 'Finalize Q3 marketing budget',
+        description: 'Review the proposal from the marketing team and approve the final budget for Q3 activities.',
+        listId: 'work',
+        dueDate: toDateTimeString(today), // Urgent
+        priority: Priority.HIGH, // Important
+        completed: false,
+        subtasks: [
+            { id: '4-1', title: 'Review campaign proposals', completed: true },
+            { id: '4-2', title: 'Check ad spend allocation', completed: false },
+            { id: '4-3', title: 'Schedule meeting with marketing head', completed: false },
+        ],
+        tags: ['tag2', 'tag3', 'tag4'],
+        pinned: true,
+    },
+    {
+        id: '5',
+        title: 'Plan weekly meals',
+        description: 'Decide on meals for the upcoming week and create a grocery list.',
+        listId: 'personal',
+        dueDate: toDateString(today),
+        priority: Priority.MEDIUM, // Important, not urgent
+        completed: false,
+        subtasks: [],
+        tags: [],
+    },
+    {
+        id: '6',
+        title: 'Buy groceries for the week',
+        description: '',
+        listId: 'shopping',
+        dueDate: null,
+        priority: Priority.LOW,
+        completed: false,
+        subtasks: [],
+        tags: [],
+    },
+    {
+        id: '7',
+        title: 'Call the plumber about the leaky faucet',
+        description: 'It\'s getting worse.',
+        listId: 'personal',
+        dueDate: toDateString(tomorrow), // Urgent, not important
+        priority: Priority.LOW,
+        completed: false,
+        subtasks: [],
+        tags: ['tag3'],
+    },
+    {
+        id: '8',
+        title: 'Research and book flights for vacation',
+        description: 'Look for flights to Bali for the December trip.',
+        listId: 'personal',
+        dueDate: toDateString(nextWeek),
+        priority: Priority.MEDIUM,
+        completed: false,
+        subtasks: [],
+        tags: [],
+    },
+    {
+        id: '9',
+        title: 'Prepare presentation for Project Phoenix kickoff',
+        description: 'Create slides for the project kickoff meeting next month.',
+        listId: 'work',
+        dueDate: null,
+        priority: Priority.HIGH, // Important, not urgent
+        completed: false,
+        subtasks: [],
+        tags: ['tag1'],
+        pinned: true,
+    },
+    {
+        id: '10',
+        title: 'Finish reading "The Pragmatic Programmer"',
+        description: 'Read the final two chapters.',
+        listId: 'study',
+        dueDate: null,
+        priority: Priority.LOW,
+        completed: false,
+        subtasks: [],
+        tags: [],
+    },
+    // -- Completed Tasks --
+    {
+        id: '11',
+        title: 'Submit monthly expense report',
+        description: '',
+        listId: 'work',
+        dueDate: toDateString(twoDaysAgo),
+        priority: Priority.HIGH,
+        completed: true,
+        completionDate: toDateTimeString(twoDaysAgo),
+        subtasks: [],
+        tags: [],
+    },
+    {
+        id: '12',
+        title: 'Water the plants',
+        description: '',
+        listId: 'personal',
+        dueDate: toDateString(yesterday),
+        priority: Priority.LOW,
+        completed: true,
+        completionDate: toDateString(yesterday),
+        subtasks: [],
+        tags: [],
+    },
+    {
+        id: '13',
+        title: 'Update resume',
+        description: 'Add latest project experience.',
+        listId: 'personal',
+        dueDate: toDateString(lastWeek),
+        priority: Priority.MEDIUM,
+        completed: true,
+        completionDate: toDateString(lastWeek),
+        subtasks: [],
+        tags: [],
+    },
+    // -- A wont-do task --
+    {
+        id: '14',
+        title: 'Learn to play the ukulele',
+        description: 'Maybe next year.',
+        listId: 'personal',
+        dueDate: null,
+        priority: Priority.NONE,
+        completed: false,
+        wontDo: true,
+        subtasks: [],
+        tags: [],
+    },
+    // -- A trashed task --
+    {
+        id: '15',
+        title: 'Sort old emails',
+        description: '',
+        listId: 'inbox',
+        dueDate: null,
+        priority: Priority.NONE,
+        completed: false,
+        trashed: true,
+        subtasks: [],
+        tags: [],
+    },
+    // -- A section header --
+    {
+        id: '16',
+        title: 'Phase 1',
+        listId: 'work',
+        priority: Priority.NONE,
+        completed: false,
+        subtasks: [],
+        tags: [],
+        isSection: true,
+        isCollapsed: false,
+    },
+    // -- Task for the section --
+    {
+        id: '17',
+        title: 'Initial requirement gathering',
+        description: 'Meet with stakeholders to define project scope.',
+        listId: 'work',
+        dueDate: toDateTimeString(nextWeek),
+        priority: Priority.HIGH,
+        completed: false,
+        subtasks: [],
+        tags: ['tag1'],
+    },
 ];
 
+const generateCheckins = (startDateStr: string, numDays: number, probability: number): string[] => {
+    const dates = new Set<string>();
+    const startDate = new Date(startDateStr);
+    for (let i = 0; i < numDays; i++) {
+        const currentDate = new Date(startDate);
+        currentDate.setDate(startDate.getDate() + i);
+        if (Math.random() < probability) {
+            dates.add(currentDate.toISOString().split('T')[0]);
+        }
+    }
+    return Array.from(dates).sort();
+};
+
 export const DEFAULT_HABITS: Habit[] = [
-    { id: 'h1', name: 'Programming', icon: '👨‍💻', period: 'Morning', checkIns: ['2024-07-29', '2024-07-30', '2024-08-01', '2024-08-02', '2024-08-03'], totalDays: 190, streak: 1 },
-    { id: 'h2', name: 'Freelancing', icon: '💰', period: 'Afternoon', checkIns: [], totalDays: 33, streak: 0 },
-    { id: 'h3', name: 'Youtube', icon: '📺', period: 'Night', checkIns: ['2024-08-01', '2024-08-02', '2024-08-03'], totalDays: 183, streak: 0 },
-    { id: 'h4', name: 'SM Retention = Brain Power', icon: '🧠', period: 'Night', checkIns: ['2024-08-01', '2024-08-02', '2024-08-03'], totalDays: 127, streak: 0 },
-    { id: 'h5', name: 'Namaz/Majlis', icon: '🙏', period: 'Night', checkIns: [], totalDays: 48, streak: 0 },
+    { id: 'h1', name: 'Programming', icon: '👨‍💻', period: 'Morning', checkIns: [...generateCheckins('2024-06-01', 65, 0.8), '2024-08-01', '2024-08-02', '2024-08-03'], totalDays: 190, streak: 3 },
+    { id: 'h2', name: 'Freelancing', icon: '💰', period: 'Afternoon', checkIns: generateCheckins('2024-07-01', 35, 0.5), totalDays: 33, streak: 0 },
+    { id: 'h3', name: 'Youtube', icon: '📺', period: 'Night', checkIns: [...generateCheckins('2024-06-15', 50, 0.9), '2024-08-03'], totalDays: 183, streak: 1 },
+    { id: 'h4', name: 'SM Retention = Brain Power', icon: '🧠', period: 'Night', checkIns: generateCheckins('2024-06-01', 65, 0.95), totalDays: 127, streak: 0 },
+    { id: 'h5', name: 'Namaz/Majlis', icon: '🙏', period: 'Night', checkIns: generateCheckins('2024-07-10', 25, 0.4), totalDays: 48, streak: 0 },
 ];
 
 export const DEFAULT_POMODORO_SESSIONS: PomodoroSession[] = [
@@ -73,6 +269,12 @@ export const DEFAULT_POMODORO_SESSIONS: PomodoroSession[] = [
     { id: 'p2', startTime: new Date('2024-08-03T01:56:00').getTime(), endTime: new Date('2024-08-03T03:25:00').getTime(), taskName: 'Vibe Coding' },
     { id: 'p3', startTime: new Date('2024-08-03T00:26:00').getTime(), endTime: new Date('2024-08-03T01:56:00').getTime(), taskName: 'Vibe Coding' },
     { id: 'p4', startTime: new Date('2024-08-02T23:56:00').getTime(), endTime: new Date('2024-08-03T00:00:00').getTime(), taskName: 'Vibe Coding' },
+    { id: 'p5', startTime: new Date('2024-08-04T14:00:00').getTime(), endTime: new Date('2024-08-04T14:50:00').getTime(), taskName: 'Finalize Q3 marketing budget', taskId: '4' },
+    { id: 'p6', startTime: new Date('2024-08-02T10:00:00').getTime(), endTime: new Date('2024-08-02T10:25:00').getTime(), taskName: 'Update resume', taskId: '13' },
+    { id: 'p7', startTime: new Date('2024-08-02T10:30:00').getTime(), endTime: new Date('2024-08-02T10:55:00').getTime(), taskName: 'Update resume', taskId: '13' },
+    { id: 'p8', startTime: new Date('2024-08-01T16:00:00').getTime(), endTime: new Date('2024-08-01T16:50:00').getTime(), taskName: 'Prepare presentation for Project Phoenix kickoff', taskId: '9' },
+    { id: 'p9', startTime: new Date('2024-07-30T11:00:00').getTime(), endTime: new Date('2024-07-30T11:50:00').getTime(), taskName: 'Finish reading "The Pragmatic Programmer"', taskId: '10' },
+    { id: 'p10', startTime: new Date('2024-07-29T09:00:00').getTime(), endTime: new Date('2024-07-29T10:30:00').getTime(), taskName: 'Vibe Coding' },
 ];
 
 export const DEFAULT_USER_PROFILE: UserProfile = {
@@ -84,13 +286,38 @@ export const DEFAULT_USER_PROFILE: UserProfile = {
         { id: 'ltg2', type: 'goal', subtype: 'long-term', text: 'Launch a successful side project' },
         { id: 'stg1', type: 'goal', subtype: 'short-term', text: 'Master React state management' },
         { id: 'stg2', type: 'goal', subtype: 'short-term', text: 'Finish the design system for the current project' },
+        { id: 'str1', type: 'struggle', text: 'Struggles with procrastination on large, undefined tasks' },
+        { id: 'hob1', type: 'hobby', text: 'Enjoys hiking on weekends' },
+        { id: 'rou1', type: 'routine', text: 'Checks emails first thing in the morning' },
+        { id: 'pref1', type: 'preference', text: 'Prefers to work in focused 50-minute blocks' },
+        { id: 'weak1', type: 'weakness', text: 'Has trouble saying no to new requests' },
     ],
 };
 
 export const DEFAULT_COUNTDOWNS: Countdown[] = [
     { id: 'cd1', title: 'New Year 2025', date: '2025-01-01T00:00:00.000Z' },
-    { id: 'cd2', title: 'Project Deadline', date: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString() }, // 15 days from now
+    { id: 'cd2', title: 'Project Phoenix Deadline', date: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString() }, // 45 days from now
 ];
+
+export const DEFAULT_TAGS: Tag[] = [
+    { id: 'tag1', name: 'project-phoenix', color: '#4CAF50' },
+    { id: 'tag2', name: 'q3-review', color: '#2196F3' },
+    { id: 'tag3', name: 'urgent', color: '#F44336' },
+    { id: 'tag4', name: 'marketing', color: '#FF9800' },
+];
+
+export const DEFAULT_FILTERS: Filter[] = [
+    {
+        id: 'filter1',
+        name: 'Urgent Work Tasks',
+        lists: ['work'],
+        tags: ['tag3'],
+        date: 'any',
+        priority: Priority.HIGH,
+        type: 'task',
+    },
+];
+
 
 const toYYYYMMDD = (date: Date): string => {
     const year = date.getFullYear();
