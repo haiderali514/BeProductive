@@ -1,4 +1,6 @@
 
+
+
 import React, { createContext, useContext } from 'react';
 import { useApiUsage as useApiUsageHook, ApiUsage, ApiFeature } from '../hooks/useApiUsage';
 
@@ -22,3 +24,6 @@ export const useApiUsage = (): ApiUsageContextType => {
     }
     return context;
 };
+
+// FIX: Export ApiFeature to make it available to other modules.
+export type { ApiFeature };

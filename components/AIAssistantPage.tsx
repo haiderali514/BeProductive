@@ -1,7 +1,7 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Conversation, ChatMessage, Project, ProjectMemory } from '../types';
-// FIX: Added missing import for FolderPlusIcon.
-import { AIAssistantIcon, UserIcon, PlusIcon, TrashIcon, EditIcon, FolderIcon, FolderPlusIcon, ChevronDownIcon, MoveToListIcon, SettingsIcon, SearchIcon, LibraryIcon, CloseIcon, PlusCircleIcon, MicrophoneIcon, MoreIcon, ArchiveIcon, ReportIcon, ShareIcon } from './Icons';
+import { AIAssistantIcon, UserIcon, PlusIcon, TrashIcon, EditIcon, FolderIcon, FolderPlusIcon, ChevronDownIcon, MoveToListIcon, SettingsIcon, SearchIcon, LibraryIcon, CloseIcon, PlusCircleIcon, MicrophoneIcon, MoreIcon, ArchiveIcon, ReportIcon, ShareIcon, StarIcon } from './Icons';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { useChat } from '../contexts/ChatContext';
 import { useSettings } from '../contexts/SettingsContext';
@@ -228,12 +228,11 @@ export const AIAssistantPage: React.FC = () => {
     }, [sortedConversations, searchTerm]);
 
 
-    // FIX: Refactored to correctly access `name` or `title` property and avoid type errors.
     const renderSidebarItem = (item: Conversation | Project, type: 'chat' | 'project') => {
         const isProject = type === 'project';
         const isActive = isProject ? false : activeConversationId === item.id;
 
-        const title = isProject ? (item as Project).name : (item as Conversation).title;
+        const title = 'name' in item ? item.name : item.title;
 
         const handleRename = () => {
             const newName = prompt(`Enter new name for "${title}":`, title);
@@ -307,98 +306,91 @@ export const AIAssistantPage: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto mt-4 -mr-2 pr-2 space-y-3">
-                        {/* Projects Section */}
-                        <div className="flex justify-between items-center px-2 py-1">
-                            <button onClick={() => toggleSection('projects')} className="flex items-center text-xs font-bold uppercase text-content-tertiary hover:text-content-primary">
-                                <ChevronDownIcon className={`h-4 w-4 mr-1 transition-transform ${collapsedSections['projects'] ? '-rotate-90' : ''}`} />
-                                Projects
-                            </button>
-                            <button onClick={() => setProjectModalOpen(true)} className="p-1 rounded text-content-tertiary hover:text-primary">
-                                <FolderPlusIcon />
-                            </button>
-                        </div>
-                        {!collapsedSections['projects'] && (
-                            <div className="space-y-1">
-                                {filteredProjects.length > 0 ? (
-                                    filteredProjects.map(p => (
-                                        <div key={p.id}>
-                                            {renderSidebarItem(p, 'project')}
-                                        </div>
-                                    ))
-                                ) : searchTerm.trim() ? (
-                                    <p className="px-2 py-2 text-sm text-center text-content-tertiary">No projects found.</p>
-                                ) : null}
+                    <div className="flex-1 overflow-y-auto mt-4 space-y-4">
+                        {/* Project Section */}
+                        <div>
+                            <div className="flex justify-between items-center mb-1 group">
+                                <button onClick={() => toggleSection('projects')} className="flex items-center text-xs font-bold uppercase text-content-tertiary hover:text-content-primary">
+                                    <ChevronDownIcon className={`h-4 w-4 mr-1 transition-transform ${collapsedSections['projects'] ? '-rotate-90' : ''}`} />
+                                    Projects
+                                </button>
+                                <button onClick={() => setProjectModalOpen(true)} className="p-1 rounded text-content-tertiary hover:text-content-primary opacity-0 group-hover:opacity-100"><FolderPlusIcon /></button>
                             </div>
-                        )}
-                        
+                            {!collapsedSections['projects'] && (
+                                <div className="space-y-0.5">
+                                    {filteredProjects.map(p => renderSidebarItem(p, 'project'))}
+                                </div>
+                            )}
+                        </div>
                         {/* Chats Section */}
-                        <div className="flex justify-between items-center px-2 py-1">
-                            <button onClick={() => toggleSection('chats')} className="flex items-center text-xs font-bold uppercase text-content-tertiary hover:text-content-primary">
-                                <ChevronDownIcon className={`h-4 w-4 mr-1 transition-transform ${collapsedSections['chats'] ? '-rotate-90' : ''}`} />
-                                Chats
-                            </button>
-                        </div>
-                        {!collapsedSections['chats'] && (
-                            <div className="space-y-1">
-                                {filteredConversations.length > 0 ? (
-                                    filteredConversations.map(c => renderSidebarItem(c, 'chat'))
-                                ) : searchTerm.trim() ? (
-                                    <p className="px-2 py-2 text-sm text-center text-content-tertiary">No chats found.</p>
-                                ) : null}
+                        <div>
+                            <div className="flex justify-between items-center mb-1">
+                                <button onClick={() => toggleSection('chats')} className="flex items-center text-xs font-bold uppercase text-content-tertiary hover:text-content-primary">
+                                    <ChevronDownIcon className={`h-4 w-4 mr-1 transition-transform ${collapsedSections['chats'] ? '-rotate-90' : ''}`} />
+                                    Chats
+                                </button>
                             </div>
-                        )}
+                             {!collapsedSections['chats'] && (
+                                <div className="space-y-0.5">
+                                    {filteredConversations.filter(c => !c.projectId).map(c => renderSidebarItem(c, 'chat'))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </aside>
-                
-                {/* Main Chat Area */}
-                <main className="flex-1 flex flex-col bg-background-primary h-full">
+
+                {/* Main Chat Panel */}
+                <main className="flex-1 flex flex-col h-full bg-background-primary">
                     {activeConversation ? (
-                         <>
-                            <header className="flex-shrink-0 p-4 border-b border-border-primary flex justify-between items-center">
-                                <div>
-                                    <h1 className="text-xl font-bold">{activeConversation.title}</h1>
-                                    {activeProject && <p className="text-xs text-content-secondary">{activeProject.name}</p>}
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <button className="p-2 text-content-secondary hover:text-primary rounded-full hover:bg-background-secondary"><ShareIcon/></button>
-                                    <button className="p-2 text-content-secondary hover:text-primary rounded-full hover:bg-background-secondary"><ArchiveIcon/></button>
-                                    <button className="p-2 text-content-secondary hover:text-primary rounded-full hover:bg-background-secondary"><ReportIcon/></button>
+                        <>
+                            {/* Header */}
+                            <header className="flex-shrink-0 p-3 border-b border-border-primary flex justify-between items-center">
+                                <h2 className="font-semibold">{activeConversation.title}</h2>
+                                <div className="flex items-center space-x-1">
+                                    <button className="p-2 rounded-full text-content-secondary hover:bg-background-tertiary"><StarIcon/></button>
+                                    <button className="p-2 rounded-full text-content-secondary hover:bg-background-tertiary"><ArchiveIcon/></button>
+                                    <button className="p-2 rounded-full text-content-secondary hover:bg-background-tertiary"><ReportIcon/></button>
+                                    <button className="p-2 rounded-full text-content-secondary hover:bg-background-tertiary"><ShareIcon/></button>
+                                    <button className="p-2 rounded-full text-content-secondary hover:bg-background-tertiary"><MoreIcon/></button>
                                 </div>
                             </header>
-                            <div className="flex-1 overflow-y-auto p-4">
-                                <div className="max-w-4xl mx-auto space-y-4">
+
+                            {/* Messages */}
+                            <div className="flex-1 overflow-y-auto p-6">
+                                <div className="flex flex-col items-start gap-6">
                                     {activeConversation.messages.map(message => (
                                         <ChatBubble key={message.id} message={message} />
                                     ))}
                                     {isAILoading && <LoadingBubble />}
+                                    <div ref={messagesEndRef} />
                                 </div>
-                                <div ref={messagesEndRef} />
                             </div>
+                            
+                            {/* Input Form */}
                             <footer className="flex-shrink-0 p-4">
-                                <div className="max-w-4xl mx-auto">
-                                    <form onSubmit={handleSubmit} className="relative bg-background-secondary rounded-xl p-2 flex items-end border border-transparent focus-within:border-primary">
-                                        <button type="button" className="p-3 text-content-secondary hover:text-primary"><PlusCircleIcon className="h-6 w-6" /></button>
-                                        <textarea
-                                            ref={textareaRef}
-                                            value={promptInput}
-                                            onChange={e => setPromptInput(e.target.value)}
-                                            onKeyDown={handleKeyDown}
-                                            placeholder={settings.enableAIFeatures ? "Ask Aura anything..." : "AI features are disabled in settings"}
-                                            disabled={!settings.enableAIFeatures || isAILoading}
-                                            className="flex-1 bg-transparent resize-none focus:outline-none max-h-48 text-content-primary p-2"
-                                            rows={1}
-                                        />
-                                        <button type="button" className="p-3 text-content-secondary hover:text-primary"><MicrophoneIcon className="h-6 w-6" /></button>
-                                    </form>
-                                </div>
+                                <form onSubmit={handleSubmit} className="relative">
+                                    <textarea
+                                        ref={textareaRef}
+                                        value={promptInput}
+                                        onChange={e => setPromptInput(e.target.value)}
+                                        onKeyDown={handleKeyDown}
+                                        placeholder={settings.enableAIFeatures ? "Ask Aura anything..." : "AI features are disabled in settings."}
+                                        className="w-full bg-background-secondary border border-border-primary rounded-lg p-3 pr-28 resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                                        rows={1}
+                                        disabled={!settings.enableAIFeatures || isAILoading}
+                                    />
+                                    <div className="absolute right-3 bottom-2 flex items-center space-x-2">
+                                        <button type="button" className="p-2 rounded-full text-content-secondary hover:bg-background-tertiary"><PlusCircleIcon /></button>
+                                        <button type="button" className="p-2 rounded-full text-content-secondary hover:bg-background-tertiary"><MicrophoneIcon /></button>
+                                    </div>
+                                </form>
                             </footer>
                         </>
                     ) : (
-                        <div className="flex flex-col items-center justify-center h-full text-center text-content-tertiary">
-                             <AIAssistantIcon className="h-16 w-16 text-primary mb-4" />
-                            <h2 className="text-2xl font-bold text-content-primary">AI Assistant</h2>
-                            <p>Select a chat or start a new one to begin.</p>
+                        <div className="flex-1 flex flex-col items-center justify-center text-content-tertiary">
+                            <AIAssistantIcon className="w-16 h-16 mb-4" />
+                            <h2 className="text-xl font-semibold">Aura Assistant</h2>
+                            <p>Select a conversation or start a new one.</p>
                         </div>
                     )}
                 </main>

@@ -4,91 +4,25 @@ import { PRIORITY_BG_COLORS } from '../constants';
 import { MoreIcon, TrashIcon, TasksIcon, StarIcon, CommentIcon, PlusCircleIcon, SubtaskIcon, LinkParentIcon, WontDoIcon, TagIcon, AttachmentIcon, PomodoroIcon, TaskActivitiesIcon, TemplateIcon, DuplicateIcon, CopyLinkIcon, StickyNoteIcon, ConvertToNoteIcon, PrintIcon, ChevronRightIcon, FlagIcon, TextFormatIcon, HeadingIcon, BulletedListIcon, CheckItemIcon, QuoteIcon, DescriptionModeIcon, ChecklistModeIcon, TomorrowIcon } from './Icons';
 import { Checkbox } from './Checkbox';
 import { Popover } from './Popover';
-
-// ====================================================================
-// Calendar Popover Component (for TaskDetailPanel)
-// ====================================================================
-const CalendarPopoverContent: React.FC<{
-    selectedDate: Date | null;
-    onDateChange: (date: Date | null) => void;
-    onClose: () => void;
-}> = ({ selectedDate, onDateChange, onClose }) => {
-    const [viewDate, setViewDate] = useState(selectedDate || new Date());
-
-    const monthName = viewDate.toLocaleString('default', { month: 'long' });
-    const year = viewDate.getFullYear();
-    const daysInMonth = new Date(year, viewDate.getMonth() + 1, 0).getDate();
-    const firstDayOfMonth = new Date(year, viewDate.getMonth(), 1).getDay(); // 0 = Sunday
-
-    const changeMonth = (offset: number) => {
-        setViewDate(prev => {
-            const newDate = new Date(prev);
-            newDate.setDate(1); // Avoid issues with differing month lengths
-            newDate.setMonth(newDate.getMonth() + offset);
-            return newDate;
-        });
-    };
-
-    const handleDayClick = (day: number) => {
-        const newDate = new Date(viewDate);
-        newDate.setDate(day);
-        onDateChange(newDate);
-    };
-
-    return (
-        <div className="p-4 w-72 bg-background-tertiary rounded-lg shadow-2xl border border-border-primary text-content-primary">
-            <div className="flex justify-between items-center mb-4">
-                <button onClick={() => changeMonth(-1)} className="p-1 rounded-full hover:bg-background-secondary text-content-secondary">&lt;</button>
-                <div className="font-bold text-content-primary">{monthName} {year}</div>
-                <button onClick={() => changeMonth(1)} className="p-1 rounded-full hover:bg-background-secondary text-content-secondary">&gt;</button>
-            </div>
-            <div className="grid grid-cols-7 gap-1 text-center text-xs text-content-tertiary mb-2">
-                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(day => <div key={day}>{day}</div>)}
-            </div>
-            <div className="grid grid-cols-7 gap-1">
-                {Array.from({ length: firstDayOfMonth }).map((_, i) => <div key={`empty-${i}`}></div>)}
-                {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
-                    const isSelected = selectedDate ? (
-                        selectedDate.getDate() === day &&
-                        selectedDate.getMonth() === viewDate.getMonth() &&
-                        selectedDate.getFullYear() === viewDate.getFullYear()
-                    ) : false;
-                    return (
-                        <button key={day} onClick={() => handleDayClick(day)} className={`w-8 h-8 rounded-full text-sm hover:bg-background-secondary transition-colors ${isSelected ? 'bg-primary text-white' : ''}`}>
-                            {day}
-                        </button>
-                    );
-                })}
-            </div>
-             <div className="mt-4 pt-4 border-t border-border-primary space-y-2 text-sm text-content-primary">
-                <div className="flex justify-between items-center p-2 rounded hover:bg-background-secondary cursor-pointer"><span>Time</span><span className="text-content-tertiary">&gt;</span></div>
-                <div className="flex justify-between items-center p-2 rounded hover:bg-background-secondary cursor-pointer"><span>Reminder</span><span className="text-content-tertiary">&gt;</span></div>
-                <div className="flex justify-between items-center p-2 rounded hover:bg-background-secondary cursor-pointer"><span>Repeat</span><span className="text-content-tertiary">&gt;</span></div>
-            </div>
-            <div className="flex justify-end mt-4 space-x-2">
-                <button onClick={() => { onDateChange(null); onClose(); }} className="px-4 py-1.5 text-sm rounded-md hover:bg-background-secondary">Clear</button>
-                <button onClick={onClose} className="px-4 py-1.5 text-sm rounded-md bg-primary text-white hover:bg-primary-focus">OK</button>
-            </div>
-        </div>
-    );
-};
-
+import { DateTimePickerPopover } from './DateTimePickerPopover';
 
 // ====================================================================
 // TaskDetailPanel Component
 // ====================================================================
 interface TaskDetailPanelProps {
     task: Task;
+    tasks: Task[];
     lists: List[];
     pomodoroSessions: PomodoroSession[];
     onUpdateTask: (taskId: string, updates: Partial<Task>) => void;
     onDeleteTask: (taskId: string) => void;
     onAddSubtask: (taskId: string, subtaskTitle: string) => void;
     onToggleSubtaskComplete: (taskId: string, subtaskId: string) => void;
+    onReorderTask: (draggedTaskId: string, targetId: string) => void;
 }
 
 
-export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({ task, lists, pomodoroSessions, onUpdateTask, onDeleteTask, onAddSubtask, onToggleSubtaskComplete }) => {
+export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({ task, tasks, lists, pomodoroSessions, onUpdateTask, onDeleteTask, onAddSubtask, onToggleSubtaskComplete, onReorderTask }) => {
     const [title, setTitle] = useState(task.title);
     const [description, setDescription] = useState(task.description || '');
     const [newSubtask, setNewSubtask] = useState('');
@@ -98,6 +32,7 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({ task, lists, p
     const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
     const [isPriorityPopoverOpen, setPriorityPopoverOpen] = useState(false);
     const [isListPopoverOpen, setListPopoverOpen] = useState(false);
+    const [isSectionPopoverOpen, setSectionPopoverOpen] = useState(false);
     const [isFormatBarOpen, setFormatBarOpen] = useState(false);
 
     const [contentView, setContentView] = useState<'description' | 'checklist'>(task.subtasks.length > 0 ? 'checklist' : 'description');
@@ -108,6 +43,7 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({ task, lists, p
     const dateTriggerRef = useRef<HTMLButtonElement>(null);
     const priorityTriggerRef = useRef<HTMLButtonElement>(null);
     const listTriggerRef = useRef<HTMLButtonElement>(null);
+    const sectionTriggerRef = useRef<HTMLButtonElement>(null);
 
     useEffect(() => {
         setTitle(task.title);
@@ -138,6 +74,41 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({ task, lists, p
 
     const listName = useMemo(() => lists.find(l => l.id === task.listId)?.name || 'Inbox', [lists, task.listId]);
     
+    const currentSection = useMemo(() => {
+        const allTasksInOrder = tasks; // We get the full ordered list now
+        const taskIndex = allTasksInOrder.findIndex(t => t.id === task.id);
+        
+        if (taskIndex === -1 || task.isSection) return null;
+
+        for (let i = taskIndex - 1; i >= 0; i--) {
+            const potentialSection = allTasksInOrder[i];
+            if (potentialSection.isSection && potentialSection.listId === task.listId) {
+                return potentialSection;
+            }
+        }
+        return null;
+    }, [tasks, task.id, task.listId, task.isSection]);
+
+    const sectionsInList = useMemo(() => {
+        return tasks.filter(t => t.isSection && t.listId === task.listId);
+    }, [tasks, task.listId]);
+
+    const handleSectionChange = (newSectionId: string | 'no-section') => {
+        if (newSectionId === 'no-section') {
+            const firstTaskInList = tasks.find(t => t.listId === task.listId);
+            if (firstTaskInList && firstTaskInList.id !== task.id) {
+                 // By targeting the first task in the list, we move this task to the top,
+                 // effectively placing it in the "No Section" area.
+                onReorderTask(task.id, firstTaskInList.id);
+            }
+        } else {
+            // The reorder logic correctly handles dropping a task "on" a section header
+            // by placing it at the end of that section's tasks.
+            onReorderTask(task.id, newSectionId);
+        }
+        setSectionPopoverOpen(false);
+    };
+
     const focusStats = useMemo(() => {
         const relevantSessions = (pomodoroSessions || []).filter(session => session.taskId === task.id);
         const count = relevantSessions.length;
@@ -193,9 +164,13 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({ task, lists, p
     const formattedDueDate = useMemo(() => {
         if (!task.dueDate) return "Date and Reminder";
         try {
-            return new Date(task.dueDate.replace(' ', 'T')).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric'});
+            const date = new Date(task.dueDate.replace(' ', 'T'));
+            if (isNaN(date.getTime())) {
+                return task.dueDate; // Show raw string if not a valid date
+            }
+            return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric'});
         } catch (e) {
-            return "Date and Reminder";
+            return task.dueDate; // Fallback to raw string
         }
     }, [task.dueDate]);
 
@@ -208,16 +183,13 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({ task, lists, p
                     <button ref={dateTriggerRef} onClick={() => setIsDatePopoverOpen(p => !p)} className="text-sm text-content-secondary hover:bg-background-tertiary px-3 py-1.5 rounded-md transition-colors">
                         {formattedDueDate}
                     </button>
-                    <Popover isOpen={isDatePopoverOpen} onClose={() => setIsDatePopoverOpen(false)} triggerRef={dateTriggerRef}>
-                        <CalendarPopoverContent
-                            selectedDate={task.dueDate ? new Date(task.dueDate.replace(' ', 'T')) : null}
-                            onDateChange={(newDate) => {
-                                const newDueDate = newDate ? newDate.toISOString().split('T')[0] : null;
-                                onUpdateTask(task.id, { dueDate: newDueDate });
-                            }}
-                            onClose={() => setIsDatePopoverOpen(false)}
-                        />
-                    </Popover>
+                    <DateTimePickerPopover
+                        isOpen={isDatePopoverOpen}
+                        onClose={() => setIsDatePopoverOpen(false)}
+                        triggerRef={dateTriggerRef}
+                        initialValue={task}
+                        onSave={(result) => onUpdateTask(task.id, result)}
+                    />
                 </div>
                 <div className="flex items-center space-x-2">
                     {focusStats && (
@@ -338,20 +310,45 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({ task, lists, p
 
             {/* Footer */}
             <footer className="p-2 border-t border-border-primary flex-shrink-0 bg-background-secondary flex justify-between items-center">
-                <button ref={listTriggerRef} onClick={() => setListPopoverOpen(p => !p)} className="text-sm text-content-secondary hover:bg-background-tertiary px-3 py-1.5 rounded-md transition-colors flex items-center space-x-2">
-                    <TasksIcon />
-                    <span>{listName}</span>
-                </button>
-                <Popover isOpen={isListPopoverOpen} onClose={() => setListPopoverOpen(false)} triggerRef={listTriggerRef} position="top-start">
-                    <div className="min-w-[200px] bg-background-tertiary rounded-lg shadow-2xl border border-border-primary text-content-primary p-2">
-                        {lists.map(list => (
-                            <button key={list.id} onClick={() => { onUpdateTask(task.id, {listId: list.id}); setListPopoverOpen(false); }} className={`w-full text-left flex items-center p-2 rounded hover:bg-background-primary ${task.listId === list.id ? 'bg-primary/20' : ''}`}>
-                                <span>{list.name}</span>
-                                {task.listId === list.id && <span className="ml-auto text-primary">✓</span>}
+                 <div className="flex items-center">
+                    <button ref={listTriggerRef} onClick={() => setListPopoverOpen(p => !p)} className="text-sm text-content-secondary hover:bg-background-tertiary px-3 py-1.5 rounded-md transition-colors flex items-center space-x-2">
+                        <TasksIcon />
+                        <span>{listName}</span>
+                    </button>
+                    <Popover isOpen={isListPopoverOpen} onClose={() => setListPopoverOpen(false)} triggerRef={listTriggerRef} position="top-start">
+                        <div className="min-w-[200px] bg-background-tertiary rounded-lg shadow-2xl border border-border-primary text-content-primary p-2">
+                            {lists.map(list => (
+                                <button key={list.id} onClick={() => { onUpdateTask(task.id, {listId: list.id}); setListPopoverOpen(false); }} className={`w-full text-left flex items-center p-2 rounded hover:bg-background-primary ${task.listId === list.id ? 'bg-primary/20' : ''}`}>
+                                    <span>{list.name}</span>
+                                    {task.listId === list.id && <span className="ml-auto text-primary">✓</span>}
+                                </button>
+                            ))}
+                        </div>
+                    </Popover>
+
+                    {sectionsInList.length > 0 && !task.isSection && (
+                        <>
+                            <span className="text-content-tertiary mx-1">/</span>
+                            <button ref={sectionTriggerRef} onClick={() => setSectionPopoverOpen(p => !p)} className="text-sm text-content-secondary hover:bg-background-tertiary px-3 py-1.5 rounded-md transition-colors">
+                                {currentSection?.title || 'No Section'}
                             </button>
-                        ))}
-                    </div>
-                </Popover>
+                            <Popover isOpen={isSectionPopoverOpen} onClose={() => setSectionPopoverOpen(false)} triggerRef={sectionTriggerRef} position="top-start">
+                                <div className="min-w-[200px] bg-background-tertiary rounded-lg shadow-2xl border border-border-primary text-content-primary p-2">
+                                    <button onClick={() => handleSectionChange('no-section')} className={`w-full text-left flex items-center p-2 rounded hover:bg-background-primary ${!currentSection ? 'bg-primary/20' : ''}`}>
+                                        No Section
+                                        {!currentSection && <span className="ml-auto text-primary">✓</span>}
+                                    </button>
+                                    {sectionsInList.map(section => (
+                                        <button key={section.id} onClick={() => handleSectionChange(section.id)} className={`w-full text-left flex items-center p-2 rounded hover:bg-background-primary ${currentSection?.id === section.id ? 'bg-primary/20' : ''}`}>
+                                            {section.title}
+                                            {currentSection?.id === section.id && <span className="ml-auto text-primary">✓</span>}
+                                        </button>
+                                    ))}
+                                </div>
+                            </Popover>
+                        </>
+                    )}
+                </div>
                 <div className="flex items-center space-x-1 text-content-secondary">
                     <button onClick={() => setFormatBarOpen(p => !p)} className="p-2 hover:text-primary rounded-full hover:bg-background-tertiary" title="Formatting"><TextFormatIcon className="w-5 h-5"/></button>
                     <button onClick={() => setIsCommenting(c => !c)} className="p-2 hover:text-primary rounded-full hover:bg-background-tertiary" title="Add Comment"><CommentIcon className="w-5 h-5"/></button>

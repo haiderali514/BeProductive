@@ -1,5 +1,3 @@
-
-
 import React, { useState } from 'react';
 import { Settings } from '../../hooks/useSettings';
 import { CalendarIcon, FlagIcon, MoreIcon, MoveToListIcon, TagIcon, TrophyIcon } from '../Icons';
@@ -22,7 +20,7 @@ const PremiumBadge: React.FC = () => (
              {/* FIX: Cast style object to React.CSSProperties to allow for custom CSS properties like '--tw-text-opacity'. */}
              <span className="text-yellow-400 text-xs font-bold" style={{'--tw-text-opacity': 0} as React.CSSProperties}>★</span>
         </div>
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5 text-black absolute" style={{top: '1px', left: '1px'}} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5 text-black absolute" style={{top: '1px', left: '1px'}} fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
     </div>
 );
 
@@ -127,7 +125,7 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({ settings
                 <span className="text-content-secondary text-xs flex-1">+ Add Task</span>
                 <div className="flex items-center space-x-1">
                     <CalendarIcon className="h-4 w-4 text-content-tertiary" />
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-content-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-content-tertiary" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                 </div>
             </div>
         </div>
@@ -249,7 +247,7 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({ settings
                                     className={`w-12 h-12 rounded-full ring-2 ring-offset-2 ring-offset-background-primary transition-all ${isSelected ? 'ring-primary' : 'ring-transparent'}`}
                                     style={{ backgroundColor: color.bg }}
                                 >
-                                    {isSelected && <div className="flex items-center justify-center w-full h-full"><svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 ${color.isDark ? 'text-white' : 'text-black'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg></div>}
+                                    {isSelected && <div className="flex items-center justify-center w-full h-full"><svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 ${color.isDark ? 'text-white' : 'text-black'}`} fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg></div>}
                                 </button>
                                 <p className="text-xs text-content-secondary">{color.name}</p>
                             </div>

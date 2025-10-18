@@ -355,6 +355,13 @@ export const CalendarPage: React.FC<CalendarPageProps> = ({ tasks, sessions, lis
         // Process tasks
         activeTasks.forEach(task => {
             if (task.dueDate) {
+                // Check for invalid date strings from AI, etc.
+                const d = new Date(task.dueDate.replace(' ', 'T'));
+                if (isNaN(d.getTime())) {
+                    // Skip adding this task to the calendar if its date is invalid
+                    return;
+                }
+
                 const hasTime = task.dueDate.includes(' ');
                 const dateStr = task.dueDate.split(' ')[0];
                 ensureDate(dateStr);
@@ -365,8 +372,8 @@ export const CalendarPage: React.FC<CalendarPageProps> = ({ tasks, sessions, lis
                     type: 'task',
                     color: listColorMap[task.listId] || '#6B6B6B',
                     data: task,
-                    startTime: hasTime ? new Date(task.dueDate.replace(' ', 'T')) : undefined,
-                    endTime: hasTime ? new Date(new Date(task.dueDate.replace(' ', 'T')).getTime() + 30 * 60000) : undefined,
+                    startTime: hasTime ? d : undefined,
+                    endTime: hasTime ? new Date(d.getTime() + 30 * 60000) : undefined,
                 };
 
                 if (hasTime) {

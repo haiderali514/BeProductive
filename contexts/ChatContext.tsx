@@ -1,3 +1,11 @@
+
+
+
+
+
+
+
+
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { Conversation, ChatMessage, UserTrait, TraitType, GoalSubtype, Project, ProjectMemory } from '../types';
@@ -124,7 +132,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     
                      if (funcCall.name === 'addTask') {
                         const list = lists.find(l => l.name.toLowerCase() === ((funcCall.args.listName as string) || 'inbox').toLowerCase()) || lists.find(l => l.id === 'inbox');
-                        result = { success: true, task: handleAddTask({ title: funcCall.args.title as string, listId: list!.id, priority: (funcCall.args.priority as any) || 'None', dueDate: (funcCall.args.dueDate as string) || null, recurrence: null, tags: [] }) };
+                        // @google/genai-sdk: Fix: Add missing properties to satisfy the handleAddTask type definition.
+                        result = { success: true, task: handleAddTask({ title: funcCall.args.title as string, listId: list!.id, priority: (funcCall.args.priority as any) || 'None', dueDate: (funcCall.args.dueDate as string) || null, startDate: null, isAllDay: false, recurrence: null, reminder: null, tags: [], isSection: false, isCollapsed: false, afterTaskId: undefined }) };
                     } else if (funcCall.name === 'saveUserTrait') {
                         const newTrait: UserTrait = {
                             id: Date.now().toString(),

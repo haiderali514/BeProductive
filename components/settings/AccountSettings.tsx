@@ -1,22 +1,14 @@
+
+
+
 import React from 'react';
-import { ApiUsage, ApiFeature } from '../../hooks/useApiUsage';
+// @google/genai-sdk: Fix: Imported FEATURE_NAMES to ensure all ApiFeatures are included.
+import { ApiUsage, ApiFeature, FEATURE_NAMES } from '../../hooks/useApiUsage';
 
 interface AccountSettingsProps {
     onLogout: () => void;
     apiUsage: ApiUsage;
 }
-
-const FEATURE_NAMES: Record<ApiFeature, string> = {
-    smartAddTask: 'Smart Task Add',
-    generateSubtasks: 'Subtask Generation',
-    aiAssistant: 'AI Assistant Chat',
-    planWithAI: 'Plan with AI',
-    weeklyReview: 'Weekly Review',
-    goalProgress: 'Goal Progress Reports',
-    proactiveSuggestions: 'Proactive Suggestions',
-    chatTitleGeneration: 'Chat Title Generation',
-    analyticsInsights: 'Analytics Insights',
-};
 
 export const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout, apiUsage }) => {
     const FREE_TIER_LIMIT = 1000000;

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { List, Task, Tag, Filter, Priority } from '../types';
 import { Settings, SmartListVisibility } from '../hooks/useSettings';
-import { AllTasksIcon, TodayIcon, TomorrowIcon, Next7DaysIcon, AssignedToMeIcon, InboxIcon, SummaryIcon, CompletedIcon, TrashIcon, MoreIcon, TrophyIcon, PinIcon, EditIcon, DuplicateIcon, ShareIcon, ArchiveIcon, PlusIcon, ChevronDownIcon, WontDoIcon, TagIcon, FiltersIcon, SidebarCollapseIcon } from './Icons';
+import { AllTasksIcon, TodayIcon, TomorrowIcon, Next7DaysIcon, AssignedToMeIcon, InboxIcon, SummaryIcon, CompletedIcon, TrashIcon, MoreIcon, TrophyIcon, PinIcon, EditIcon, DuplicateIcon, ShareIcon, ArchiveIcon, PlusIcon, ChevronDownIcon, WontDoIcon, TagIcon, FiltersIcon, SidebarCollapseIcon, WebdevLogoIcon } from './Icons';
 import { Popover } from './Popover';
 import { useData } from '../contexts/DataContext';
 import { EditListModal } from './EditListModal';
@@ -9,6 +9,7 @@ import { AddListModal } from './AddListModal';
 import { AddTagModal } from './AddTagModal';
 import { AddFilterModal } from './AddFilterModal';
 import useLocalStorage from '../hooks/useLocalStorage';
+import { smartListsConfig, staticItemsConfig } from '../constants';
 
 interface TasksSidebarProps {
     lists: List[];
@@ -23,22 +24,6 @@ interface TasksSidebarProps {
     settings: Settings;
     onSettingsChange: (newSettings: Partial<Settings>) => void;
 }
-
-const smartListsConfig = [
-    { id: 'all', name: 'All', icon: <AllTasksIcon /> },
-    { id: 'today', name: 'Today', icon: <TodayIcon /> },
-    { id: 'tomorrow', name: 'Tomorrow', icon: <TomorrowIcon /> },
-    { id: 'next7days', name: 'Next 7 Days', icon: <Next7DaysIcon /> },
-    { id: 'assignedToMe', name: 'Assigned to Me', icon: <AssignedToMeIcon /> },
-    { id: 'inbox', name: 'Inbox', icon: <InboxIcon /> },
-    { id: 'summary', name: 'Summary', icon: <SummaryIcon /> },
-];
-
-const staticItemsConfig = [
-    { id: 'completed', name: 'Completed', icon: <CompletedIcon /> },
-    { id: 'wontdo', name: 'Won\'t Do', icon: <WontDoIcon /> },
-    { id: 'trash', name: 'Trash', icon: <TrashIcon /> },
-]
 
 // ====================================================================
 // Unified Sidebar List Item Component
@@ -143,29 +128,65 @@ export const TasksSidebar: React.FC<TasksSidebarProps> = ({ lists, tasks, tags, 
     const [isAddTagModalOpen, setAddTagModalOpen] = useState(false);
     const [isAddFilterModalOpen, setAddFilterModalOpen] = useState(false);
     const [listToEdit, setListToEdit] = useState<List | null>(null);
-    const { handleUpdateList, handleDeleteList, handleReorderList } = useData();
+    const { handleUpdateList, handleDeleteList, handleReorderList, handleReorderTag, handleReorderFilter } = useData();
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const [collapsedSections, setCollapsedSections] = useLocalStorage<Record<string, boolean>>(
         'sidebar_collapsed_sections',
         { lists: false, filters: false, tags: false }
     );
     
-    const [draggedId, setDraggedId] = useState<string | null>(null);
+    const [draggedItem, setDraggedItem] = useState<{ id: string; type: 'list' | 'tag' | 'filter' | 'smartList' } | null>(null);
     const [dropTargetId, setDropTargetId] = useState<string | null>(null);
 
     const menuTriggersRef = useRef<Record<string, HTMLButtonElement | null>>({});
 
-    const handleDragStart = (id: string) => setDraggedId(id);
-    const handleDragEnter = (id: string) => { if (id !== draggedId) setDropTargetId(id); };
-    const handleDrop = () => {
-        if (draggedId && dropTargetId) {
-            handleReorderList(draggedId, dropTargetId);
+    const handleDragStart = (id: string, type: 'list' | 'tag' | 'filter' | 'smartList') => {
+        setDraggedItem({ id, type });
+    };
+    
+    const handleDragEnter = (id: string) => {
+        if (draggedItem && id !== draggedItem.id) {
+            setDropTargetId(id);
         }
-        setDraggedId(null);
+    };
+    
+    const handleReorderSmartList = (draggedId: string, targetId: string) => {
+        const currentOrder = settings.smartListOrder || smartListsConfig.map(l => l.id);
+        const draggedIndex = currentOrder.indexOf(draggedId);
+        const targetIndex = currentOrder.indexOf(targetId);
+    
+        if (draggedIndex === -1 || targetIndex === -1) return;
+    
+        const newOrder = [...currentOrder];
+        const [item] = newOrder.splice(draggedIndex, 1);
+        newOrder.splice(targetIndex, 0, item);
+    
+        onSettingsChange({ smartListOrder: newOrder });
+    };
+
+    const handleDrop = () => {
+        if (draggedItem && dropTargetId) {
+            const targetIsList = lists.some(l => l.id === dropTargetId);
+            const targetIsTag = tags.some(t => t.id === dropTargetId);
+            const targetIsFilter = filters.some(f => f.id === dropTargetId);
+            const targetIsSmartList = smartListsConfig.some(l => l.id === dropTargetId);
+    
+            if (draggedItem.type === 'smartList' && targetIsSmartList) {
+                handleReorderSmartList(draggedItem.id, dropTargetId);
+            } else if (draggedItem.type === 'list' && targetIsList) {
+                handleReorderList(draggedItem.id, dropTargetId);
+            } else if (draggedItem.type === 'tag' && targetIsTag) {
+                handleReorderTag(draggedItem.id, dropTargetId);
+            } else if (draggedItem.type === 'filter' && targetIsFilter) {
+                handleReorderFilter(draggedItem.id, dropTargetId);
+            }
+        }
+        setDraggedItem(null);
         setDropTargetId(null);
     };
+    
     const handleDragEnd = () => {
-        setDraggedId(null);
+        setDraggedItem(null);
         setDropTargetId(null);
     };
 
@@ -228,16 +249,25 @@ export const TasksSidebar: React.FC<TasksSidebarProps> = ({ lists, tasks, tags, 
     }, [tasks, settings.timezone]);
     
     const visibleSmartLists = useMemo(() => {
-        return smartListsConfig.filter(list => {
+        const order = settings.smartListOrder || smartListsConfig.map(l => l.id);
+        const orderedConfig = [...smartListsConfig].sort((a, b) => {
+            const indexA = order.indexOf(a.id);
+            const indexB = order.indexOf(b.id);
+            if (indexA === -1) return 1;
+            if (indexB === -1) return -1;
+            return indexA - indexB;
+        });
+    
+        return orderedConfig.filter(list => {
             const setting = settings.smartListSettings[list.id as keyof typeof settings.smartListSettings];
             if (setting === 'hide') return false;
             if (setting === 'show-if-not-empty') return (taskCounts[list.id] || 0) > 0;
             return true;
-        })
-    }, [settings.smartListSettings, taskCounts]);
+        });
+    }, [settings.smartListOrder, settings.smartListSettings, taskCounts]);
     
-    const userLists = useMemo(() => lists.filter(l => l.id !== 'inbox'), [lists]);
-    const pinnedLists = useMemo(() => userLists.filter(l => l.isPinned), [userLists]);
+    const userLists = useMemo(() => lists.filter(l => l.id !== 'inbox' && !l.isPinned), [lists]);
+    const pinnedLists = useMemo(() => lists.filter(l => l.id !== 'inbox' && l.isPinned), [lists]);
 
     return (
         <>
@@ -247,12 +277,25 @@ export const TasksSidebar: React.FC<TasksSidebarProps> = ({ lists, tasks, tags, 
                         <div className="px-1 pt-1 pb-3 mb-2 border-b border-border-primary">
                             <div className="flex items-center justify-start gap-1 flex-wrap">
                                 {pinnedLists.map(list => (
-                                    <PinnedListCard
+                                    <div
                                         key={list.id}
-                                        list={list}
-                                        isActive={activeView === list.id}
-                                        onClick={() => onSelectView(list.id)}
-                                    />
+                                        draggable
+                                        onDragStart={() => handleDragStart(list.id, 'list')}
+                                        onDrop={handleDrop}
+                                        onDragEnter={() => handleDragEnter(list.id)}
+                                        onDragEnd={handleDragEnd}
+                                        onDragOver={(e) => e.preventDefault()}
+                                        className="relative"
+                                    >
+                                        {dropTargetId === list.id && draggedItem?.type === 'list' && (
+                                            <div className="absolute inset-0 ring-2 ring-primary rounded-lg z-10 pointer-events-none" />
+                                        )}
+                                        <PinnedListCard
+                                            list={list}
+                                            isActive={activeView === list.id}
+                                            onClick={() => onSelectView(list.id)}
+                                        />
+                                    </div>
                                 ))}
                             </div>
                         </div>
@@ -307,6 +350,12 @@ export const TasksSidebar: React.FC<TasksSidebarProps> = ({ lists, tasks, tags, 
                                     count={taskCounts[list.id]}
                                     color={inboxListObject?.color}
                                     moreMenu={moreMenu}
+                                    isDraggable={true}
+                                    onDragStart={() => handleDragStart(list.id, 'smartList')}
+                                    onDrop={handleDrop}
+                                    onDragEnter={() => handleDragEnter(list.id)}
+                                    onDragEnd={handleDragEnd}
+                                    isDropTarget={dropTargetId === list.id && draggedItem?.type === 'smartList'}
                                 />
                             );
                         })}
@@ -357,11 +406,11 @@ export const TasksSidebar: React.FC<TasksSidebarProps> = ({ lists, tasks, tags, 
                                         color={list.color}
                                         moreMenu={moreMenu}
                                         isDraggable={true}
-                                        onDragStart={() => handleDragStart(list.id)}
+                                        onDragStart={() => handleDragStart(list.id, 'list')}
                                         onDrop={handleDrop}
                                         onDragEnter={() => handleDragEnter(list.id)}
                                         onDragEnd={handleDragEnd}
-                                        isDropTarget={dropTargetId === list.id}
+                                        isDropTarget={dropTargetId === list.id && draggedItem?.type === 'list'}
                                     />
                                 );
                             })}
@@ -389,6 +438,12 @@ export const TasksSidebar: React.FC<TasksSidebarProps> = ({ lists, tasks, tags, 
                                             onClick={() => onSelectView(filter.id)}
                                             icon={<FiltersIcon className="w-5 h-5"/>}
                                             label={filter.name}
+                                            isDraggable={true}
+                                            onDragStart={() => handleDragStart(filter.id, 'filter')}
+                                            onDrop={handleDrop}
+                                            onDragEnter={() => handleDragEnter(filter.id)}
+                                            onDragEnd={handleDragEnd}
+                                            isDropTarget={dropTargetId === filter.id && draggedItem?.type === 'filter'}
                                         />
                                     ))}
                                 </div>
@@ -424,6 +479,12 @@ export const TasksSidebar: React.FC<TasksSidebarProps> = ({ lists, tasks, tags, 
                                             label={tag.name}
                                             count={taskCounts[`tag-${tag.id}`]}
                                             color={tag.color}
+                                            isDraggable={true}
+                                            onDragStart={() => handleDragStart(tag.id, 'tag')}
+                                            onDrop={handleDrop}
+                                            onDragEnter={() => handleDragEnter(tag.id)}
+                                            onDragEnd={handleDragEnd}
+                                            isDropTarget={dropTargetId === tag.id && draggedItem?.type === 'tag'}
                                         />
                                     ))}
                                 </div>

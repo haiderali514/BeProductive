@@ -27,7 +27,10 @@ export interface Task {
   title: string;
   description?: string;
   listId: string;
+  startDate?: string | null; // For duration tasks
   dueDate?: string | null;
+  isAllDay?: boolean;
+  reminder?: string | null; // e.g., 'on-time', '5m', '1h', '1d'
   priority: Priority;
   completed: boolean;
   completionDate?: string;
@@ -39,6 +42,7 @@ export interface Task {
   trashed?: boolean;
   isSection?: boolean;
   isCollapsed?: boolean;
+  icon?: string;
 }
 
 export interface List {
@@ -130,7 +134,7 @@ export interface Countdown {
   date: string; // ISO string format
 }
 
-export type ActiveView = 'tasks' | 'pomodoro' | 'habits' | 'analytics' | 'profile' | 'ai-assistant' | 'eisenhower-matrix' | 'countdown' | 'calendar' | 'achievements';
+export type ActiveView = 'tasks' | 'pomodoro' | 'habits' | 'analytics' | 'profile' | 'ai-assistant' | 'eisenhower-matrix' | 'countdown' | 'calendar' | 'achievements' | 'plans';
 
 export interface Tag {
   id: string;
@@ -152,6 +156,32 @@ export interface Filter {
   type?: 'all' | 'task';
 }
 
+export type ActivityType =
+  | 'task_added'
+  | 'task_completed'
+  | 'task_uncompleted'
+  | 'task_deleted' // soft delete to trash
+  | 'task_restored'
+  | 'task_title_updated'
+  | 'task_list_moved'
+  | 'list_created'
+  | 'list_renamed';
+
+export interface Activity {
+  id: string;
+  listId: string; // The list where the activity occurred
+  type: ActivityType;
+  timestamp: number;
+  details: {
+    // For tasks
+    taskId?: string;
+    taskTitle?: string;
+    // For updates
+    from?: string;
+    to?: string;
+  };
+}
+
 export interface AddTaskFormProps {
     lists: List[];
     onAddTask: (taskData: {
@@ -159,10 +189,14 @@ export interface AddTaskFormProps {
         listId: string;
         priority: Priority;
         dueDate: string | null;
+        startDate: string | null;
+        isAllDay: boolean;
         recurrence: Recurrence | null;
+        reminder: string | null;
         tags: string[];
         isSection?: boolean;
         isCollapsed?: boolean;
+        afterTaskId?: string;
     }) => void;
     aiEnabled: boolean;
     activeListId: string;
@@ -206,4 +240,23 @@ export interface Level {
     xpRange: [number, number | null];
     title: string;
     icon: string;
+}
+
+// --- New Learning Plan Types ---
+export type LearningTopicStatus = 'not-started' | 'in-progress' | 'completed';
+
+export interface LearningTopic {
+  id: string;
+  title: string;
+  description?: string;
+  status: LearningTopicStatus;
+  children: LearningTopic[];
+}
+
+export interface LearningPlan {
+  id: string;
+  title: string;
+  targetDate: string; // ISO string
+  skills: string[];
+  roadmap: LearningTopic[];
 }

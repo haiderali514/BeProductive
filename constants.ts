@@ -1,5 +1,13 @@
+
+
+
+
+
+
 import { Priority, Habit, PomodoroSession, UserProfile, Countdown, List, Achievement, AppData, Level, Task, Tag, Filter } from './types';
-import { TasksIcon, PomodoroIcon, HabitIcon, BrainIcon, CalendarIcon, TrophyIcon, PuzzleIcon, SunIcon, SparklesIcon } from './components/Icons';
+import { TasksIcon, PomodoroIcon, HabitIcon, BrainIcon, CalendarIcon, TrophyIcon, PuzzleIcon, SunIcon, SparklesIcon, InboxIcon, SummaryIcon, AllTasksIcon, TodayIcon, TomorrowIcon, Next7DaysIcon, AssignedToMeIcon, CompletedIcon, WontDoIcon, TrashIcon } from './components/Icons';
+// @google/genai-sdk: Fix: Import React to use React.ReactNode type.
+import React from 'react';
 
 export const PRIORITY_COLORS: Record<Priority, string> = {
   [Priority.HIGH]: 'border-red-500',
@@ -36,41 +44,41 @@ const toDateString = (date: Date) => date.toISOString().split('T')[0];
 
 
 export const DEFAULT_TASKS: Task[] = [
+    // --- Welcome List Tasks ---
     {
-      id: '1',
-      title: 'Welcome to your AI-powered todo list!',
-      description: 'This is where you can add more details, notes, or links related to your task. Use the subtask section below to break this down into smaller steps!',
-      listId: 'welcome',
-      priority: Priority.MEDIUM,
-      completed: false,
-      subtasks: [],
-      tags: ['tag1'],
-      pinned: true,
+      id: 'w-s1', title: 'Getting Start', listId: 'welcome', priority: Priority.NONE, completed: false, subtasks: [], tags: [], isSection: true,
     },
     {
-      id: '2',
-      title: 'Try the smart add: "Review project proposal tomorrow 3pm #work !high"',
-      description: '',
-      listId: 'inbox',
-      priority: Priority.HIGH,
-      completed: false,
-      subtasks: [],
-      tags: [],
-      pinned: false,
+      id: 'w-t1', title: 'Click the input box to create a task', listId: 'welcome', priority: Priority.NONE, completed: true, subtasks: [], tags: [],
     },
     {
-      id: '3',
-      title: 'Generate subtasks for "Plan team offsite"',
-      description: 'Click the magic wand icon on this task in the list to see the AI generate a list of actionable subtasks for you.',
-      listId: 'work',
-      priority: Priority.LOW,
-      completed: false,
-      subtasks: [
-        { id: '3-1', title: 'Click the ✨ icon on this task!', completed: false },
-      ],
-      tags: [],
-      pinned: false,
+      id: 'w-t2', title: 'Use lists to manage tasks', listId: 'welcome', priority: Priority.NONE, completed: false, subtasks: [], tags: [],
     },
+    {
+      id: 'w-s2', title: 'Feature Modules', listId: 'welcome', priority: Priority.NONE, completed: false, subtasks: [], tags: [], isSection: true,
+    },
+    {
+      id: 'w-t3', title: 'Calendar: Check your schedule', listId: 'welcome', priority: Priority.NONE, completed: false, subtasks: [], tags: [], icon: 'calendar',
+    },
+    {
+      id: 'w-t4', title: 'Eisenhower Matrix: Prioritize tasks', listId: 'welcome', priority: Priority.NONE, completed: false, subtasks: [], tags: [], icon: 'matrix',
+    },
+    {
+      id: 'w-t5', title: 'Pomodoro: Rescue from procrastination', listId: 'welcome', priority: Priority.NONE, completed: false, subtasks: [], tags: [], icon: 'pomodoro',
+    },
+    {
+      id: 'w-t6', title: 'Habit: Visualize your efforts', listId: 'welcome', priority: Priority.NONE, completed: false, subtasks: [], tags: [], icon: 'habit',
+    },
+    {
+      id: 'w-s3', title: 'Explore More', listId: 'welcome', priority: Priority.NONE, completed: false, subtasks: [], tags: [], isSection: true,
+    },
+    {
+      id: 'w-t7', title: 'Kanban, Timeline View: Visual management', listId: 'welcome', priority: Priority.NONE, completed: false, subtasks: [], tags: [], icon: 'kanban'
+    },
+    {
+      id: 'w-t8', title: 'Subscription Calendar: Never miss events', listId: 'welcome', priority: Priority.NONE, completed: false, subtasks: [], tags: [], icon: 'subscription'
+    },
+    // --- Other Tasks ---
     {
         id: '4',
         title: 'Finalize Q3 marketing budget',
@@ -241,6 +249,9 @@ export const DEFAULT_TASKS: Task[] = [
         subtasks: [],
         tags: ['tag1'],
     },
+     {
+      id: 'new1', title: 'new1', listId: 'welcome', priority: Priority.NONE, completed: false, subtasks: [], tags: ['new1', 'tag5'], isSection: false,
+    },
 ];
 
 const generateCheckins = (startDateStr: string, numDays: number, probability: number): string[] => {
@@ -304,6 +315,8 @@ export const DEFAULT_TAGS: Tag[] = [
     { id: 'tag2', name: 'q3-review', color: '#2196F3' },
     { id: 'tag3', name: 'urgent', color: '#F44336' },
     { id: 'tag4', name: 'marketing', color: '#FF9800' },
+    { id: 'new1', name: 'new1', color: '#FFEB3B' },
+    { id: 'tag5', name: 'Webdev', color: '#00BCD4' },
 ];
 
 export const DEFAULT_FILTERS: Filter[] = [
@@ -601,9 +614,33 @@ export const ACHIEVEMENTS_LIST: Achievement[] = [
         description: (c, g) => `Earn ${g} or more different badges.`,
         icon: PuzzleIcon,
         xpBonus: 100,
-        getProgress: (data) => {
+        getProgress: (data: AppData) => {
             const unlockedCount = ACHIEVEMENTS_LIST.filter(a => a.id !== 'special-all-rounder' && a.getProgress(data).current >= a.getProgress(data).goal).length;
             return { current: unlockedCount, goal: 10 };
         },
     },
+];
+// @google/genai-sdk: Fix: Added smartListsConfig and staticItemsConfig to constants.
+// @google/genai-sdk: Fix: Explicitly typed the config arrays with React.ReactNode for the icon property.
+// @google/genai-sdk: Fix: Changed component types to React.ReactNode to fix type errors.
+// @google/genai-sdk: Fix: Changed icon types to React.ReactNode to fix type errors.
+// @google/genai-sdk: Fix: Use React.ReactNode for icon type to fix type errors.
+// FIX: Changed icon type from component type to React.ReactNode to fix type errors.
+export const smartListsConfig: { id: string, name: string, icon: React.ReactNode }[] = [
+    { id: 'inbox', name: 'Inbox', icon: <InboxIcon /> },
+    { id: 'summary', name: 'Summary', icon: <SummaryIcon /> },
+    { id: 'all', name: 'All', icon: <AllTasksIcon /> },
+    { id: 'today', name: 'Today', icon: <TodayIcon /> },
+    { id: 'tomorrow', name: 'Tomorrow', icon: <TomorrowIcon /> },
+    { id: 'next7days', name: 'Next 7 Days', icon: <Next7DaysIcon /> },
+    { id: 'assignedToMe', name: 'Assigned to Me', icon: <AssignedToMeIcon /> },
+];
+
+// @google/genai-sdk: Fix: Changed component types to React.ReactNode to fix type errors.
+// @google/genai-sdk: Fix: Use React.ReactNode for icon type to fix type errors.
+// FIX: Changed icon type from component type to React.ReactNode to fix type errors.
+export const staticItemsConfig: { id: string, name: string, icon: React.ReactNode }[] = [
+    { id: 'completed', name: 'Completed', icon: <CompletedIcon /> },
+    { id: 'wontdo', name: 'Won\'t Do', icon: <WontDoIcon /> },
+    { id: 'trash', name: 'Trash', icon: <TrashIcon /> },
 ];

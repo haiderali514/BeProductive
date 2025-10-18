@@ -1,6 +1,12 @@
+
+
+
+
+
+
 import React, { useState, useMemo, forwardRef, useRef } from 'react';
 import { useSettings } from '../contexts/SettingsContext';
-import { AnalyticsIcon, TasksIcon, HabitIcon, PomodoroIcon, SettingsIcon, AIAssistantIcon, NotificationBellIcon, MatrixIcon, CountdownIcon, UserIcon, CalendarIcon, TrophyIcon, MoreIcon } from './Icons';
+import { AnalyticsIcon, TasksIcon, HabitIcon, PomodoroIcon, SettingsIcon, AIAssistantIcon, NotificationBellIcon, MatrixIcon, CountdownIcon, UserIcon, CalendarIcon, TrophyIcon, MoreIcon, MapIcon } from './Icons';
 import { ActiveView } from '../types';
 import { NotificationCenter } from './NotificationCenter';
 import { useNotifications } from '../contexts/NotificationContext';
@@ -47,9 +53,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, onO
 
     const iconSize = "h-5 w-5";
 
-    // FIX: Changed icon type to React.ReactElement for better type inference with React.cloneElement
-    // @ts-ignore
-    const viewIcons: Record<Exclude<ActiveView, 'profile'>, { icon: React.ReactElement<{ className?: string }>; label: string }> = {
+    // FIX: Changed icon type to React.ReactNode for better compatibility.
+    // FIX: Changed icon type to React.ReactNode to fix cloneElement error.
+    const viewIcons: Record<Exclude<ActiveView, 'profile'>, { icon: React.ReactNode; label: string }> = {
         tasks: { icon: <TasksIcon className={iconSize} />, label: 'Tasks' },
         calendar: { icon: <CalendarIcon className={iconSize} />, label: 'Calendar' },
         'ai-assistant': { icon: <AIAssistantIcon className={iconSize} />, label: 'AI Assistant' },
@@ -59,10 +65,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, onO
         habits: { icon: <HabitIcon className={iconSize} />, label: 'Habits' },
         pomodoro: { icon: <PomodoroIcon className={iconSize} />, label: 'Pomodoro' },
         countdown: { icon: <CountdownIcon className={iconSize} />, label: 'Countdown' },
+        plans: { icon: <MapIcon className={iconSize} />, label: 'Plans' },
     };
 
     const { primaryViews, secondaryViews } = useMemo(() => {
-        const order: Exclude<ActiveView, 'profile'>[] = ['ai-assistant', 'habits', 'tasks', 'pomodoro', 'calendar', 'eisenhower-matrix', 'analytics', 'achievements', 'countdown'];
+        const order: Exclude<ActiveView, 'profile'>[] = ['ai-assistant', 'habits', 'tasks', 'pomodoro', 'plans', 'calendar', 'eisenhower-matrix', 'analytics', 'achievements', 'countdown'];
         
         const visible = order.filter(view => {
             switch(view) {
@@ -72,6 +79,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, onO
                 case 'pomodoro': return settings.showPomodoro;
                 case 'countdown': return settings.showCountdown;
                 case 'achievements': return true;
+                case 'plans': return true; // Always show the new plans page
                 default: return true;
             }
         });
@@ -85,14 +93,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, onO
 
     return (
         <aside className="w-16 bg-background-secondary flex flex-col items-center py-4 border-r border-border-primary">
-            {/* Top section: Avatar */}
+            {/* Top section: User Profile Picture */}
             <div className="group relative">
                 <button 
                     onClick={() => setActiveView('profile')} 
                     aria-label="Open Profile"
-                    className={`w-9 h-9 rounded-full transition-all ring-2 ring-offset-2 ring-offset-background-secondary ${activeView === 'profile' ? 'ring-primary' : 'ring-transparent'}`}
+                    className="w-9 h-9"
                 >
-                    <img src={userProfile.avatarUrl} alt={userProfile.name} className="w-full h-full rounded-full object-cover" />
+                    <img src={userProfile.avatarUrl} alt={userProfile.name} className="w-full h-full object-cover rounded-md" />
                 </button>
                 <span className="absolute left-full ml-3 w-max px-2 py-1 bg-background-tertiary text-content-primary text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
                     {userProfile.name}
@@ -134,7 +142,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, onO
                                         : 'text-content-secondary hover:bg-background-primary'
                                     }`}
                                     >
-                                        {React.cloneElement(viewIcons[view].icon, { className: iconSize })}
+                                        {/* @google/genai-sdk: Fix: Added type guard and assertion for React.cloneElement to fix type error. */}
+                                        {React.isValidElement(viewIcons[view].icon) && React.cloneElement(viewIcons[view].icon as React.ReactElement<any>, { className: iconSize })}
                                         <span>{viewIcons[view].label}</span>
                                     </button>
                                 ))}

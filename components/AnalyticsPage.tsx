@@ -189,8 +189,9 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ tasks, habits, ses
         const sevenDaysAgo = new Date(today); sevenDaysAgo.setDate(today.getDate() - 7); sevenDaysAgo.setHours(0,0,0,0);
         const fourteenDaysAgo = new Date(today); fourteenDaysAgo.setDate(today.getDate() - 14); fourteenDaysAgo.setHours(0,0,0,0);
         
-        const tasksCompletedThisWeek = tasks.filter(t => t.completed && t.completionDate && new Date(t.completionDate) >= sevenDaysAgo && new Date(t.completionDate) <= today).length;
-        const tasksCompletedLastWeek = tasks.filter(t => t.completed && t.completionDate && new Date(t.completionDate) >= fourteenDaysAgo && new Date(t.completionDate) < sevenDaysAgo).length;
+        // FIX: Ensure completionDate string with space is correctly parsed into a Date object.
+        const tasksCompletedThisWeek = tasks.filter(t => t.completed && t.completionDate && new Date(t.completionDate.replace(' ', 'T')) >= sevenDaysAgo && new Date(t.completionDate.replace(' ', 'T')) <= today).length;
+        const tasksCompletedLastWeek = tasks.filter(t => t.completed && t.completionDate && new Date(t.completionDate.replace(' ', 'T')) >= fourteenDaysAgo && new Date(t.completionDate.replace(' ', 'T')) < sevenDaysAgo).length;
         const taskCompletionChange = tasksCompletedThisWeek - tasksCompletedLastWeek;
 
         const focusThisWeek = sessions.reduce((sum, s) => (s.startTime >= sevenDaysAgo.getTime() && s.startTime <= today.getTime()) ? sum + (s.endTime - s.startTime) : sum, 0);
@@ -203,7 +204,7 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ tasks, habits, ses
             if (dayCount <= 0) return 0;
             const totalPossibleCheckins = habits.length * dayCount;
             if (totalPossibleCheckins === 0) return 0;
-            const totalActualCheckins = habits.reduce((sum, h) => sum + h.checkIns.filter(ci => { const d = new Date(ci); return d >= start && d < end; }).length, 0);
+            const totalActualCheckins = habits.reduce((sum, h) => sum + h.checkIns.filter(ci => { const d = new Date(ci + 'T00:00:00'); return d >= start && d < end; }).length, 0);
             return Math.round((totalActualCheckins / totalPossibleCheckins) * 100);
         };
         const habitConsistencyThisWeek = getHabitRate(habits, sevenDaysAgo, today);
@@ -217,7 +218,7 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ tasks, habits, ses
             date.setHours(23, 59, 59, 999); // End of the day
 
             const dataUptoDate: AppData = {
-                tasks: tasks.filter(t => !t.completionDate || new Date(t.completionDate) <= date),
+                tasks: tasks.filter(t => !t.completionDate || new Date(t.completionDate.replace(' ', 'T')) <= date),
                 habits: habits.map(h => ({ ...h, checkIns: h.checkIns.filter(ci => new Date(ci) <= date) })),
                 sessions: sessions.filter(s => s.startTime <= date.getTime())
             };
@@ -230,7 +231,7 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ tasks, habits, ses
 
 
         // --- Dashboard Chart Data ---
-        const contributions = [...tasks.filter(t => t.completed && t.completionDate).map(t => ({ date: toYYYYMMDD(new Date(t.completionDate!)) })), ...habits.flatMap(h => h.checkIns.map(ci => ({ date: ci }))), ...sessions.map(s => ({ date: toYYYYMMDD(new Date(s.startTime)) }))]
+        const contributions = [...tasks.filter(t => t.completed && t.completionDate).map(t => ({ date: toYYYYMMDD(new Date(t.completionDate!.replace(' ', 'T'))) })), ...habits.flatMap(h => h.checkIns.map(ci => ({ date: ci }))), ...sessions.map(s => ({ date: toYYYYMMDD(new Date(s.startTime)) }))]
             .reduce((acc, item) => {
                 if (item.date) acc[item.date] = (acc[item.date] || 0) + 1;
                 return acc;
@@ -247,7 +248,19 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ tasks, habits, ses
             const d = new Date();
             d.setDate(d.getDate() - (29 - i));
             const dateStr = toYYYYMMDD(d);
-            const created = tasks.filter(t => t.id && new Date(parseInt(t.id)).toISOString().split('T')[0] === dateStr).length;
+            const created = tasks.filter(t => {
+                if (!t.id || !/^\d{13,}$/.test(t.id)) {
+                    return false;
+                }
+                const timestamp = parseInt(t.id, 10);
+                if (isNaN(timestamp)) return false;
+        
+                const creationDate = new Date(timestamp);
+                if (isNaN(creationDate.getTime())) {
+                    return false;
+                }
+                return toYYYYMMDD(creationDate) === dateStr;
+            }).length;
             const completed = tasks.filter(t => t.completed && t.completionDate && t.completionDate.startsWith(dateStr)).length;
             return { date: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), created, completed };
         });
@@ -280,7 +293,18 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ tasks, habits, ses
 
         // --- Detailed Tab Data ---
         const totalCompletedTasks = tasks.filter(t => t.completed).length;
-        const overdueTasksCount = tasks.filter(t => !t.completed && !t.wontDo && !t.trashed && t.dueDate && new Date(t.dueDate.split(' ')[0]) < new Date(new Date().toDateString())).length;
+        const overdueTasksCount = tasks.filter(t => {
+            if (t.completed || t.wontDo || t.trashed || !t.dueDate) return false;
+            try {
+                const todayStart = new Date();
+                todayStart.setHours(0, 0, 0, 0);
+                const taskDueDate = new Date(t.dueDate.replace(' ', 'T'));
+                if (isNaN(taskDueDate.getTime())) return false;
+                return taskDueDate < todayStart;
+            } catch (e) {
+                return false;
+            }
+        }).length;
         const totalMeaningfulTasks = tasks.filter(t => !t.isSection).length;
         const taskCompletionRate = totalMeaningfulTasks > 0 ? Math.round((totalCompletedTasks / totalMeaningfulTasks) * 100) : 0;
         
@@ -312,6 +336,7 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ tasks, habits, ses
             acc[day] = (acc[day] || 0) + duration;
             return acc;
         }, {} as Record<string, number>);
+        
         // FIX: Explicitly type the parameters of the sort callback function to prevent a potential TypeScript error where `b[1]` or `a[1]` might not be inferred as numbers, causing issues with the subtraction operation.
         const mostProductiveDay = Object.entries(focusByDayOfWeek).sort((a: [string, number], b: [string, number]) => b[1] - a[1])[0]?.[0] || 'N/A';
         
@@ -335,7 +360,7 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ tasks, habits, ses
         const totalCheckIns = habits.reduce((sum, h) => sum + h.checkIns.length, 0);
         const totalPossibleDays = habits.reduce((sum, h) => {
             if (h.checkIns.length === 0) return sum;
-            const firstCheckIn = new Date(h.checkIns.sort()[0]);
+            const firstCheckIn = new Date(h.checkIns.sort()[0] + 'T00:00:00');
             const days = Math.floor((new Date().getTime() - firstCheckIn.getTime()) / (1000 * 60 * 60 * 24)) + 1;
             return sum + days;
         }, 0);
@@ -343,7 +368,7 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ tasks, habits, ses
 
         const habitConsistencyRates = habits.map(h => {
             if (h.checkIns.length === 0) return { name: h.name, rate: 0 };
-            const firstCheckIn = new Date(h.checkIns.sort()[0]);
+            const firstCheckIn = new Date(h.checkIns.sort()[0] + 'T00:00:00');
             const days = Math.floor((new Date().getTime() - firstCheckIn.getTime()) / (1000 * 60 * 60 * 24)) + 1;
             return { name: h.name, rate: days > 0 ? Math.round((h.checkIns.length / days) * 100) : 0 };
         });
@@ -352,7 +377,7 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ tasks, habits, ses
         const habitStreaks = habits.map(h => ({ name: h.name, streak: calculateStreak(h.checkIns) }));
         
         const checkinsByDayOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((dayName, index) => {
-            const count = habits.reduce((sum, h) => sum + h.checkIns.filter(ci => new Date(ci+'T00:00:00').getUTCDay() === index).length, 0);
+            const count = habits.reduce((sum, h) => sum + h.checkIns.filter(ci => new Date(ci+'T00:00:00').getDay() === index).length, 0);
             return { day: dayName, checkins: count };
         });
 
@@ -423,172 +448,152 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ tasks, habits, ses
                 </header>
                 
                 <div className="flex space-x-2 mb-6">
-                    {filterButtons.map(btn => (<button key={btn.id} onClick={() => setFilter(btn.id)} className={getButtonClass(btn.id)}>{btn.label}</button>))}
+                    {filterButtons.map(btn => (
+                        <button 
+                            key={btn.id} 
+                            onClick={() => setFilter(btn.id)} 
+                            className={getButtonClass(btn.id)}
+                        >
+                            {btn.label}
+                        </button>
+                    ))}
                 </div>
 
                 {filter === 'dashboard' && (
-                     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-                        <div className="xl:col-span-2 space-y-4">
-                            <ChartWrapper title="Achievement Score Trend (Last 7 Days)">
-                                <LineChart data={analyticsData.achievementScoreTrend}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#333333" />
-                                    <XAxis dataKey="date" stroke="#A0A0A0" fontSize={12} />
-                                    <YAxis stroke="#A0A0A0" fontSize={12} />
-                                    <Tooltip contentStyle={{ backgroundColor: '#252525', border: '1px solid #333333' }} />
-                                    <Line type="monotone" dataKey="score" name="XP" stroke="#4A90E2" strokeWidth={2} />
-                                </LineChart>
-                            </ChartWrapper>
+                    <div className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                           <ProductivityComparisonCard title="Task Completion" change={analyticsData.taskCompletionChange} isPercentage={false} />
+                           <ProductivityComparisonCard title="Focus Time" change={analyticsData.focusChangeMinutes} isPercentage={false} />
+                           <ProductivityComparisonCard title="Habit Consistency" change={analyticsData.habitConsistencyChange} />
+                        </div>
+                        <ChartWrapper title="Achievement Score (Last 7 Days)">
+                             <LineChart data={analyticsData.achievementScoreTrend}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                                <XAxis dataKey="date" fontSize={12} tickLine={false} axisLine={false} />
+                                <YAxis fontSize={12} tickLine={false} axisLine={false} />
+                                <Tooltip contentStyle={{ backgroundColor: '#2d2d2d', border: 'none' }}/>
+                                <Line type="monotone" dataKey="score" stroke="#4A90E2" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                            </LineChart>
+                        </ChartWrapper>
+                        <ChartWrapper title="Contribution Heatmap (Last Year)" height={150}>
+                           <div className="flex justify-center items-center h-full">
+                                <Heatmap data={analyticsData.heatmapData} />
+                           </div>
+                        </ChartWrapper>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <BadgesDisplay badges={analyticsData.unlockedBadges} allBadgesCount={ACHIEVEMENTS_LIST.length} setActiveView={setActiveView} />
-                        </div>
-                        <div className="space-y-4">
-                            <ProductivityComparisonCard title="Tasks Done" change={analyticsData.taskCompletionChange} isPercentage={false} />
-                            <ProductivityComparisonCard title="Focus Time (min)" change={analyticsData.focusChangeMinutes} isPercentage={false} />
-                            <ProductivityComparisonCard title="Habit Consistency" change={analyticsData.habitConsistencyChange} />
-                        </div>
-
-                        <ChartWrapper title="Contribution Heatmap (Last Year)" height={120} >
-                             <Heatmap data={analyticsData.heatmapData} />
-                        </ChartWrapper>
-                        <ChartWrapper title="Task Velocity (Last 30 Days)">
-                            <BarChart data={analyticsData.taskVelocityData}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#333333" />
-                                <XAxis dataKey="date" stroke="#A0A0A0" fontSize={12} />
-                                <YAxis stroke="#A0A0A0" fontSize={12} allowDecimals={false} />
-                                <Tooltip contentStyle={{ backgroundColor: '#252525', border: '1px solid #333333' }} />
-                                <Legend />
-                                <Bar dataKey="completed" stackId="a" fill="#82ca9d" name="Completed" />
-                                <Bar dataKey="created" stackId="b" fill="#8884d8" name="Created" />
-                            </BarChart>
-                        </ChartWrapper>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <ChartWrapper title="Focus Distribution by List">
+                            <ChartWrapper title="Task Velocity (Last 30 Days)" height={200}>
+                                <BarChart data={analyticsData.taskVelocityData}>
+                                    <XAxis dataKey="date" fontSize={10} tickLine={false} axisLine={false} />
+                                    <Tooltip contentStyle={{ backgroundColor: '#2d2d2d', border: 'none' }}/>
+                                    <Bar dataKey="created" stackId="a" fill="#4A90E2" name="Created" />
+                                    <Bar dataKey="completed" stackId="a" fill="#50E3C2" name="Completed" />
+                                </BarChart>
+                            </ChartWrapper>
+                            <ChartWrapper title="Focus by List" height={200}>
                                 <PieChart>
                                     <Pie data={analyticsData.focusByListData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} fill="#8884d8">
-                                        {analyticsData.focusByListData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={analyticsData.PIE_COLORS[index % analyticsData.PIE_COLORS.length]} />
-                                        ))}
+                                        {analyticsData.focusByListData.map((entry, index) => <Cell key={`cell-${index}`} fill={analyticsData.PIE_COLORS[index % analyticsData.PIE_COLORS.length]} />)}
                                     </Pie>
-                                    <Tooltip contentStyle={{ backgroundColor: '#252525', border: '1px solid #333333' }} />
+                                    <Tooltip contentStyle={{ backgroundColor: '#2d2d2d', border: 'none' }}/>
                                 </PieChart>
                             </ChartWrapper>
-                            <ChartWrapper title="Productivity by Time of Day">
-                                 <BarChart data={analyticsData.productivityByTimeData}>
-                                    <XAxis dataKey="name" stroke="#A0A0A0" fontSize={12} />
-                                    <YAxis unit="m" stroke="#A0A0A0" fontSize={12} />
-                                    <Tooltip contentStyle={{ backgroundColor: '#252525', border: '1px solid #333333' }} />
-                                    <Bar dataKey="focusMinutes" fill="#f59e0b" name="Focus Minutes" />
+                             <ChartWrapper title="Productivity by Time of Day" height={200}>
+                                <BarChart data={analyticsData.productivityByTimeData} layout="vertical">
+                                    <XAxis type="number" hide />
+                                    <YAxis type="category" dataKey="name" width={60} tickLine={false} axisLine={false} fontSize={12}/>
+                                    <Tooltip contentStyle={{ backgroundColor: '#2d2d2d', border: 'none' }}/>
+                                    <Bar dataKey="focusMinutes" fill="#4A90E2" name="Focus (minutes)" />
                                 </BarChart>
                             </ChartWrapper>
                         </div>
                     </div>
                 )}
-                
-                {(filter === 'tasks') && (
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <StatCard title="Total Completed" value={analyticsData.taskAnalytics.totalCompleted} />
-                            <StatCard title="Overdue" value={analyticsData.taskAnalytics.overdue} />
-                            <StatCard title="Completion Rate" value={`${analyticsData.taskAnalytics.completionRate}%`} />
-                        </div>
-                        <ChartWrapper title="Daily Completions (Last 30 Days)">
-                             <BarChart data={analyticsData.taskAnalytics.completionTrend}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#333333" />
-                                <XAxis dataKey="date" stroke="#A0A0A0" fontSize={12} />
-                                <YAxis stroke="#A0A0A0" fontSize={12} allowDecimals={false} />
-                                <Tooltip contentStyle={{ backgroundColor: '#252525', border: '1px solid #333333' }} cursor={{fill: '#333333'}}/>
-                                <Bar dataKey="completed" name="Completed Tasks" fill="#82ca9d" />
-                            </BarChart>
-                        </ChartWrapper>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <ChartWrapper title="Completed by Priority">
-                                {analyticsData.taskAnalytics.completedByPriority.length > 0 ? (
-                                    <PieChart>
-                                        <Pie data={analyticsData.taskAnalytics.completedByPriority} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} fill="#8884d8" label>
-                                            <Cell fill="#ef4444" /><Cell fill="#f59e0b" /><Cell fill="#3b82f6" />
-                                        </Pie>
-                                        <Tooltip contentStyle={{ backgroundColor: '#252525', border: '1px solid #333333' }} />
-                                        <Legend />
-                                    </PieChart>
-                                ) : (
-                                    <div className="flex items-center justify-center h-full text-content-tertiary">No prioritized tasks completed yet.</div>
-                                )}
-                            </ChartWrapper>
-                            <ChartWrapper title="Task Distribution by List">
-                                {analyticsData.taskAnalytics.tasksByList.length > 0 ? (
-                                    <PieChart>
-                                        <Pie data={analyticsData.taskAnalytics.tasksByList} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} fill="#8884d8">
-                                            {analyticsData.taskAnalytics.tasksByList.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={analyticsData.PIE_COLORS[index % analyticsData.PIE_COLORS.length]} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip contentStyle={{ backgroundColor: '#252525', border: '1px solid #333333' }} />
-                                    </PieChart>
-                                ) : (
-                                     <div className="flex items-center justify-center h-full text-content-tertiary">No active tasks found in lists.</div>
-                                )}
-                            </ChartWrapper>
-                        </div>
-                    </div>
-                )}
-                
-                {(filter === 'focus') && (
-                     <div className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <StatCard title="Total Focus" value={`${analyticsData.focusAnalytics.totalHours}h`} />
-                            <StatCard title="Avg. Session" value={analyticsData.focusAnalytics.avgSessionLength} />
-                            <StatCard title="Most Productive Day" value={analyticsData.focusAnalytics.mostProductiveDay} />
-                        </div>
-                        <ChartWrapper title="Daily Focus Trend (Last 30 Days)">
-                             <LineChart data={analyticsData.focusAnalytics.focusTrend}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#333333" />
-                                <XAxis dataKey="date" stroke="#A0A0A0" fontSize={12} />
-                                <YAxis unit="m" stroke="#A0A0A0" fontSize={12} />
-                                <Tooltip contentStyle={{ backgroundColor: '#252525', border: '1px solid #333333' }} />
-                                <Legend />
-                                <Line type="monotone" dataKey="minutes" name="Focus Minutes" stroke="#8884d8" />
+                {filter === 'tasks' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                         <StatCard title="Total Completed" value={analyticsData.taskAnalytics.totalCompleted} />
+                         <StatCard title="Overdue" value={analyticsData.taskAnalytics.overdue} />
+                         <StatCard title="Completion Rate" value={`${analyticsData.taskAnalytics.completionRate}%`} />
+                         <ChartWrapper title="Completion Trend (Last 30 Days)" height={200}>
+                            <LineChart data={analyticsData.taskAnalytics.completionTrend}>
+                                <XAxis dataKey="date" fontSize={10} tickLine={false} axisLine={false} />
+                                <YAxis allowDecimals={false} fontSize={10} tickLine={false} axisLine={false}/>
+                                <Tooltip contentStyle={{ backgroundColor: '#2d2d2d', border: 'none' }}/>
+                                <Line type="monotone" dataKey="completed" stroke="#50E3C2" strokeWidth={2} />
                             </LineChart>
                         </ChartWrapper>
-                        <ChartWrapper title="Productivity by Hour of Day">
-                            <BarChart data={analyticsData.focusAnalytics.focusByHour}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#333333" />
-                                <XAxis dataKey="hour" stroke="#A0A0A0" fontSize={12} />
-                                <YAxis unit="m" stroke="#A0A0A0" fontSize={12} />
-                                <Tooltip contentStyle={{ backgroundColor: '#252525', border: '1px solid #333333' }} cursor={{fill: '#333333'}}/>
-                                <Bar dataKey="minutes" name="Focus Minutes" fill="#8884d8" />
+                        <ChartWrapper title="Completed by Priority" height={200}>
+                            <PieChart>
+                                <Pie data={analyticsData.taskAnalytics.completedByPriority} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={60} paddingAngle={5}>
+                                    <Cell fill="#F44336" /><Cell fill="#FF9800" /><Cell fill="#2196F3" />
+                                </Pie>
+                                <Tooltip contentStyle={{ backgroundColor: '#2d2d2d', border: 'none' }}/>
+                                <Legend iconType="circle" />
+                            </PieChart>
+                        </ChartWrapper>
+                        <ChartWrapper title="Active Tasks by List" height={200}>
+                            <BarChart data={analyticsData.taskAnalytics.tasksByList} layout="vertical">
+                                <XAxis type="number" hide />
+                                <YAxis type="category" dataKey="name" width={80} tickLine={false} axisLine={false} fontSize={12}/>
+                                <Tooltip contentStyle={{ backgroundColor: '#2d2d2d', border: 'none' }}/>
+                                <Bar dataKey="value" fill="#4A90E2" name="Active Tasks" />
                             </BarChart>
                         </ChartWrapper>
                     </div>
                 )}
+                 {filter === 'focus' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <StatCard title="Total Focus Time" value={`${analyticsData.focusAnalytics.totalHours} hrs`} />
+                        <StatCard title="Avg. Session" value={analyticsData.focusAnalytics.avgSessionLength} />
+                        <StatCard title="Most Productive Day" value={analyticsData.focusAnalytics.mostProductiveDay} />
 
-                {(filter === 'habits') && (
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <StatCard title="Total Check-ins" value={analyticsData.habitAnalytics.totalCheckIns} />
-                            <StatCard title="Overall Consistency" value={analyticsData.habitAnalytics.consistencyRate} />
-                            <StatCard title="Most Consistent" value={analyticsData.habitAnalytics.mostConsistentHabit} description="Based on completion rate" />
-                        </div>
-                         <ChartWrapper title="Current Habit Streaks">
-                            <BarChart data={analyticsData.habitAnalytics.streaks} layout="vertical">
-                                <CartesianGrid strokeDasharray="3 3" stroke="#333333" />
-                                <XAxis type="number" stroke="#A0A0A0" fontSize={12} />
-                                <YAxis type="category" dataKey="name" stroke="#A0A0A0" fontSize={12} width={80} />
-                                <Tooltip contentStyle={{ backgroundColor: '#252525', border: '1px solid #333333' }} cursor={{fill: '#333333'}}/>
-                                <Bar dataKey="streak" name="Current Streak (days)" fill="#4A90E2" />
+                        <ChartWrapper title="Focus Trend (Last 30 Days)" height={200}>
+                            <BarChart data={analyticsData.focusAnalytics.focusTrend}>
+                                <XAxis dataKey="date" fontSize={10} tickLine={false} axisLine={false}/>
+                                <Tooltip contentStyle={{ backgroundColor: '#2d2d2d', border: 'none' }} formatter={(value) => `${value} min`} />
+                                <Bar dataKey="minutes" fill="#F5A623" />
                             </BarChart>
                         </ChartWrapper>
-                        <ChartWrapper title="Check-ins by Day of Week">
-                            <BarChart data={analyticsData.habitAnalytics.byDayOfWeek}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#333333" />
-                                <XAxis dataKey="day" stroke="#A0A0A0" fontSize={12} />
-                                <YAxis stroke="#A0A0A0" fontSize={12} allowDecimals={false} />
-                                <Tooltip contentStyle={{ backgroundColor: '#252525', border: '1px solid #333333' }} cursor={{fill: '#333333'}}/>
-                                <Bar dataKey="checkins" name="Total Check-ins" fill="#50E3C2" />
+                        <div className="lg:col-span-2">
+                             <ChartWrapper title="Focus by Hour of Day" height={200}>
+                                <BarChart data={analyticsData.focusAnalytics.focusByHour}>
+                                    <XAxis dataKey="hour" fontSize={10} tickLine={false} axisLine={false} interval={2}/>
+                                    <YAxis fontSize={10} tickLine={false} axisLine={false} />
+                                    <Tooltip contentStyle={{ backgroundColor: '#2d2d2d', border: 'none' }} formatter={(value) => `${value} min`} />
+                                    <Bar dataKey="minutes" fill="#F5A623" />
+                                </BarChart>
+                            </ChartWrapper>
+                        </div>
+                    </div>
+                )}
+                 {filter === 'habits' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <StatCard title="Total Check-ins" value={analyticsData.habitAnalytics.totalCheckIns} />
+                        <StatCard title="Overall Consistency" value={analyticsData.habitAnalytics.consistencyRate} />
+                        <StatCard title="Most Consistent Habit" value={analyticsData.habitAnalytics.mostConsistentHabit} />
+                        
+                        <ChartWrapper title="Current Streaks" height={200}>
+                            <BarChart data={analyticsData.habitAnalytics.streaks} layout="vertical">
+                                <XAxis type="number" hide />
+                                <YAxis type="category" dataKey="name" width={100} tickLine={false} axisLine={false} fontSize={12}/>
+                                <Tooltip contentStyle={{ backgroundColor: '#2d2d2d', border: 'none' }} formatter={(value) => `${value} days`} />
+                                <Bar dataKey="streak" fill="#50E3C2" name="Streak" />
                             </BarChart>
+                        </ChartWrapper>
+
+                         <ChartWrapper title="Check-ins by Day of Week" height={200}>
+                            <RadarChart outerRadius={80} data={analyticsData.habitAnalytics.byDayOfWeek}>
+                                <PolarGrid />
+                                <PolarAngleAxis dataKey="day" fontSize={12} />
+                                <PolarRadiusAxis angle={30} domain={[0, 'dataMax + 5']} tick={false} axisLine={false} />
+                                <Radar name="Check-ins" dataKey="checkins" stroke="#50E3C2" fill="#50E3C2" fillOpacity={0.6} />
+                                <Tooltip contentStyle={{ backgroundColor: '#2d2d2d', border: 'none' }}/>
+                            </RadarChart>
                         </ChartWrapper>
                     </div>
                 )}
             </div>
-            {settings.enableAIFeatures && <WeeklyReviewModal isOpen={isReviewModalOpen} onClose={() => setReviewModalOpen(false)} onGenerate={handleGenerateReview} />}
+            {isReviewModalOpen && <WeeklyReviewModal isOpen={isReviewModalOpen} onClose={() => setReviewModalOpen(false)} onGenerate={handleGenerateReview} />}
         </>
     );
 };

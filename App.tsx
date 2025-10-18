@@ -4,6 +4,7 @@ import { Sidebar } from './components/Sidebar';
 import { TasksPage } from './components/TasksPage';
 import { HabitPage } from './components/HabitPage';
 import { PomodoroPage } from './components/PomodoroPage';
+// FIX: Corrected import path casing.
 import { AnalyticsPage } from './components/AnalyticsPage';
 import { AchievementsPage } from './components/AchievementsPage';
 import { ProfilePage } from './components/ProfilePage';
@@ -11,13 +12,13 @@ import { AIAssistantPage } from './components/AIAssistantPage';
 import { EisenhowerMatrixPage } from './components/EisenhowerMatrixPage';
 import { CountdownPage } from './components/CountdownPage';
 import { CalendarPage } from './components/CalendarPage';
+import { PlansPage } from './components/PlansPage';
 import { LandingPage } from './components/auth/LandingPage';
 import { LoginPage } from './components/auth/LoginPage';
 import { SignupPage } from './components/auth/SignupPage';
 import { SettingsModal } from './components/settings/SettingsModal';
 import { useAuth } from './contexts/AuthContext';
 import { AppProviders } from './contexts/AppProviders';
-// FIX: Import hooks to get data and pass it down to page components as props.
 import { useData } from './contexts/DataContext';
 import { useSettings } from './contexts/SettingsContext';
 import { useApiUsage } from './contexts/ApiUsageContext';
@@ -26,7 +27,6 @@ const MainApp: React.FC = () => {
     const { isAuthenticated, authView, setAuthView, handleLogin, handleSignup } = useAuth();
     const [activeView, setActiveView] = useState<ActiveView>('tasks');
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-    // FIX: Get data and functions from contexts to pass as props.
     const { 
         tasks, 
         habits, 
@@ -44,8 +44,7 @@ const MainApp: React.FC = () => {
         handleReorderHabit,
     } = useData();
     const { settings } = useSettings();
-    // FIX: `useApiUsage` returns a tuple. Use array destructuring to get `logApiCall`.
-    const [apiUsage, logApiCall] = useApiUsage();
+    const [, logApiCall] = useApiUsage();
 
     useEffect(() => {
         // Apply font size class to the root <html> element
@@ -77,7 +76,6 @@ const MainApp: React.FC = () => {
     // This is a simple router to display the correct page component
     const renderActiveView = () => {
         switch (activeView) {
-            // FIX: Pass required props to page components.
             case 'tasks': return <TasksPage />;
             case 'calendar': return <CalendarPage tasks={tasks} sessions={pomodoroSessions} lists={lists} onUpdateTask={handleUpdateTask} />;
             case 'pomodoro': return <PomodoroPage sessions={pomodoroSessions} onAddSession={handleAddPomodoroSession} tasks={tasks} habits={habits} />;
@@ -88,6 +86,7 @@ const MainApp: React.FC = () => {
             case 'ai-assistant': return <AIAssistantPage />;
             case 'eisenhower-matrix': return <EisenhowerMatrixPage tasks={tasks} />;
             case 'countdown': return <CountdownPage countdowns={countdowns} onAddCountdown={handleAddCountdown} onDeleteCountdown={handleDeleteCountdown} />;
+            case 'plans': return <PlansPage />;
             default: return <TasksPage />;
         }
     };

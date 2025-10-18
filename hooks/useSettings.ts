@@ -38,6 +38,7 @@ export interface Settings {
     taskInputStyle: 'simple' | 'detailed';
 
     // Smart Lists & Sidebar Sections
+    smartListOrder: string[];
     smartListSettings: {
         all: SmartListVisibility;
         today: SmartListVisibility;
@@ -79,6 +80,7 @@ const defaultSettings: Settings = {
     sidebarCount: 'show',
     completedTaskStyle: 'default',
     taskInputStyle: 'simple',
+    smartListOrder: ['inbox', 'summary', 'all', 'today', 'tomorrow', 'next7days', 'assignedToMe'],
     smartListSettings: {
         all: 'show',
         today: 'show',

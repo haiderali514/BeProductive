@@ -5,7 +5,10 @@ function useLocalStorage<T,>(key: string, initialValue: T): [T, Dispatch<SetStat
   const [storedValue, setStoredValue] = useState<T>(() => {
     try {
       const item = window.localStorage.getItem(key);
-      return item ? JSON.parse(item) : initialValue;
+      // If the item exists, parse it. If parsing results in null or undefined,
+      // fallback to the initial value. This prevents crashes from corrupted
+      // or cleared local storage entries like 'null'.
+      return item ? (JSON.parse(item) ?? initialValue) : initialValue;
     } catch (error) {
       console.error(error);
       return initialValue;

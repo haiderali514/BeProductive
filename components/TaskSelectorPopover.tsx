@@ -73,7 +73,7 @@ export const TaskSelectorPopover: React.FC<TaskSelectorPopoverProps> = ({ isOpen
                             {filteredTasks.length > 0 ? filteredTasks.map(task => (
                                 <li key={task.id} onClick={() => handleSelect({ id: task.id, name: task.title, type: 'task' })} className="p-2 rounded cursor-pointer hover:bg-background-tertiary flex justify-between items-center">
                                     <span className="truncate">{task.title}</span>
-                                    {task.dueDate && <span className="text-xs text-red-400 flex-shrink-0 ml-2">{new Date(task.dueDate + 'T00:00:00').toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}</span>}
+                                    {task.dueDate && <span className="text-xs text-red-400 flex-shrink-0 ml-2">{new Date(task.dueDate.split(' ')[0] + 'T00:00:00').toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}</span>}
                                 </li>
                             )) : <li className="p-2 text-center text-sm text-content-tertiary">No tasks found.</li>}
                         </ul>

@@ -1,3 +1,5 @@
+
+
 import useLocalStorage from './useLocalStorage';
 
 export interface ApiUsageBreakdown {
@@ -10,10 +12,12 @@ export interface ApiUsageBreakdown {
   proactiveSuggestions: { count: number; tokens: number };
   chatTitleGeneration: { count: number; tokens: number };
   analyticsInsights: { count: number; tokens: number };
+  generateRoadmap: { count: number; tokens: number };
 }
 
 export type ApiFeature = keyof ApiUsageBreakdown;
 
+// @google/genai-sdk: Fix: Export FEATURE_NAMES to be used in other components.
 export const FEATURE_NAMES: Record<ApiFeature, string> = {
     smartAddTask: 'Smart Task Add',
     generateSubtasks: 'Subtask Generation',
@@ -24,6 +28,7 @@ export const FEATURE_NAMES: Record<ApiFeature, string> = {
     proactiveSuggestions: 'Proactive Suggestions',
     chatTitleGeneration: 'Chat Title Generation',
     analyticsInsights: 'Analytics Insights',
+    generateRoadmap: 'Roadmap Generation',
 };
 
 export interface ApiUsage {
@@ -53,6 +58,7 @@ const defaultApiUsage: ApiUsage = {
     proactiveSuggestions: { count: 0, tokens: 0 },
     chatTitleGeneration: { count: 0, tokens: 0 },
     analyticsInsights: { count: 0, tokens: 0 },
+    generateRoadmap: { count: 0, tokens: 0 },
   },
 };
 

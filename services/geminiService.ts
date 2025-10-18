@@ -1,5 +1,10 @@
+
+
+
+
+
 import { GoogleGenAI, Type, FunctionDeclaration, GenerateContentResponse, Content as GeminiContent } from "@google/genai";
-import { Priority, Recurrence, Task, List, Habit, UserProfile, UserTrait, TraitType, GoalSubtype, GoalProgressReport, AIContext } from '../types';
+import { Priority, Recurrence, Task, List, Habit, UserProfile, UserTrait, TraitType, GoalSubtype, GoalProgressReport, AIContext, LearningTopic } from '../types';
 
 export type { AIContext };
 
@@ -92,7 +97,8 @@ export const parseTaskFromString = async (prompt: string, listNames: string[]): 
         },
     });
     
-    const jsonText = response.text.trim();
+    // @google/genai-sdk: Fix: Access the `text` property directly on the `GenerateContentResponse` object.
+    const jsonText = response.text;
     if (!jsonText) {
       console.error("Gemini returned an empty response for parsing task.", { response });
       throw new Error("The AI assistant gave an empty response. Please rephrase your request.");
@@ -135,7 +141,8 @@ export const generateSubtasks = async (taskTitle: string): Promise<AIServiceResp
             },
         });
         
-        const jsonText = response.text.trim();
+        // @google/genai-sdk: Fix: Access the `text` property directly on the `GenerateContentResponse` object.
+        const jsonText = response.text;
         if (!jsonText) {
             console.error("Gemini returned an empty response for generating subtasks.", { response });
             throw new Error("The AI assistant couldn't generate subtasks for this task. Please try again.");
@@ -196,7 +203,8 @@ export const generateTaskPlan = async (goal: string, listNames: string[]): Promi
             },
         });
 
-        const jsonText = response.text.trim();
+        // @google/genai-sdk: Fix: Access the `text` property directly on the `GenerateContentResponse` object.
+        const jsonText = response.text;
         if (!jsonText) {
             console.error("Gemini returned an empty response for generating a task plan.", { response });
             throw new Error("The AI assistant couldn't generate a plan for this goal. Please try again.");
@@ -216,6 +224,110 @@ export const generateTaskPlan = async (goal: string, listNames: string[]): Promi
         throw new Error("Could not generate a plan for this goal. Please try again.");
     }
 };
+
+// --- New Learning Roadmap Service ---
+
+const learningTopicSchemaL3 = {
+    type: Type.OBJECT,
+    properties: {
+        title: { type: Type.STRING },
+        description: { type: Type.STRING },
+    },
+    required: ["title", "description"]
+};
+
+const learningTopicSchemaL2 = {
+    type: Type.OBJECT,
+    properties: {
+        title: { type: Type.STRING },
+        description: { type: Type.STRING },
+        children: {
+            type: Type.ARRAY,
+            description: "An array of sub-topics. Can be empty.",
+            items: learningTopicSchemaL3
+        }
+    },
+    required: ["title", "description", "children"]
+};
+
+const learningTopicSchemaL1 = {
+    type: Type.OBJECT,
+    properties: {
+        title: { type: Type.STRING, description: "The title of the learning topic." },
+        description: { type: Type.STRING, description: "A brief, one-sentence description of what this topic covers." },
+        children: {
+            type: Type.ARRAY,
+            description: "An array of sub-topics. Can be empty.",
+            items: learningTopicSchemaL2
+        }
+    },
+    required: ["title", "description", "children"]
+};
+
+const learningRoadmapSchema = {
+    type: Type.OBJECT,
+    properties: {
+        roadmap: {
+            type: Type.ARRAY,
+            description: "The structured, hierarchical learning roadmap with major topics.",
+            items: learningTopicSchemaL1
+        }
+    },
+    required: ["roadmap"]
+};
+
+// We only need the title and description from the AI. ID and status are added client-side.
+export type AIRoadmapResponse = Omit<LearningTopic, 'id' | 'status'>[];
+
+export const generateLearningRoadmap = async (goal: string, skillLevel: 'Beginner' | 'Intermediate' | 'Advanced'): Promise<AIServiceResponse<AIRoadmapResponse>> => {
+    if (!process.env.API_KEY) {
+      throw new Error("Gemini API key is not configured.");
+    }
+    try {
+        const prompt = `You are an expert curriculum designer for software engineering. The user wants to learn: "${goal}". Their current skill level is ${skillLevel}. 
+        
+        Generate a detailed, structured learning roadmap. The roadmap should be hierarchical, broken down into major phases or topics. Each topic must have a title and a brief one-sentence description. Each topic can have children (sub-topics), which can also have their own children, up to 3 levels deep. 
+        
+        For a goal like "Master MERN Stack for a beginner", a good structure would be:
+        1. Foundations (HTML, CSS, JS) -> Basic Syntax, DOM Manipulation, etc.
+        2. Backend (Node.js & Express) -> Modules, Routing, Middleware, etc.
+        3. Database (MongoDB) -> CRUD, Schemas, etc.
+        4. Frontend (React) -> Components, State, Hooks, etc.
+        5. Full Stack Integration -> Building a full MERN app.
+        
+        Provide a comprehensive, logical learning path.`;
+        
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: learningRoadmapSchema,
+            },
+        });
+
+        // @google/genai-sdk: Fix: Access the `text` property directly on the `GenerateContentResponse` object.
+        const jsonText = response.text;
+        if (!jsonText) {
+            console.error("Gemini returned an empty response for generating a roadmap.", { response });
+            throw new Error("The AI assistant couldn't generate a roadmap. Please try a different goal.");
+        }
+
+        const parsedJson = JSON.parse(jsonText);
+        const data = parsedJson.roadmap || [];
+        const tokensUsed = estimateTokens(prompt) + estimateTokens(jsonText);
+
+        return { data, tokensUsed };
+        
+    } catch (error) {
+        console.error("Error generating roadmap with Gemini:", error);
+        if (error instanceof SyntaxError) {
+            throw new Error("The AI assistant returned an invalid format for the roadmap. Please try again.");
+        }
+        throw new Error("Could not generate a roadmap for this goal. Please try again.");
+    }
+};
+
 
 // --- AI Assistant Service ---
 
@@ -397,7 +509,8 @@ export const generateChatTitle = async (prompt: string): Promise<AIServiceRespon
             model: "gemini-2.5-flash",
             contents: fullPrompt,
         });
-        const title = response.text.trim().replace(/"/g, ''); // Clean up quotes
+        // @google/genai-sdk: Fix: Access the `text` property directly on the `GenerateContentResponse` object.
+        const title = response.text.replace(/"/g, ''); // Clean up quotes
         const data = title || "Untitled Chat";
         const tokensUsed = estimateTokens(fullPrompt) + estimateTokens(response.text);
         return { data, tokensUsed };
@@ -449,7 +562,8 @@ export const getProactiveSuggestion = async (context: AIContext): Promise<AIServ
             },
         });
 
-        const suggestion = response.text.trim();
+        // @google/genai-sdk: Fix: Access the `text` property directly on the `GenerateContentResponse` object.
+        const suggestion = response.text;
         const tokensUsed = estimateTokens(proactiveSuggestionSystemInstruction) + estimateTokens(promptText) + estimateTokens(suggestion);
 
         if (suggestion === 'NO_SUGGESTION' || suggestion === '') {
@@ -519,7 +633,8 @@ export const generateWeeklyReview = async (context: AIContext): Promise<AIServic
             contents: prompt,
             config: { systemInstruction },
         });
-        const reviewText = response.text.trim();
+        // @google/genai-sdk: Fix: Access the `text` property directly on the `GenerateContentResponse` object.
+        const reviewText = response.text;
         if (!reviewText) {
             throw new Error("The AI assistant returned an empty review.");
         }
@@ -591,7 +706,8 @@ Follow these steps precisely:
             },
         });
         
-        const jsonText = response.text.trim();
+        // @google/genai-sdk: Fix: Access the `text` property directly on the `GenerateContentResponse` object.
+        const jsonText = response.text;
         if (!jsonText) {
             throw new Error("The AI assistant returned an empty progress report.");
         }
@@ -670,7 +786,8 @@ export const generateAnalyticsInsights = async (context: AIContext): Promise<AIS
             config: { systemInstruction },
         });
 
-        const insightsText = response.text.trim();
+        // @google/genai-sdk: Fix: Access the `text` property directly on the `GenerateContentResponse` object.
+        const insightsText = response.text;
         if (!insightsText) {
             throw new Error("The AI assistant couldn't generate any insights right now.");
         }

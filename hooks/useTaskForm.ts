@@ -1,3 +1,9 @@
+
+
+
+
+
+
 import { useState, useCallback, useEffect, FormEvent } from 'react';
 import { List, Priority, Recurrence, AddTaskFormProps } from '../types';
 import { parseTaskFromString } from '../services/geminiService';
@@ -45,13 +51,21 @@ export const useTaskForm = ({
         setError(null);
 
         try {
+            // @google/genai-sdk: Fix: Add missing properties to satisfy the onAddTask type definition.
             onAddTask({
                 title: title.trim(),
                 listId: selectedListId,
                 priority,
                 dueDate: dueDate ? dueDate.toISOString().slice(0, 16).replace('T', ' ') : null,
-                recurrence: null, 
+                // @google/genai-sdk: Fix: Added missing properties to satisfy the onAddTask type definition.
+                startDate: null,
+                isAllDay: false,
+                recurrence: null,
+                reminder: null,
                 tags,
+                isSection: false,
+                isCollapsed: false,
+                afterTaskId: undefined,
             });
             
             resetForm();
