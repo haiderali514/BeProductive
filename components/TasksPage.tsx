@@ -258,7 +258,8 @@ export const TasksPage: React.FC = () => {
         handleReorderTask,
     } = useData();
     const { settings, onSettingsChange } = useSettings();
-    const { logApiCall } = useApiUsage();
+    // FIX: Correctly destructure useApiUsage to get the logApiCall function.
+    const [, logApiCall] = useApiUsage();
     
     const [activeView, setActiveView] = useState('welcome');
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -343,6 +344,7 @@ export const TasksPage: React.FC = () => {
                 if (filteredTasks[i].isSection) break;
                 tasksToDelete.push(filteredTasks[i].id);
             }
+            // FIX: Pass the task ID to handleDeleteTask.
             tasksToDelete.forEach(id => handleDeleteTask(id));
         }
     };

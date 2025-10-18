@@ -8,10 +8,10 @@ import { FeaturesSettings } from './FeaturesSettings';
 import { NotificationsSettings } from './NotificationsSettings';
 import { DateTimeSettings } from './DateTimeSettings';
 // FIX: Corrected import path casing.
-import { AppearanceSettings } from './AppearanceSettings';
+import { AppearanceSettings } from './appearanceSettings';
 import { ShortcutsSettings } from './ShortcutsSettings';
 // FIX: Corrected import path casing.
-import { SmartListSettings } from './SmartListSettings';
+import { SmartListSettings } from './smartListSettings';
 
 interface SettingsModalProps {
     isOpen: boolean;

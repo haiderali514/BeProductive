@@ -4,7 +4,7 @@ import { Settings } from '../hooks/useSettings';
 import { TaskItem } from './TaskItem';
 import { PlusIcon, MoreIcon, EditIcon, TrashIcon } from './Icons';
 import { SimpleAddTaskForm } from './SimpleAddTaskForm';
-import { DetailedAddTaskForm } from './DetailedAddTaskForm';
+import { DetailedAddTaskForm } from './detailedAddTaskForm';
 import { Popover } from './Popover';
 import { AddTaskFormProps } from '../types';
 

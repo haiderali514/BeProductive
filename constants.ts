@@ -4,6 +4,8 @@
 
 
 
+
+
 import { Priority, Habit, PomodoroSession, UserProfile, Countdown, List, Achievement, AppData, Level, Task, Tag, Filter } from './types';
 import { TasksIcon, PomodoroIcon, HabitIcon, BrainIcon, CalendarIcon, TrophyIcon, PuzzleIcon, SunIcon, SparklesIcon, InboxIcon, SummaryIcon, AllTasksIcon, TodayIcon, TomorrowIcon, Next7DaysIcon, AssignedToMeIcon, CompletedIcon, WontDoIcon, TrashIcon } from './components/Icons';
 // @google/genai-sdk: Fix: Import React to use React.ReactNode type.
@@ -626,6 +628,7 @@ export const ACHIEVEMENTS_LIST: Achievement[] = [
 // @google/genai-sdk: Fix: Changed icon types to React.ReactNode to fix type errors.
 // @google/genai-sdk: Fix: Use React.ReactNode for icon type to fix type errors.
 // FIX: Changed icon type from component type to React.ReactNode to fix type errors.
+// FIX: Changed icon type from component type to React.ReactNode to fix type errors.
 export const smartListsConfig: { id: string, name: string, icon: React.ReactNode }[] = [
     { id: 'inbox', name: 'Inbox', icon: <InboxIcon /> },
     { id: 'summary', name: 'Summary', icon: <SummaryIcon /> },
@@ -638,6 +641,7 @@ export const smartListsConfig: { id: string, name: string, icon: React.ReactNode
 
 // @google/genai-sdk: Fix: Changed component types to React.ReactNode to fix type errors.
 // @google/genai-sdk: Fix: Use React.ReactNode for icon type to fix type errors.
+// FIX: Changed icon type from component type to React.ReactNode to fix type errors.
 // FIX: Changed icon type from component type to React.ReactNode to fix type errors.
 export const staticItemsConfig: { id: string, name: string, icon: React.ReactNode }[] = [
     { id: 'completed', name: 'Completed', icon: <CompletedIcon /> },

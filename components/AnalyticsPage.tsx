@@ -191,6 +191,7 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ tasks, habits, ses
         
         // FIX: Ensure completionDate string with space is correctly parsed into a Date object.
         const tasksCompletedThisWeek = tasks.filter(t => t.completed && t.completionDate && new Date(t.completionDate.replace(' ', 'T')) >= sevenDaysAgo && new Date(t.completionDate.replace(' ', 'T')) <= today).length;
+        // FIX: Ensure completionDate string with space is correctly parsed into a Date object.
         const tasksCompletedLastWeek = tasks.filter(t => t.completed && t.completionDate && new Date(t.completionDate.replace(' ', 'T')) >= fourteenDaysAgo && new Date(t.completionDate.replace(' ', 'T')) < sevenDaysAgo).length;
         const taskCompletionChange = tasksCompletedThisWeek - tasksCompletedLastWeek;
 

@@ -5,7 +5,7 @@ import { TasksPage } from './components/TasksPage';
 import { HabitPage } from './components/HabitPage';
 import { PomodoroPage } from './components/PomodoroPage';
 // FIX: Corrected import path casing.
-import { AnalyticsPage } from './components/AnalyticsPage';
+import { AnalyticsPage } from './components/analyticsPage';
 import { AchievementsPage } from './components/AchievementsPage';
 import { ProfilePage } from './components/ProfilePage';
 import { AIAssistantPage } from './components/AIAssistantPage';
@@ -44,7 +44,8 @@ const MainApp: React.FC = () => {
         handleReorderHabit,
     } = useData();
     const { settings } = useSettings();
-    const [, logApiCall] = useApiUsage();
+    // FIX: Correctly destructure useApiUsage to get both apiUsage object and logApiCall function.
+    const [apiUsage, logApiCall] = useApiUsage();
 
     useEffect(() => {
         // Apply font size class to the root <html> element

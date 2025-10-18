@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useCallback, useEffect } from 'react';
 import useLocalStorage from '../hooks/useLocalStorage';
-import { Notification } from '../types';
+import type { Notification } from '../types';
 import { useData } from './DataContext';
 import { useSettings } from './SettingsContext';
 import { useApiUsage } from './ApiUsageContext';
