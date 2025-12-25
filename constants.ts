@@ -1,11 +1,4 @@
 
-
-
-
-
-
-
-
 import { Priority, Habit, PomodoroSession, UserProfile, Countdown, List, Achievement, AppData, Level, Task, Tag, Filter } from './types';
 import { TasksIcon, PomodoroIcon, HabitIcon, BrainIcon, CalendarIcon, TrophyIcon, PuzzleIcon, SunIcon, SparklesIcon, InboxIcon, SummaryIcon, AllTasksIcon, TodayIcon, TomorrowIcon, Next7DaysIcon, AssignedToMeIcon, CompletedIcon, WontDoIcon, TrashIcon } from './components/Icons';
 // @google/genai-sdk: Fix: Import React to use React.ReactNode type.
@@ -622,29 +615,21 @@ export const ACHIEVEMENTS_LIST: Achievement[] = [
         },
     },
 ];
-// @google/genai-sdk: Fix: Added smartListsConfig and staticItemsConfig to constants.
-// @google/genai-sdk: Fix: Explicitly typed the config arrays with React.ReactNode for the icon property.
-// @google/genai-sdk: Fix: Changed component types to React.ReactNode to fix type errors.
-// @google/genai-sdk: Fix: Changed icon types to React.ReactNode to fix type errors.
-// @google/genai-sdk: Fix: Use React.ReactNode for icon type to fix type errors.
-// FIX: Changed icon type from component type to React.ReactNode to fix type errors.
-// FIX: Changed icon type from component type to React.ReactNode to fix type errors.
+
+// FIX: Use React.createElement instead of JSX to avoid type errors in a .ts file.
 export const smartListsConfig: { id: string, name: string, icon: React.ReactNode }[] = [
-    { id: 'inbox', name: 'Inbox', icon: <InboxIcon /> },
-    { id: 'summary', name: 'Summary', icon: <SummaryIcon /> },
-    { id: 'all', name: 'All', icon: <AllTasksIcon /> },
-    { id: 'today', name: 'Today', icon: <TodayIcon /> },
-    { id: 'tomorrow', name: 'Tomorrow', icon: <TomorrowIcon /> },
-    { id: 'next7days', name: 'Next 7 Days', icon: <Next7DaysIcon /> },
-    { id: 'assignedToMe', name: 'Assigned to Me', icon: <AssignedToMeIcon /> },
+    { id: 'inbox', name: 'Inbox', icon: React.createElement(InboxIcon) },
+    { id: 'summary', name: 'Summary', icon: React.createElement(SummaryIcon) },
+    { id: 'all', name: 'All', icon: React.createElement(AllTasksIcon) },
+    { id: 'today', name: 'Today', icon: React.createElement(TodayIcon) },
+    { id: 'tomorrow', name: 'Tomorrow', icon: React.createElement(TomorrowIcon) },
+    { id: 'next7days', name: 'Next 7 Days', icon: React.createElement(Next7DaysIcon) },
+    { id: 'assignedToMe', name: 'Assigned to Me', icon: React.createElement(AssignedToMeIcon) },
 ];
 
-// @google/genai-sdk: Fix: Changed component types to React.ReactNode to fix type errors.
-// @google/genai-sdk: Fix: Use React.ReactNode for icon type to fix type errors.
-// FIX: Changed icon type from component type to React.ReactNode to fix type errors.
-// FIX: Changed icon type from component type to React.ReactNode to fix type errors.
+// FIX: Use React.createElement instead of JSX to avoid type errors in a .ts file.
 export const staticItemsConfig: { id: string, name: string, icon: React.ReactNode }[] = [
-    { id: 'completed', name: 'Completed', icon: <CompletedIcon /> },
-    { id: 'wontdo', name: 'Won\'t Do', icon: <WontDoIcon /> },
-    { id: 'trash', name: 'Trash', icon: <TrashIcon /> },
+    { id: 'completed', name: 'Completed', icon: React.createElement(CompletedIcon) },
+    { id: 'wontdo', name: 'Won\'t Do', icon: React.createElement(WontDoIcon) },
+    { id: 'trash', name: 'Trash', icon: React.createElement(TrashIcon) },
 ];

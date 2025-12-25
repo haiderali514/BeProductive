@@ -1,9 +1,3 @@
-
-
-
-
-
-
 import React, { useState, useRef, useEffect, useCallback, FormEvent, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { List, Priority, AddTaskFormProps, Tag, Task, Recurrence } from '../types';
@@ -130,7 +124,7 @@ export const SimpleAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTask
         reminder: string | null;
     }>({ startDate: null, dueDate: null, isAllDay: false, recurrence: null, reminder: null });
     
-    const [isFocused, setIsFocused] = useState(false);
+    const [isFocused, setIsFocused] = useState(!!autoFocus);
     const [activePopover, setActivePopover] = useState<ActivePopover | null>(null);
     const [isListSubmenuOpen, setIsListSubmenuOpen] = useState(false);
     const [hoveredListId, setHoveredListId] = useState<string | null>(null);
@@ -174,14 +168,14 @@ export const SimpleAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTask
             isAppendingSyntax.current = false;
             return;
         }
-        let text = title;
-        let newTitle = text;
+        let newTitle = title;
         let needsUpdate = false;
     
+        // FIX: Using new RegExp constructor to avoid potential syntax issues with unescaped slashes in literals
         const patterns = {
-            priority: /(!(high|medium|low|none))(?=\s|$)/i,
-            tag: /(#[\w-]+)(?=\s|$)/i,
-            list: /(~[\w\s\/]+)(?=\s|$)/i,
+            priority: new RegExp('(!(high|medium|low|none))(?=\\s|$)', 'i'),
+            tag: new RegExp('(#([\\w-]+))(?=\\s|$)', 'i'),
+            list: new RegExp('(~([\\w\\s\\/]+))(?=\\s|$)', 'i'),
         };
         
         const processMatches = (pattern: RegExp, processor: (match: RegExpMatchArray) => void) => {
@@ -202,14 +196,14 @@ export const SimpleAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTask
         });
 
         processMatches(patterns.tag, (match) => {
-            const tagName = match[1].substring(1);
+            const tagName = match[2];
             if (!tags.includes(tagName)) {
                 setTags(prev => [...prev, tagName]);
             }
         });
 
         processMatches(patterns.list, (match) => {
-            const listName = match[1].substring(1);
+            const listName = match[2];
             const foundList = lists.find(l => l.name.toLowerCase() === listName.toLowerCase());
             if (foundList) {
                 setListInfo({ listId: foundList.id, listName: foundList.name });
@@ -252,6 +246,8 @@ export const SimpleAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTask
             ...dateInfo,
             tags,
             afterTaskId: selectedSection?.sectionId,
+            isSection: false,
+            isCollapsed: false,
         });
         
         resetForm();
@@ -264,7 +260,7 @@ export const SimpleAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTask
         setTimeout(() => {
             if (ignoreBlurRef.current) {
                 ignoreBlurRef.current = false;
-                if (inputRef.current) inputRef.current.focus(); // Refocus input
+                if (inputRef.current) inputRef.current.focus();
                 return;
             }
             if (containerRef.current && !containerRef.current.contains(document.activeElement)) {
@@ -469,8 +465,7 @@ export const SimpleAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTask
                     return (
                         <div key={l.id} className="relative">
                             <button
-                                // @google/genai-sdk: Fix: Corrected ref callback to not return a value.
-                                ref={el => { listSubmenuRefs.current[l.id] = el }}
+                                ref={el => { listSubmenuRefs.current[l.id] = el; }}
                                 onMouseEnter={() => setHoveredListId(l.id)}
                                 onClick={() => {
                                     setListInfo({listId: l.id, listName: l.name});

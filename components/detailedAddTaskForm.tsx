@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { List, Priority, AddTaskFormProps, Tag, Task, Recurrence } from '../types';
@@ -18,7 +19,6 @@ const Pill: React.FC<{ children: React.ReactNode; colorClass: string; onRemove: 
 
 const TAG_COLORS = ['#F44336', '#E91E63', '#9C27B0', '#673AB7', '#3F51B5', '#2196F3', '#00BCD4', '#009688', '#4CAF50', '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107', '#FF9800', '#FF5722', '#795548', '#9E9E9E', '#607D8B'];
 
-// A new, more advanced tag popover component
 const TagPopoverContent: React.FC<{
     initialTags: string[];
     onSave: (newTags: string[]) => void;
@@ -89,7 +89,7 @@ const TagPopoverContent: React.FC<{
     );
 };
 
-
+// FIX: Standardized signature for props onDeactivate and autoFocus to satisfy interface and ensure consistent functionality.
 export const DetailedAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTask, aiEnabled, activeListId, settings, onSettingsChange, onDeactivate, autoFocus }) => {
     const [isFocused, setIsFocused] = useState(!!autoFocus);
     const [inputValue, setInputValue] = useState('');
@@ -175,6 +175,7 @@ export const DetailedAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTa
             ...dateInfo,
             tags,
             isSection,
+            isCollapsed: false,
             afterTaskId: selectedSection?.sectionId,
         });
 
@@ -191,14 +192,13 @@ export const DetailedAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTa
             return;
         }
 
-        let text = inputValue;
-        let newTitle = text;
+        let newTitle = inputValue;
         let needsUpdate = false;
     
         const patterns = {
-            priority: /(!(high|medium|low|none))(?=\s|$)/i,
-            tag: /(#[\w-]+)(?=\s|$)/i,
-            list: /(~[\w\s\/]+)(?=\s|$)/i,
+            priority: new RegExp('(!(high|medium|low|none))(?=\\s|$)', 'i'),
+            tag: new RegExp('(#([\\w-]+))(?=\\s|$)', 'i'),
+            list: new RegExp('(~([\\w\\s\\/]+))(?=\\s|$)', 'i'),
         };
         
         const processMatches = (pattern: RegExp, processor: (match: RegExpMatchArray) => void) => {
@@ -219,14 +219,14 @@ export const DetailedAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTa
         });
 
         processMatches(patterns.tag, (match) => {
-            const tagName = match[1].substring(1);
+            const tagName = match[2];
             if (!tags.includes(tagName)) {
                 setTags(prev => [...prev, tagName]);
             }
         });
 
         processMatches(patterns.list, (match) => {
-            const listName = match[1].substring(1);
+            const listName = match[2];
             const foundList = lists.find(l => l.name.toLowerCase() === listName.toLowerCase());
             if (foundList) {
                 setListInfo({ listId: foundList.id, listName: foundList.name });
@@ -238,14 +238,6 @@ export const DetailedAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTa
         }
     
     }, [inputValue, lists, tags]);
-
-    useEffect(() => {
-        if (selectedSection) setListInfo(null);
-    }, [selectedSection]);
-
-    useEffect(() => {
-        if (listInfo) setSelectedSection(null);
-    }, [listInfo]);
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') {
@@ -349,7 +341,6 @@ export const DetailedAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTa
                 
                 <AnimatePresence>
                     {(isFocused || hasData) && (
-                        // @ts-ignore
                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="flex items-center justify-between overflow-hidden px-2 pb-2">
                             <div className="flex items-center space-x-1">
                                 <button 
@@ -412,7 +403,6 @@ export const DetailedAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTa
                         const sections = sectionsByList[l.id] || [];
                         return (
                             <div key={l.id} className="relative">
-                                {/* @google/genai-sdk: Fix: Corrected ref callback to not return a value. */}
                                 <button ref={el => { listSubmenuRefs.current[l.id] = el; }} onMouseEnter={() => setHoveredListId(l.id)} onClick={() => { setListInfo({listId: l.id, listName: l.name}); setActivePopover(null); }} className={`w-full text-left flex items-center justify-between p-2 rounded hover:bg-background-primary`}>
                                 <div className="flex items-center">
                                     <span>{l.emoji || '•'}</span> <span className="ml-2">{l.name}</span>

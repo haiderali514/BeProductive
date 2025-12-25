@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Settings, SmartListVisibility } from '../../hooks/useSettings';
 import { AllTasksIcon, TodayIcon, TomorrowIcon, Next7DaysIcon, AssignedToMeIcon, InboxIcon, SummaryIcon, TagIcon, FiltersIcon, CompletedIcon, WontDoIcon, TrashIcon } from '../Icons';
@@ -7,7 +8,7 @@ interface SmartListSettingsProps {
     onSettingsChange: (newSettings: Partial<Settings>) => void;
 }
 
-// FIX: Added `as const` to infer `id` as a literal type.
+// @google/genai-sdk: Fix: Added `as const` to infer `id` as a literal type and ensure compatibility with settings keys.
 const smartListsConfig = [
     { id: 'all', name: 'All', icon: <AllTasksIcon /> },
     { id: 'today', name: 'Today', icon: <TodayIcon /> },
@@ -18,7 +19,7 @@ const smartListsConfig = [
     { id: 'summary', name: 'Summary', icon: <SummaryIcon /> },
 ] as const;
 
-// FIX: Added `as const` to infer `id` as a literal type.
+// @google/genai-sdk: Fix: Added `as const` to infer `id` as a literal type and ensure compatibility with settings keys.
 const otherListsConfig = [
     { id: 'tags', name: 'Tags', icon: <TagIcon /> },
     { id: 'filters', name: 'Filters', icon: <FiltersIcon /> },

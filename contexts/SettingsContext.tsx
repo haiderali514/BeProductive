@@ -3,13 +3,13 @@ import { useSettings as useSettingsHook, Settings } from '../hooks/useSettings';
 
 export type { Settings };
 
-// Sound files hosted on a reliable CDN
+// Sound files hosted on reliable sources
 const SOUND_FILES = {
-    drip: 'https://cdn.pixabay.com/audio/2022/03/22/audio_ad46179a66.mp3',
-    success: 'https://cdn.pixabay.com/audio/2022/03/15/audio_a46a3c63aa.mp3',
-    default: 'https://cdn.pixabay.com/audio/2021/08/04/audio_bb63214a16.mp3',
-    chime: 'https://cdn.pixabay.com/audio/2022/05/23/audio_73b94b3c88.mp3',
-    alert: 'https://cdn.pixabay.com/audio/2022/10/14/audio_924250a252.mp3',
+    drip: 'https://www.soundjay.com/button/sounds/button-16.mp3',
+    success: 'https://www.soundjay.com/button/sounds/button-09.mp3',
+    default: 'https://www.soundjay.com/button/sounds/button-3.mp3',
+    chime: 'https://www.soundjay.com/button/sounds/button-10.mp3',
+    alert: 'https://www.soundjay.com/button/sounds/beep-07.mp3',
 };
 
 export type SoundType = 'completion' | 'reminder';

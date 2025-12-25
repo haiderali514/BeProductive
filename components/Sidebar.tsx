@@ -1,9 +1,4 @@
 
-
-
-
-
-
 import React, { useState, useMemo, forwardRef, useRef } from 'react';
 import { useSettings } from '../contexts/SettingsContext';
 import { AnalyticsIcon, TasksIcon, HabitIcon, PomodoroIcon, SettingsIcon, AIAssistantIcon, NotificationBellIcon, MatrixIcon, CountdownIcon, UserIcon, CalendarIcon, TrophyIcon, MoreIcon, MapIcon } from './Icons';

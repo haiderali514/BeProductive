@@ -210,7 +210,7 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({ settings
                        <SidebarPreview type={option.id as any} />
                     </OptionCard>
                 ))}
-            </section>
+            </Section>
             
             <Section title="Completed Task Style" cols={2}>
                  {completedTaskOptions.map(option => (

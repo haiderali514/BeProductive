@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useApiUsage } from '../../contexts/ApiUsageContext';
@@ -7,11 +8,11 @@ import { AccountSettings } from './AccountSettings';
 import { FeaturesSettings } from './FeaturesSettings';
 import { NotificationsSettings } from './NotificationsSettings';
 import { DateTimeSettings } from './DateTimeSettings';
-// FIX: Corrected import path casing.
-import { AppearanceSettings } from './appearanceSettings';
+// FIX: Corrected import path casing to match physical file.
+import { AppearanceSettings } from './AppearanceSettings';
 import { ShortcutsSettings } from './ShortcutsSettings';
-// FIX: Corrected import path casing.
-import { SmartListSettings } from './smartListSettings';
+// FIX: Corrected import path casing to match physical file.
+import { SmartListSettings } from './SmartListSettings';
 
 interface SettingsModalProps {
     isOpen: boolean;

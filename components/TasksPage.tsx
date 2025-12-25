@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Priority, Task, List, AddTaskFormProps, Tag, Filter } from '../types';
 import { TaskItem } from './TaskItem';
-import { DetailedAddTaskForm } from './SmartAddTaskForm';
+import { DetailedAddTaskForm } from './DetailedAddTaskForm';
 import { SimpleAddTaskForm } from './SimpleAddTaskForm';
 import { PlanWithAIModal } from './PlanWithAIModal';
 import { AITaskSuggestion } from '../services/geminiService';

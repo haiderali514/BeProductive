@@ -1,8 +1,3 @@
-
-
-
-
-
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { List, Priority, AddTaskFormProps, Tag, Task, Recurrence } from '../types';
@@ -23,14 +18,14 @@ const Pill: React.FC<{ children: React.ReactNode; colorClass: string; onRemove: 
 
 const TAG_COLORS = ['#F44336', '#E91E63', '#9C27B0', '#673AB7', '#3F51B5', '#2196F3', '#00BCD4', '#009688', '#4CAF50', '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107', '#FF9800', '#FF5722', '#795548', '#9E9E9E', '#607D8B'];
 
-// A new, more advanced tag popover component
 const TagPopoverContent: React.FC<{
     initialTags: string[];
     onSave: (newTags: string[]) => void;
     onClose: () => void;
     allTags: Tag[];
     onAddTag: (tagData: { name: string; color: string; parentId: string | null; }) => void;
-}> = ({ initialTags, onSave, onClose, allTags, onAddTag }) => {
+    onMouseDown?: (e: React.MouseEvent) => void;
+}> = ({ initialTags, onSave, onClose, allTags, onAddTag, onMouseDown }) => {
     const [selectedTagNames, setSelectedTagNames] = useState<string[]>(initialTags);
     const [search, setSearch] = useState('');
 
@@ -52,7 +47,7 @@ const TagPopoverContent: React.FC<{
     const showCreateOption = search.trim() && !allTags.some(t => t.name.toLowerCase() === search.trim().toLowerCase());
 
     return (
-        <div className="w-64 bg-background-tertiary rounded-lg shadow-xl border border-border-primary text-content-primary flex flex-col max-h-80">
+        <div onMouseDown={onMouseDown} className="w-64 bg-background-tertiary rounded-lg shadow-xl border border-border-primary text-content-primary flex flex-col max-h-80">
             <div className="p-2 border-b border-border-primary">
                 {selectedTagNames.length > 0 && (
                     <div className="flex flex-wrap gap-1 mb-2">
@@ -100,6 +95,7 @@ export const DetailedAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTa
     const [priority, setPriority] = useState<Priority>(Priority.NONE);
     const [tags, setTags] = useState<string[]>([]);
     const [listInfo, setListInfo] = useState<{ listId: string; listName: string; } | null>(null);
+    const [selectedSection, setSelectedSection] = useState<{listId: string; sectionId: string; sectionName: string} | null>(null);
     const [dateInfo, setDateInfo] = useState<{
         startDate: string | null;
         dueDate: string | null;
@@ -115,6 +111,7 @@ export const DetailedAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTa
 
     const formRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const ignoreBlurRef = useRef(false);
     const dateTriggerRef = useRef<HTMLButtonElement>(null);
     const priorityTriggerRef = useRef<HTMLButtonElement>(null);
     const listTriggerRef = useRef<HTMLButtonElement>(null);
@@ -124,6 +121,8 @@ export const DetailedAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTa
 
     const { tasks, tags: allTags, handleAddTag } = useData();
     const isAppendingSyntax = useRef(false);
+
+    const onMouseDownPopover = () => { ignoreBlurRef.current = true; };
 
     const sectionsByList = useMemo(() => {
         return tasks.reduce((acc, task) => {
@@ -138,8 +137,8 @@ export const DetailedAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTa
     }, [tasks]);
 
     const isFormEmpty = useCallback(() => {
-        return !inputValue.trim() && tags.length === 0 && priority === Priority.NONE && !dateInfo.dueDate && !listInfo;
-    }, [inputValue, tags, priority, dateInfo, listInfo]);
+        return !inputValue.trim() && tags.length === 0 && priority === Priority.NONE && !dateInfo.dueDate && !listInfo && !selectedSection;
+    }, [inputValue, tags, priority, dateInfo, listInfo, selectedSection]);
     
     const hasData = !isFormEmpty();
 
@@ -148,6 +147,7 @@ export const DetailedAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTa
         setPriority(Priority.NONE);
         setTags([]);
         setListInfo(null);
+        setSelectedSection(null);
         setDateInfo({ startDate: null, dueDate: null, isAllDay: false, recurrence: null, reminder: null });
     }, []);
 
@@ -162,17 +162,19 @@ export const DetailedAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTa
         
         onAddTask({
             title: isSection ? finalTitle.slice(0, -1) : finalTitle,
-            listId: listInfo?.listId || activeListId,
+            listId: selectedSection?.listId || listInfo?.listId || activeListId,
             priority,
             ...dateInfo,
             tags,
             isSection,
+            isCollapsed: false,
+            afterTaskId: selectedSection?.sectionId,
         });
 
         resetForm();
         setIsFocused(false);
         if (inputRef.current) inputRef.current.blur();
-    }, [inputValue, listInfo, activeListId, priority, dateInfo, tags, onAddTask, resetForm]);
+    }, [inputValue, listInfo, selectedSection, activeListId, priority, dateInfo, tags, onAddTask, resetForm]);
     
     useEffect(() => {
         if (isAppendingSyntax.current) {
@@ -180,14 +182,14 @@ export const DetailedAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTa
             return;
         }
 
-        let text = inputValue;
-        let newTitle = text;
+        let newTitle = inputValue;
         let needsUpdate = false;
     
+        // FIX: Using new RegExp constructor to avoid potential syntax issues with unescaped slashes in literals
         const patterns = {
-            priority: /(!(high|medium|low|none))(?=\s|$)/i,
-            tag: /(#[\w-]+)(?=\s|$)/i,
-            list: /(~[\w\s\/]+)(?=\s|$)/i,
+            priority: new RegExp('(!(high|medium|low|none))(?=\\s|$)', 'i'),
+            tag: new RegExp('(#([\\w-]+))(?=\\s|$)', 'i'),
+            list: new RegExp('(~([\\w\\s\\/]+))(?=\\s|$)', 'i'),
         };
         
         const processMatches = (pattern: RegExp, processor: (match: RegExpMatchArray) => void) => {
@@ -208,14 +210,14 @@ export const DetailedAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTa
         });
 
         processMatches(patterns.tag, (match) => {
-            const tagName = match[1].substring(1);
+            const tagName = match[2];
             if (!tags.includes(tagName)) {
                 setTags(prev => [...prev, tagName]);
             }
         });
 
         processMatches(patterns.list, (match) => {
-            const listName = match[1].substring(1);
+            const listName = match[2];
             const foundList = lists.find(l => l.name.toLowerCase() === listName.toLowerCase());
             if (foundList) {
                 setListInfo({ listId: foundList.id, listName: foundList.name });
@@ -239,6 +241,11 @@ export const DetailedAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTa
     
     const handleBlur = (e: React.FocusEvent<HTMLDivElement>) => {
         setTimeout(() => {
+            if (ignoreBlurRef.current) {
+                ignoreBlurRef.current = false;
+                if(inputRef.current) inputRef.current.focus();
+                return;
+            }
             if (!formRef.current?.contains(document.activeElement)) {
                  setIsFocused(false);
             }
@@ -290,14 +297,19 @@ export const DetailedAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTa
                         />
                     </form>
 
-                    {(isFocused || hasData) && (tags.length > 0 || priority !== Priority.NONE || dateInfo.dueDate || listInfo) && (
+                    {(isFocused || hasData) && (tags.length > 0 || priority !== Priority.NONE || dateInfo.dueDate || listInfo || selectedSection) && (
                         <div className="flex items-center flex-wrap px-2">
                             {priority !== Priority.NONE && (
                                 <Pill colorClass={priorityPillColors[priority]} onRemove={() => setPriority(Priority.NONE)}>
                                     !{priority}
                                 </Pill>
                             )}
-                            {listInfo && (
+                            {selectedSection && (
+                                <Pill colorClass={genericPillColor} onRemove={() => setSelectedSection(null)}>
+                                    ~{lists.find(l=>l.id===selectedSection.listId)?.name} / {selectedSection.sectionName}
+                                </Pill>
+                            )}
+                            {!selectedSection && listInfo && (
                                 <Pill colorClass={genericPillColor} onRemove={() => setListInfo(null)}>
                                     ~{listInfo.listName}
                                 </Pill>
@@ -318,17 +330,33 @@ export const DetailedAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTa
                 
                 <AnimatePresence>
                     {(isFocused || hasData) && (
-                        // @ts-ignore
                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="flex items-center justify-between overflow-hidden px-2 pb-2">
                             <div className="flex items-center space-x-1">
-                                <button ref={dateTriggerRef} type="button" onClick={() => setActivePopover('date')} className={`flex items-center space-x-1 text-sm px-2 py-1 rounded hover:bg-background-tertiary ${dateInfo.dueDate ? 'text-primary bg-primary/10' : 'text-content-secondary'}`}>
+                                <button 
+                                    ref={dateTriggerRef} 
+                                    type="button" 
+                                    onMouseDown={onMouseDownPopover}
+                                    onClick={() => setActivePopover('date')} 
+                                    className={`flex items-center space-x-1 text-sm px-2 py-1 rounded hover:bg-background-tertiary ${dateInfo.dueDate ? 'text-primary bg-primary/10' : 'text-content-secondary'}`}>
                                     <CalendarIcon className="h-4 w-4"/>
                                     <span>{formattedDueDate}</span>
                                 </button>
-                                <button ref={priorityTriggerRef} type="button" onClick={() => setActivePopover('priority')} className={`p-2 rounded hover:bg-background-tertiary ${priorityIconColors[priority]}`}><FlagSolidIcon className="h-4 w-4"/></button>
-                                <button ref={tagTriggerRef} type="button" onClick={() => setActivePopover('tag')} className={`p-2 rounded hover:bg-background-tertiary ${tags.length > 0 ? 'text-primary' : 'text-content-secondary'}`}><TagIcon className="h-4 w-4"/></button>
-                                <button ref={listTriggerRef} type="button" onClick={() => setActivePopover('list')} className="p-2 rounded text-content-secondary hover:bg-background-tertiary"><MoveToListIcon className="h-4 w-4"/></button>
-                                <button ref={moreTriggerRef} type="button" onClick={() => setActivePopover('more')} className="p-2 rounded text-content-secondary hover:bg-background-tertiary"><MoreIcon className="h-4 w-4"/></button>
+                                <button 
+                                    ref={priorityTriggerRef} type="button" 
+                                    onMouseDown={onMouseDownPopover}
+                                    onClick={() => setActivePopover('priority')} className={`p-2 rounded hover:bg-background-tertiary ${priorityIconColors[priority]}`}><FlagSolidIcon className="h-4 w-4"/></button>
+                                <button 
+                                    ref={tagTriggerRef} type="button" 
+                                    onMouseDown={onMouseDownPopover}
+                                    onClick={() => setActivePopover('tag')} className={`p-2 rounded hover:bg-background-tertiary ${tags.length > 0 ? 'text-primary' : 'text-content-secondary'}`}><TagIcon className="h-4 w-4"/></button>
+                                <button 
+                                    ref={listTriggerRef} type="button" 
+                                    onMouseDown={onMouseDownPopover}
+                                    onClick={() => setActivePopover('list')} className="p-2 rounded text-content-secondary hover:bg-background-tertiary"><MoveToListIcon className="h-4 w-4"/></button>
+                                <button 
+                                    ref={moreTriggerRef} type="button" 
+                                    onMouseDown={onMouseDownPopover}
+                                    onClick={() => setActivePopover('more')} className="p-2 rounded text-content-secondary hover:bg-background-tertiary"><MoreIcon className="h-4 w-4"/></button>
                             </div>
                             <button type="button" onClick={(e) => handleSubmit(e)} className="px-4 py-1.5 text-sm bg-primary text-white rounded-md font-semibold hover:bg-primary-focus">Add</button>
                         </motion.div>
@@ -342,9 +370,10 @@ export const DetailedAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTa
                 triggerRef={dateTriggerRef}
                 initialValue={dateInfo}
                 onSave={(result) => setDateInfo(result)}
+                onMouseDown={onMouseDownPopover}
             />
             <Popover isOpen={activePopover === 'priority'} onClose={() => setActivePopover(null)} triggerRef={priorityTriggerRef} position="bottom-start">
-                 <div className="w-48 bg-background-tertiary rounded-lg shadow-xl border border-border-primary p-2 text-content-primary">
+                 <div onMouseDown={onMouseDownPopover} className="w-48 bg-background-tertiary rounded-lg shadow-xl border border-border-primary p-2 text-content-primary">
                     {priorityOptions.map(opt => (
                         <button key={opt.level} onClick={() => { setPriority(opt.level); setActivePopover(null); }} className={`w-full text-left flex items-center p-2 rounded hover:bg-background-primary ${priority === opt.level ? 'bg-primary/20' : ''}`}>
                             <FlagSolidIcon className={`mr-2 h-5 w-5 ${opt.color}`} />
@@ -355,18 +384,17 @@ export const DetailedAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTa
                 </div>
             </Popover>
             <Popover isOpen={activePopover === 'tag'} onClose={() => setActivePopover(null)} triggerRef={tagTriggerRef} position="bottom-start">
-                 <TagPopoverContent initialTags={tags} onSave={handleTagsSave} onClose={() => setActivePopover(null)} allTags={allTags} onAddTag={handleAddTag} />
+                 <TagPopoverContent onMouseDown={onMouseDownPopover} initialTags={tags} onSave={handleTagsSave} onClose={() => setActivePopover(null)} allTags={allTags} onAddTag={handleAddTag} />
             </Popover>
              <Popover isOpen={activePopover === 'list'} onClose={() => { setActivePopover(null); setHoveredListId(null); }} triggerRef={listTriggerRef} position="bottom-start">
-                 <div className="w-64 bg-background-tertiary rounded-lg shadow-xl border border-border-primary text-content-primary max-h-60 flex flex-col p-2" onMouseLeave={() => setHoveredListId(null)}>
+                 <div onMouseDown={onMouseDownPopover} className="w-64 bg-background-tertiary rounded-lg shadow-xl border border-border-primary text-content-primary max-h-60 flex flex-col p-2" onMouseLeave={() => setHoveredListId(null)}>
                      {lists.map(l => {
                         const sections = sectionsByList[l.id] || [];
                         return (
                             <div key={l.id} className="relative">
-                                {/* @google/genai-sdk: Fix: Corrected ref callback to not return a value. */}
                                 <button ref={el => { listSubmenuRefs.current[l.id] = el; }} onMouseEnter={() => setHoveredListId(l.id)} onClick={() => { setListInfo({listId: l.id, listName: l.name}); setActivePopover(null); }} className={`w-full text-left flex items-center justify-between p-2 rounded hover:bg-background-primary`}>
                                 <div className="flex items-center">
-                                    <span>{l.emoji}</span> <span className="ml-2">{l.name}</span>
+                                    <span>{l.emoji || '•'}</span> <span className="ml-2">{l.name}</span>
                                 </div>
                                 {sections.length > 0 && <ChevronRightIcon className="h-4 w-4 text-content-tertiary"/>}
                                 </button>
@@ -375,10 +403,16 @@ export const DetailedAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTa
                     })}
                      {hoveredListId && sectionsByList[hoveredListId] && sectionsByList[hoveredListId].length > 0 && (
                         <Popover isOpen={true} onClose={() => {}} triggerRef={{ current: listSubmenuRefs.current[hoveredListId] }} position="right-start" className="ml-1">
-                             <div className="w-64 bg-background-tertiary rounded-lg shadow-2xl border border-border-primary text-content-primary p-2">
+                             <div onMouseDown={onMouseDownPopover} className="w-64 bg-background-tertiary rounded-lg shadow-2xl border border-border-primary text-content-primary p-2">
                                 <p className="text-xs px-2 pb-1 text-content-tertiary">{lists.find(l=>l.id===hoveredListId)?.name} Sections</p>
                                 {sectionsByList[hoveredListId].map(section => (
-                                    <button key={section.id} onClick={() => { setListInfo({listId: section.listId, listName: section.listId}); setActivePopover(null); }} className="w-full text-left p-2 rounded hover:bg-background-primary text-sm">
+                                    <button key={section.id} 
+                                        onClick={() => { 
+                                            setSelectedSection({ listId: section.listId, sectionId: section.id, sectionName: section.title });
+                                            setActivePopover(null); 
+                                        }} 
+                                        className="w-full text-left p-2 rounded hover:bg-background-primary text-sm"
+                                    >
                                         {section.title}
                                     </button>
                                 ))}
@@ -388,11 +422,16 @@ export const DetailedAddTaskForm: React.FC<AddTaskFormProps> = ({ lists, onAddTa
                 </div>
             </Popover>
             <Popover isOpen={activePopover === 'more'} onClose={() => setActivePopover(null)} triggerRef={moreTriggerRef} position="bottom-start">
-                <div className="w-64 bg-background-tertiary rounded-lg shadow-xl border border-border-primary text-content-primary p-2">
+                <div onMouseDown={onMouseDownPopover} className="w-64 bg-background-tertiary rounded-lg shadow-xl border border-border-primary text-content-primary p-2">
                     <button className="w-full text-left flex items-center p-2 rounded hover:bg-background-primary"><AttachmentIcon className="mr-2 h-4 w-4"/> Attachment</button>
                     <button className="w-full text-left flex items-center p-2 rounded hover:bg-background-primary"><TemplateIcon className="mr-2 h-4 w-4"/> Add from Template</button>
                     <div className="border-t border-border-primary my-1"></div>
-                    <button onClick={() => {setIsStyleModalOpen(true); setActivePopover(null);}} className="w-full text-left flex items-center p-2 rounded hover:bg-background-primary"><SettingsIcon className="mr-2 h-4 w-4"/> Input Box Setting</button>
+                    <button 
+                        onMouseDown={onMouseDownPopover}
+                        onClick={() => {setIsStyleModalOpen(true); setActivePopover(null);}} 
+                        className="w-full text-left flex items-center p-2 rounded hover:bg-background-primary">
+                        <SettingsIcon className="mr-2 h-4 w-4"/> Input Box Setting
+                    </button>
                 </div>
             </Popover>
             <InputStyleSettingModal isOpen={isStyleModalOpen} onClose={() => setIsStyleModalOpen(false)} onSettingsChange={onSettingsChange} currentStyle={settings.taskInputStyle} />

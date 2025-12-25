@@ -5,7 +5,7 @@ import { TasksPage } from './components/TasksPage';
 import { HabitPage } from './components/HabitPage';
 import { PomodoroPage } from './components/PomodoroPage';
 // FIX: Corrected import path casing.
-import { AnalyticsPage } from './components/analyticsPage';
+import { AnalyticsPage } from './components/AnalyticsPage.tsx';
 import { AchievementsPage } from './components/AchievementsPage';
 import { ProfilePage } from './components/ProfilePage';
 import { AIAssistantPage } from './components/AIAssistantPage';
